@@ -1,0 +1,52 @@
+---
+import { Image } from 'astro:assets';
+import { gallery } from '../../data/gallery';
+
+const photos = gallery.filter((g) => g.kind === 'photo').length;
+---
+
+<section class="section gallery theme-light" id="gallery" data-theme="light" data-chapter="gallery" aria-labelledby="gallery-heading">
+  <div class="wrap">
+    <header class="intro">
+      <p class="eyebrow"><b>08</b> Photo gallery</p>
+      <h2 class="t-h2" id="gallery-heading" data-reveal>Photo gallery</h2>
+      <p class="t-lead" data-reveal style="--i:1">
+        The real-world sequence: modules in transit, crane installations and completed handovers.
+        {photos === 0 && ' Site photography will be added here. Visualisations are marked as such.'}
+      </p>
+    </header>
+
+    <ul class="gallery__grid">
+      {
+        gallery.map((item, i) => (
+          <li class="gallery__item" data-reveal style={`--i:${i % 3}`}>
+            <figure>
+              {item.src ? (
+                <div class="gallery__frame">
+                  <Image
+                    src={item.src}
+                    alt={item.alt ?? item.caption}
+                    widths={[480, 800, 1328]}
+                    sizes="(max-width: 700px) 100vw, (max-width: 1100px) 50vw, 33vw"
+                    loading="lazy"
+                    decoding="async"
+                    quality={78}
+                  />
+                </div>
+              ) : (
+                <div class="gallery__frame gallery__frame--awaiting" style={`aspect-ratio:${item.ratio ?? 1.33}`}>
+                  <span class="t-label">Photograph to be added</span>
+                </div>
+              )}
+              <figcaption>
+                <span class="t-label gallery__cat">{item.category}</span>
+                <span class="gallery__cap">{item.caption}</span>
+                {item.kind === 'render' && <span class="t-label gallery__kind">Visualisation</span>}
+              </figcaption>
+            </figure>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>

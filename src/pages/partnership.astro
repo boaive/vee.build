@@ -1,0 +1,96 @@
+---
+import Base from '../layouts/Base.astro';
+import EnquiryForm from '../components/forms/EnquiryForm.tsx';
+import { partnerGroups } from '../data/partnership';
+---
+
+<Base
+  title="Partnership"
+  description="VEE.BUILD is looking for micro manufacturers, farmhouse promoters and local contractors to help expand its modular construction system."
+>
+  <section class="page-hero theme-light" data-theme="light">
+    <div class="wrap">
+      <p class="page-hero__meta"><span class="t-label">Partnership</span></p>
+      <h1 class="t-display">We are looking for partners to expand this construction system.</h1>
+      <p class="t-lead page-hero__lead">
+        Micro manufacturers, farmhouse promoters and local contractors. If you make, sell or install buildings, there is
+        a place for you in it.
+      </p>
+      <div class="page-hero__actions">
+        <a class="btn btn--down" href="#enquire">Start a partnership enquiry</a>
+        <a class="btn btn--ghost btn--plain" href="/#how-it-works">See how the system works</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section theme-light" data-theme="light" aria-labelledby="who-heading" style="padding-top:0">
+    <div class="wrap">
+      <h2 class="sr-only" id="who-heading">Who we work with</h2>
+      {
+        partnerGroups.map((g) => (
+          <article class="partner" id={g.id} data-reveal>
+            <span class="t-label partner__n">{g.n}</span>
+            <h3 class="partner__name">{g.name}</h3>
+            <div>
+              <p class="partner__role">{g.role}</p>
+              <p class="partner__works">{g.works}</p>
+            </div>
+            <div>
+              <p class="t-label partner__brings-title">What you bring</p>
+              <ul class="partner__brings">
+                {g.brings.map((b) => (
+                  <li>{b}</li>
+                ))}
+              </ul>
+            </div>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="section theme-dark" data-theme="dark" aria-labelledby="system-heading">
+    <div class="wrap split">
+      <div>
+        <p class="t-label section-head__index" style="margin-bottom:1.5rem">The system you work with</p>
+        <h2 class="t-h2" id="system-heading" data-reveal>Two shells. One sequence.</h2>
+        <p class="t-lead mute" style="margin-top:1.5rem;max-width:30rem" data-reveal>
+          Every partner works with the same standardised parts and the same order of work.
+        </p>
+        <p style="margin-top:2rem"><a class="link" href="/#components">Building components</a></p>
+      </div>
+      <ol class="steps-line">
+        <li data-reveal>
+          <h3>Manufacture</h3>
+          <p>Shell A (6 m × 3 m × 3 m) and Shell B (3 m × 3 m × 3 m) are cast in an open-air factory.</p>
+        </li>
+        <li data-reveal style="--i:1">
+          <h3>Foundation</h3>
+          <p>Plug footings, L plinths and jack piers are set on site.</p>
+        </li>
+        <li data-reveal style="--i:2">
+          <h3>Installation</h3>
+          <p>Shells are transported and lifted into place, side by side or stacked.</p>
+        </li>
+        <li data-reveal style="--i:3">
+          <h3>Add-ons</h3>
+          <p>Decks, handrails, steps, shades, sloped roofs and roof solar arrays complete the building.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section theme-dark" data-theme="dark" id="enquire" aria-labelledby="enquire-heading" style="padding-top:0">
+    <div class="wrap contact__grid">
+      <div>
+        <h2 class="contact__title" id="enquire-heading" data-reveal>
+          <span>Build with Vee<em>.</em></span>
+        </h2>
+        <p class="t-lead contact__lead mute" data-reveal style="--i:1">
+          Tell us who you are and where you operate, and what kind of partnership you have in mind.
+        </p>
+      </div>
+      <EnquiryForm client:visible variant="partnership" />
+    </div>
+  </section>
+</Base>

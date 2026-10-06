@@ -1,0 +1,20 @@
+---
+import Configurator from '../build/Configurator.tsx';
+---
+
+<section class="section build theme-light" id="configure" data-theme="light" data-chapter="configure" aria-labelledby="configure-heading">
+  <div class="wrap">
+    <header class="intro">
+      <p class="eyebrow"><b>05</b> Build your own</p>
+      <h2 class="t-h2" id="configure-heading" data-reveal>Design it, shell by shell.</h2>
+      <p class="t-lead" data-reveal style="--i:1">
+        Place Shell A and Shell B on the site, stack up to five floors and choose what the house needs. What you design
+        here goes with you through the factory and onto site.
+      </p>
+    </header>
+    <Configurator client:visible={{ rootMargin: '500px' }} />
+    <noscript>
+      <p class="t-lead">The configurator needs JavaScript. The catalogue below lists every model with its plan.</p>
+    </noscript>
+  </div>
+</section>

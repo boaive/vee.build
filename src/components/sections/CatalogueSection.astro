@@ -1,0 +1,18 @@
+---
+import Catalogue from './Catalogue.tsx';
+import { models } from '../../data/catalogue';
+---
+
+<section class="section catalogue theme-light" id="catalogue" data-theme="light" data-chapter="catalogue" aria-labelledby="catalogue-heading">
+  <div class="wrap">
+    <header class="intro">
+      <p class="eyebrow"><b>07</b> Catalogue</p>
+      <h2 class="t-h2" id="catalogue-heading" data-reveal>Catalogue</h2>
+      <p class="t-lead" data-reveal style="--i:1">
+        {models.length} models from {models[0].sqft} to {models[models.length - 1].sqft} sq.ft., each configured from
+        Shell A and Shell B.
+      </p>
+    </header>
+    <Catalogue client:visible={{ rootMargin: '300px' }} />
+  </div>
+</section>

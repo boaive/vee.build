@@ -1,0 +1,76 @@
+---
+import { primaryNav, sections, site } from '../../data/site';
+
+interface Props {
+  home?: boolean;
+}
+const { home = false } = Astro.props;
+const path = Astro.url.pathname;
+const isCurrent = (href: string) => !href.includes('#') && (href === '/' ? path === '/' : path.startsWith(href));
+---
+
+<header class="hdr" data-hdr>
+  <a class="brand" href="/" aria-label={`${site.name} — home`}>
+    <svg class="brand__mark" viewBox="0 0 34.5 12" aria-hidden="true">
+      <rect x="0.75" y="0.75" width="21" height="10.5"></rect>
+      <rect x="23.25" y="0.75" width="10.5" height="10.5"></rect>
+    </svg>
+    <span class="brand__word">VEE<i>.</i>BUILD</span>
+  </a>
+
+  <nav class="hdr__nav" aria-label="Primary">
+    {
+      primaryNav.map((item) => (
+        <a
+          class:list={['hdr__link', { 'hdr__link--cta': item.label === 'Contact' }]}
+          href={item.href}
+          aria-current={isCurrent(item.href) ? 'page' : undefined}
+        >
+          {item.label}
+        </a>
+      ))
+    }
+  </nav>
+
+  <button class="hdr__toggle" type="button" aria-expanded="false" aria-controls="site-menu" data-menu-toggle>
+    <span>Menu</span>
+    <span class="hdr__toggle-bars" aria-hidden="true"></span>
+  </button>
+</header>
+
+<div class="menu theme-dark" id="site-menu" data-menu inert>
+  <nav class="menu__primary" aria-label="Primary">
+    {
+      primaryNav.map((item) => (
+        <a href={item.href} aria-current={isCurrent(item.href) ? 'page' : undefined}>
+          {item.label}
+          <span>{item.note}</span>
+        </a>
+      ))
+    }
+  </nav>
+  {
+    home && (
+      <nav class="menu__sections" aria-label="On this page">
+        {sections.map((s) => (
+          <a href={`#${s.id}`}>
+            <span>{s.n}</span>
+            {s.label}
+          </a>
+        ))}
+      </nav>
+    )
+  }
+</div>
+
+{
+  home && (
+    <nav class="rail" aria-label="On this page" data-rail>
+      {sections.map((s) => (
+        <a href={`#${s.id}`} aria-label={`${s.n} ${s.label}`}>
+          <span aria-hidden="true">{s.n} · {s.label}</span>
+        </a>
+      ))}
+    </nav>
+  )
+}

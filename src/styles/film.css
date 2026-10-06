@@ -1,0 +1,780 @@
+/*
+ * Pinned, scroll-driven films. The stage and its captions are sticky; the
+ * caption changes in place when the step changes. Each section picks its
+ * own transition (data-captions), so no two read the same way.
+ */
+
+.film {
+  position: relative;
+  height: calc(var(--film-len) * 100svh);
+}
+
+.film__sticky {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+}
+
+.film__stage {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.2s var(--ease);
+}
+.film__stage.is-ready {
+  opacity: 1;
+}
+.film__stage canvas {
+  display: block;
+}
+
+/* Keeps the caption column legible where the scene runs behind it. */
+.film__stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgb(var(--scrim) / 0.82) 0%, rgb(var(--scrim) / 0.5) 25%, rgb(var(--scrim) / 0) 46%);
+  pointer-events: none;
+}
+
+.film__labels {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* HUD: head, captions and ticks, pinned with the stage. */
+.film__hud {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  max-width: var(--max);
+  margin-inline: auto;
+  padding: calc(var(--hdr) + clamp(1rem, 3vh, 2rem)) var(--gutter) clamp(1.5rem, 4vh, 2.75rem);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  pointer-events: none;
+}
+.film__hud a,
+.film__hud button {
+  pointer-events: auto;
+}
+
+.film__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.film__index {
+  color: var(--accent-ink);
+  font-weight: 500;
+}
+.film__index::after {
+  content: '';
+  display: inline-block;
+  width: 1.75rem;
+  height: 1px;
+  margin-left: 0.75rem;
+  vertical-align: middle;
+  background: var(--line-strong);
+}
+.film__heading {
+  font: inherit;
+  color: var(--mute);
+}
+
+/* ---------- Captions: stacked in one place ---------- */
+
+.film__steps {
+  display: grid;
+  align-content: center;
+  width: min(31rem, 38vw);
+}
+.film__step {
+  grid-area: 1 / 1;
+  display: grid;
+  gap: 1rem;
+  justify-items: start;
+  align-content: center;
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 0.45s var(--ease),
+    visibility 0s linear 0.45s,
+    filter 0.45s var(--ease),
+    clip-path 0.45s var(--ease),
+    transform 0.6s var(--ease);
+}
+.film__step.is-active {
+  visibility: visible;
+  opacity: 1;
+  transition:
+    opacity 0.8s var(--ease) 0.12s,
+    visibility 0s,
+    filter 0.9s var(--ease) 0.12s,
+    clip-path 1s var(--ease-out) 0.1s,
+    transform 0.9s var(--ease-out) 0.12s;
+}
+
+/* Blur: a cinematic dissolve (hero). */
+[data-captions='blur'] .film__step {
+  filter: blur(14px);
+  transform: scale(0.985);
+}
+[data-captions='blur'] .film__step.is-active {
+  filter: blur(0);
+  transform: none;
+}
+
+/* Wipe: revealed left to right, like a line being drawn (how it works). */
+[data-captions='wipe'] .film__step {
+  clip-path: inset(0 100% 0 0);
+}
+[data-captions='wipe'] .film__step.is-past {
+  clip-path: inset(0 0 0 100%);
+}
+[data-captions='wipe'] .film__step.is-active {
+  clip-path: inset(0 0 0 0);
+}
+
+/* Words: the title assembles word by word (components). */
+[data-captions='words'] .film__word {
+  display: inline-block;
+  opacity: 0;
+  filter: blur(6px);
+  transition:
+    opacity 0.3s var(--ease),
+    filter 0.3s var(--ease);
+}
+[data-captions='words'] .film__step.is-active .film__word {
+  opacity: 1;
+  filter: none;
+  transition:
+    opacity 0.6s var(--ease) calc(0.15s + var(--w) * 70ms),
+    filter 0.6s var(--ease) calc(0.15s + var(--w) * 70ms);
+}
+
+/* Slide: stations pass sideways, like the line itself (factory). */
+[data-captions='slide'] .film__step {
+  transform: translateX(2.5rem);
+}
+[data-captions='slide'] .film__step.is-past {
+  transform: translateX(-2.5rem);
+}
+[data-captions='slide'] .film__step.is-active {
+  transform: none;
+}
+
+/* Track: titles settle from wide tracking (installation). */
+[data-captions='track'] .film__title {
+  letter-spacing: 0.06em;
+  transition: letter-spacing 0.5s var(--ease);
+}
+[data-captions='track'] .film__step.is-active .film__title {
+  letter-spacing: -0.034em;
+  transition: letter-spacing 1.1s var(--ease-out) 0.1s;
+}
+
+.film__kicker {
+  color: var(--accent-ink);
+}
+.film__title {
+  font-size: clamp(2rem, 1.1rem + 2.7vw, 3.6rem);
+  font-weight: 630;
+  font-stretch: 104%;
+  line-height: 0.98;
+  letter-spacing: -0.034em;
+  text-wrap: balance;
+}
+.film__title[data-long] {
+  font-size: clamp(1.55rem, 1rem + 1.6vw, 2.45rem);
+  line-height: 1.04;
+  letter-spacing: -0.026em;
+}
+.film__body {
+  max-width: 27rem;
+  color: var(--text-2);
+  font-size: clamp(1.02rem, 0.96rem + 0.28vw, 1.18rem);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+.film__note {
+  max-width: 27rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.95rem;
+  color: var(--text-2);
+}
+.film__link {
+  margin-top: 0.15rem;
+}
+
+.film__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  max-width: 28rem;
+}
+.film__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2rem;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgb(var(--scrim) / 0.7);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mute);
+  transition:
+    color 0.3s var(--ease),
+    border-color 0.3s var(--ease),
+    background-color 0.3s var(--ease);
+}
+.film__tag::before {
+  content: '';
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  transition: background-color 0.3s var(--ease);
+}
+.film__tag.is-on {
+  color: var(--text);
+  border-color: var(--text);
+}
+.film__tag.is-on::before {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+button.film__tag:hover,
+button.film__tag:focus-visible {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+}
+
+.film__ticks {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.3rem;
+}
+.film__tick {
+  position: relative;
+  width: 1.6rem;
+  height: 2.5rem;
+}
+.film__tick::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.9rem;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--line-strong);
+  transition:
+    background-color 0.3s var(--ease),
+    transform 0.3s var(--ease);
+}
+.film__tick:hover::after {
+  background: var(--text);
+}
+.film__tick.is-active::after {
+  background: var(--accent);
+  transform: scaleY(1.6);
+}
+
+/* ---------- Labels placed from 3D ---------- */
+
+.lbl {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform, opacity;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--text);
+}
+.lbl > span {
+  position: absolute;
+  display: block;
+}
+
+/* Dimension: centred on its point, sits on the dimension line. */
+.lbl--dim > span {
+  transform: translate(-50%, -50%);
+  padding: 0.3rem 0.45rem;
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--accent-ink);
+  font-weight: 500;
+  font-size: 0.72rem;
+}
+
+/* Callout: a tick rising from the point, text above it. */
+.lbl--call > span {
+  bottom: 2.1rem;
+  left: 0;
+  transform: translateX(-50%);
+  padding: 0.4rem 0.6rem;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg);
+}
+.lbl--call::before {
+  content: '';
+  position: absolute;
+  left: -0.5px;
+  bottom: 0.25rem;
+  width: 1px;
+  height: 1.85rem;
+  background: var(--text);
+}
+.lbl--call::after {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Name plate: larger, no leader. */
+.lbl--name > span {
+  transform: translate(-50%, -50%);
+  display: grid;
+  gap: 0.3rem;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--text);
+}
+
+/* Pulsing marker with a label to the right. */
+.lbl--pulse > span {
+  left: 1.1rem;
+  top: -0.6rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg);
+}
+.lbl--pulse::before,
+.lbl--pulse::after {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.lbl--pulse::after {
+  background: none;
+  border: 1px solid var(--accent);
+  animation: lbl-pulse 2.2s var(--ease-out) infinite;
+}
+.lbl--pulse > span:empty {
+  display: none;
+}
+@keyframes lbl-pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(3.6);
+    opacity: 0;
+  }
+}
+
+/* ---------- Prelude: a title card that opens onto the film ---------- */
+
+.film__prelude {
+  --open: clamp(0, (var(--pre, 0) - 0.32) / 0.6, 1);
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--hdr) + 1rem) var(--gutter) 4rem;
+  background: #f2f0eb;
+  color: #111214;
+  clip-path: inset(calc(var(--open) * 50%) 0 calc(var(--open) * 50%) 0);
+  pointer-events: none;
+}
+.film__prelude--ink {
+  background: #0a0b0d;
+  color: #f2f0eb;
+}
+.film__prelude-inner {
+  width: min(100%, 76rem);
+  opacity: clamp(0, 1 - var(--pre, 0) * 2.4, 1);
+  transform: translateY(calc(var(--pre, 0) * -10vh)) scale(calc(1 - var(--pre, 0) * 0.05));
+  will-change: transform, opacity;
+}
+.film__prelude-cue {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(1.25rem, 4vh, 2.5rem);
+  display: grid;
+  justify-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: clamp(0, 1 - var(--pre, 0) * 6, 1);
+  transform: translateX(-50%);
+}
+.film__prelude-cue::after {
+  content: '';
+  width: 1px;
+  height: 2.6rem;
+  background: currentColor;
+  transform-origin: top;
+  animation: cue 2.4s var(--ease-out) infinite;
+}
+@keyframes cue {
+  0% {
+    transform: scaleY(0);
+    opacity: 1;
+  }
+  60% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 0;
+  }
+}
+
+/* The scene comes into focus as the card opens; captions follow. */
+.has-prelude .film__stage {
+  transform: scale(calc(1 + (1 - var(--pre, 0)) * 0.07));
+  transform-origin: 60% 55%;
+}
+.has-prelude .film__hud {
+  opacity: clamp(0, (var(--pre, 0) - 0.72) / 0.28, 1);
+}
+
+.prelude {
+  display: grid;
+  gap: clamp(1.25rem, 3vh, 2rem);
+  justify-items: start;
+}
+.prelude__kicker {
+  color: var(--accent);
+}
+.prelude__line {
+  font-size: clamp(3rem, 1rem + 8vw, 9.5rem);
+  font-weight: 640;
+  font-stretch: 104%;
+  line-height: 0.9;
+  letter-spacing: -0.05em;
+  text-wrap: balance;
+}
+.prelude__line em {
+  font-style: normal;
+  color: var(--accent);
+}
+.prelude__sub {
+  max-width: 34rem;
+  font-size: clamp(1.05rem, 0.95rem + 0.5vw, 1.4rem);
+  line-height: 1.4;
+  opacity: 0.72;
+}
+
+/* ---------- Hero ---------- */
+
+/* The hero's sky is plain enough to read on: no scrim. */
+.film--hero .film__stage::after {
+  display: none;
+}
+.film--hero .film__steps {
+  width: min(44rem, 52vw);
+  align-content: start;
+  padding-top: clamp(1rem, 6vh, 4.5rem);
+}
+.film--hero .film__step {
+  gap: 1.25rem;
+  align-content: start;
+}
+.film--hero .film__title {
+  font-size: clamp(2.6rem, 1rem + 5.4vw, 6.4rem);
+  line-height: 0.93;
+  letter-spacing: -0.042em;
+}
+.film--hero .film__title[data-long] {
+  max-width: 17ch;
+  font-size: clamp(1.9rem, 1rem + 2.9vw, 3.7rem);
+  line-height: 0.98;
+}
+.film--hero .film__body {
+  font-size: clamp(1.08rem, 1rem + 0.45vw, 1.35rem);
+  max-width: 31rem;
+}
+.film--hero .film__heading {
+  color: var(--text-2);
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* ---------- Footprint counter (how it works) ---------- */
+
+.counter {
+  position: absolute;
+  right: var(--gutter);
+  bottom: clamp(1.5rem, 4vh, 2.75rem);
+  display: grid;
+  justify-items: end;
+  gap: 0.35rem;
+  opacity: 0;
+  transition: opacity 0.4s var(--ease);
+}
+.counter.is-on {
+  opacity: 1;
+}
+.counter__value {
+  font-size: clamp(3rem, 2rem + 5vw, 7rem);
+  font-weight: 600;
+  font-stretch: 108%;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.counter__value small {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-left: 0.5rem;
+  color: var(--mute);
+}
+.counter__meta {
+  display: flex;
+  gap: 1.25rem;
+  color: var(--mute);
+}
+.counter__scale {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+.counter__scale span {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--mute);
+  padding-top: 0.5rem;
+  border-top: 2px solid var(--line);
+  min-width: 2.2rem;
+  transition:
+    color 0.3s var(--ease),
+    border-color 0.3s var(--ease);
+}
+.counter__scale span.is-on {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* ---------- Live build summary (your house) ---------- */
+
+.film__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.5rem;
+  margin-top: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.film__stats b {
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* ---------- Compact: the same layout, captions at the foot of the scene ---------- */
+
+@media (max-width: 860px) {
+  .film {
+    height: calc(var(--film-len-c) * 100svh);
+  }
+  .film__stage::after {
+    background:
+      linear-gradient(0deg, rgb(var(--scrim) / 0.96) 0%, rgb(var(--scrim) / 0.8) 30%, rgb(var(--scrim) / 0) 56%),
+      linear-gradient(180deg, rgb(var(--scrim) / 0.7) 0%, rgb(var(--scrim) / 0) 18%);
+  }
+  .film--hero .film__stage::after {
+    display: block;
+    background: linear-gradient(0deg, rgb(var(--scrim) / 0.55) 0%, rgb(var(--scrim) / 0) 50%);
+  }
+  .film__hud {
+    padding-bottom: 1.25rem;
+  }
+  .film__head {
+    font-size: 0.66rem;
+  }
+  .film__index::after {
+    width: 1rem;
+    margin-left: 0.5rem;
+  }
+  .film__steps,
+  .film--hero .film__steps {
+    width: auto;
+    max-width: 34rem;
+    align-content: end;
+  }
+  .film__step {
+    gap: 0.75rem;
+    align-content: end;
+  }
+  .film__ticks {
+    display: none;
+  }
+  .film__title {
+    font-size: clamp(1.75rem, 7.4vw, 2.4rem);
+  }
+  .film__title[data-long] {
+    font-size: clamp(1.35rem, 5.6vw, 1.8rem);
+  }
+  .film--hero .film__title {
+    font-size: clamp(2.4rem, 11vw, 3.4rem);
+  }
+  .film--hero .film__title[data-long] {
+    font-size: clamp(1.5rem, 6.4vw, 2.1rem);
+  }
+  .film__body,
+  .film--hero .film__body {
+    font-size: 1rem;
+  }
+  .film__note {
+    font-size: 0.9rem;
+    padding-top: 0.6rem;
+  }
+  .film__tags {
+    gap: 0.3rem;
+  }
+  .film__tag {
+    min-height: 1.75rem;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.62rem;
+  }
+  .counter {
+    top: calc(var(--hdr) + 2.6rem);
+    bottom: auto;
+    gap: 0.2rem;
+  }
+  .counter__value {
+    font-size: 2.6rem;
+  }
+  .counter__scale {
+    display: none;
+  }
+  .lbl {
+    font-size: 0.6rem;
+  }
+  .lbl--dim > span {
+    font-size: 0.64rem;
+  }
+}
+
+/* ---------- Without JavaScript: plain document flow ---------- */
+
+.no-js .film {
+  height: auto;
+}
+.no-js .film__sticky {
+  position: relative;
+  height: auto;
+}
+.no-js .film__stage,
+.no-js .film__ticks,
+.no-js .counter,
+.no-js .film__prelude-cue {
+  display: none;
+}
+.no-js .film__prelude {
+  position: relative;
+  min-height: 80svh;
+  clip-path: none;
+}
+.no-js .film__prelude-inner {
+  opacity: 1;
+  transform: none;
+}
+.no-js .film__hud {
+  position: static;
+  display: block;
+  padding-block: calc(var(--hdr) + 3rem) 5rem;
+}
+.no-js .film__steps {
+  display: grid;
+  gap: 3rem;
+  width: auto;
+  margin-top: 2rem;
+}
+.no-js .film__step {
+  grid-area: auto;
+  visibility: visible;
+  opacity: 1;
+  filter: none;
+  clip-path: none;
+  transform: none;
+}
+.no-js .film__word {
+  opacity: 1;
+  filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .film__prelude-cue::after {
+    animation: none;
+  }
+  .film__step,
+  .film__stage,
+  .film__word {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+  }
+  .lbl--pulse::after {
+    animation: none;
+    transform: scale(2);
+    opacity: 0.5;
+  }
+}
+
+/* Reduced motion (or ?still): no fades, settled poses only. */
+.is-still .film__stage,
+.is-still .film__step,
+.is-still .film__word,
+.is-still .showcase__stage {
+  transition: none !important;
+}

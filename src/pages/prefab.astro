@@ -1,0 +1,78 @@
+---
+import Base from '../layouts/Base.astro';
+import Showcase from '../components/sections/Showcase.tsx';
+import EnquiryForm from '../components/forms/EnquiryForm.tsx';
+---
+
+<Base
+  title="Prefab building — coming soon"
+  description="VEE.BUILD prefab buildings: insulated G+1 workforce housing and G+2 institutional buildings with 36′ precast wall panels. Coming soon."
+>
+  <section class="page-hero theme-light" data-theme="light">
+    <div class="wrap">
+      <p class="page-hero__meta"><span class="badge">Coming soon</span><span class="t-label">Prefab</span></p>
+      <h1 class="t-display">Prefab building</h1>
+      <p class="t-lead page-hero__lead">
+        Insulated and comfortable living for your workforce. Rapidly deployed, heavy-duty employee living
+        infrastructure.
+      </p>
+      <div class="page-hero__actions">
+        <a class="btn btn--down" href="#register">Discuss a project</a>
+        <a class="btn btn--ghost btn--plain" href="/#factory">See how it is made</a>
+      </div>
+    </div>
+  </section>
+
+  <Showcase
+    client:load
+    kind="workforce"
+    description="A ground plus one workforce accommodation block built from stacked modules, with an access gallery and stair. A crane lowers the final module into place."
+    note="Workforce housing · G+1 · real-time model"
+  />
+
+  <section class="section theme-light" data-theme="light">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="t-label section-head__index">Building types</p>
+        <h2 class="t-h2" data-reveal>Two scales of prefab.</h2>
+        <p class="t-lead section-head__lead" data-reveal style="--i:1">
+          Details, layouts and availability will be published on this page at launch.
+        </p>
+      </header>
+      <ul class="facts">
+        <li data-reveal>
+          <span class="t-label">01</span>
+          <h3>Workforce housing · G+1</h3>
+          <p>Insulated accommodation for labour and site teams, lifted into place module by module.</p>
+        </li>
+        <li data-reveal style="--i:1">
+          <span class="t-label">02</span>
+          <h3>Institutional · G+2</h3>
+          <p>
+            Schools and similar facilities assembled from 36′ long prefab / precast wall panels. Lean, clean, resilient,
+            environmentally friendly buildings for future generations.
+          </p>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <Showcase
+    client:visible
+    kind="institutional"
+    description="A ground plus two institutional building. Two 36 foot precast wall panels glide into position on its facade."
+    note="Institutional · G+2 · 36′ wall panels · real-time model"
+  />
+
+  <section class="section theme-dark" data-theme="dark" id="register" aria-labelledby="register-heading">
+    <div class="wrap contact__grid">
+      <div>
+        <h2 class="t-h2" id="register-heading" data-reveal>Discuss a prefab project.</h2>
+        <p class="t-lead contact__lead mute" data-reveal style="--i:1">
+          Tell us the headcount or floor area you need, and where the site is.
+        </p>
+      </div>
+      <EnquiryForm client:visible variant="contact" preset="Prefab Services" />
+    </div>
+  </section>
+</Base>

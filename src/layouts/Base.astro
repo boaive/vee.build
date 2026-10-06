@@ -1,0 +1,262 @@
+---
+import '../styles/tokens.css';
+import '../styles/base.css';
+import '../styles/film.css';
+import '../styles/sections.css';
+import '../styles/build.css';
+import '../styles/journey.css';
+import archivo from '@fontsource-variable/archivo/files/archivo-latin-standard-normal.woff2?url';
+import dmMono from '@fontsource/dm-mono/files/dm-mono-latin-400-normal.woff2?url';
+import Header from '../components/site/Header.astro';
+import Footer from '../components/site/Footer.astro';
+import { site } from '../data/site';
+
+interface Props {
+  title: string;
+  description?: string;
+  /** Shows the section rail and section links in the mobile menu. */
+  home?: boolean;
+  /** Loading screen until the first film has drawn (pages that open on 3D). */
+  boot?: boolean;
+}
+
+const { title, description = site.description, home = false, boot = false } = Astro.props;
+
+/*
+ * Boot screen: shown before any bundle runs, it tracks the fonts and the
+ * first film's first frame (`vee:film-ready`), then dissolves into the
+ * page. It never holds a visitor longer than 14 s, and ?still skips it.
+ * A page reloaded part-way down has the hero off screen, where it draws
+ * nothing: there is no first frame to wait for, so the screen lifts at once.
+ */
+const bootScript = `(function () {
+  var el = document.querySelector('[data-boot]');
+  if (!el) return;
+  var q = new URLSearchParams(location.search);
+  if (q.has('still') || q.has('noboot')) { el.remove(); return; }
+  var root = document.documentElement;
+  root.classList.add('is-booting');
+  var bar = el.querySelector('[data-boot-bar]');
+  var pct = el.querySelector('[data-boot-pct]');
+  var msg = el.querySelector('[data-boot-msg]');
+  var msgs = ['Preparing the site', 'Setting the foundation', 'Lifting the shells', 'Setting the light'];
+  var t0 = performance.now(), shown = 0, target = 0.06, fonts = false, ready = false, finished = false;
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fonts = true; });
+  else fonts = true;
+  addEventListener('vee:film-ready', function (e) { if (e.detail === 'overview') ready = true; });
+  var hero = document.getElementById('overview');
+  function finish() {
+    if (finished) return;
+    finished = true;
+    el.classList.add('is-done');
+    root.classList.remove('is-booting');
+    dispatchEvent(new CustomEvent('vee:booted'));
+    setTimeout(function () { el.remove(); }, 1100);
+  }
+  function frame(now) {
+    var t = (now - t0) / 1000;
+    if (!ready && t > 0.4) {
+      hero = hero || document.getElementById('overview');
+      if (hero && hero.getBoundingClientRect().bottom <= 0) ready = true;
+    }
+    var wait = 0.9 * (1 - Math.exp(-t / 2.4));
+    target = ready && (fonts || t > 3) ? 1 : Math.max(target, fonts ? wait : wait * 0.85);
+    shown += (target - shown) * (target === 1 ? 0.2 : 0.08);
+    if (bar) bar.style.transform = 'scaleX(' + shown.toFixed(3) + ')';
+    if (pct) pct.textContent = Math.min(100, Math.round(shown * 100)) + '%';
+    if (msg) msg.textContent = msgs[Math.min(msgs.length - 1, Math.floor(shown * msgs.length))];
+    el.style.setProperty('--boot', shown.toFixed(3));
+    if ((target === 1 && shown > 0.992) || t > 14) return finish();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();`;
+const canonical = new URL(Astro.url.pathname, Astro.site ?? site.url).href;
+const ogImage = new URL('/og.png', Astro.site ?? site.url).href;
+const fullTitle = title.includes(site.name) ? title : `${title} — ${site.name}`;
+
+// Dev only: ?go=<section-id>:<0-1> jumps a film to a pose (pair with ?still for screenshots).
+const qaScript = `(function () {
+  var go = new URLSearchParams(location.search).get('go');
+  if (!go) return;
+  var id = go.split(':')[0], p = parseFloat(go.split(':')[1]) || 0;
+  addEventListener('load', function () {
+    setTimeout(function () {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var pin = el.querySelector('.film__sticky');
+      var top = el.getBoundingClientRect().top + scrollY;
+      document.documentElement.style.scrollBehavior = 'auto';
+      scrollTo(0, pin ? top + p * (el.offsetHeight - pin.offsetHeight) : top + p);
+    }, 400);
+  });
+})();`;
+
+const organisation = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: site.name,
+  url: site.url,
+  description: site.description,
+  ...(site.contact.email ? { email: site.contact.email } : {}),
+  ...(site.contact.phone ? { telephone: site.contact.phone } : {}),
+};
+---
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <script is:inline>
+      document.documentElement.classList.replace('no-js', 'js');
+    </script>
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta name="theme-color" content="#eceae4" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href={archivo} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={dmMono} as="font" type="font/woff2" crossorigin />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:locale" content={site.locale} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <script type="application/ld+json" is:inline set:html={JSON.stringify(organisation)} />
+  </head>
+  <body>
+    {
+      boot && (
+        <div class="boot" data-boot aria-hidden="true">
+          <div class="boot__inner">
+            <svg class="boot__mark" viewBox="0 0 34.5 12">
+              <rect class="boot__a" x="0.75" y="0.75" width="21" height="10.5" pathLength="100" />
+              <rect class="boot__b" x="23.25" y="0.75" width="10.5" height="10.5" pathLength="100" />
+            </svg>
+            <p class="boot__word">
+              VEE<i>.</i>BUILD
+            </p>
+            <div class="boot__bar">
+              <span data-boot-bar />
+            </div>
+            <p class="boot__meta">
+              <span data-boot-msg>Preparing the site</span>
+              <span data-boot-pct>0%</span>
+            </p>
+          </div>
+        </div>
+      )
+    }
+    {boot && <script is:inline set:html={bootScript} />}
+    {import.meta.env.DEV && <script is:inline set:html={qaScript} />}
+    <div data-top aria-hidden="true" style="position:absolute;top:0;left:0;width:1px;height:24px;pointer-events:none"></div>
+    <a class="skip" href="#main">Skip to content</a>
+    <Header home={home} />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer />
+
+    <script>
+      // Header: solid once the page has moved, themed by the chapter beneath it.
+      // Watched with an observer on a 24px marker at the top of the page, so scrolling itself runs no script here.
+      const hdr = document.querySelector<HTMLElement>('[data-hdr]');
+      const top = document.querySelector<HTMLElement>('[data-top]');
+      if (hdr && top) new IntersectionObserver(([e]) => hdr.classList.toggle('is-solid', !e.isIntersecting)).observe(top);
+
+      const railEl = document.querySelector<HTMLElement>('[data-rail]');
+      let chapterTheme: string | undefined;
+      const setTheme = (t: string | undefined, remember = true) => {
+        if (remember) chapterTheme = t;
+        const dark = t === 'dark';
+        hdr?.classList.toggle('theme-dark', dark);
+        hdr?.classList.toggle('theme-light', !dark);
+        railEl?.classList.toggle('is-dark', dark);
+      };
+      const themed = document.querySelectorAll<HTMLElement>('[data-theme]');
+      if (themed.length) {
+        const under = new IntersectionObserver(
+          (entries) => {
+            for (const e of entries) if (e.isIntersecting) setTheme((e.target as HTMLElement).dataset.theme);
+          },
+          { rootMargin: '0px 0px -94% 0px' },
+        );
+        themed.forEach((el) => under.observe(el));
+        // A film step can switch its section's theme while it stays under the header.
+        window.addEventListener('vee:theme', () => {
+          const y = (hdr?.offsetHeight ?? 56) / 2;
+          for (const el of themed) {
+            const r = el.getBoundingClientRect();
+            if (r.top <= y && r.bottom > y) {
+              setTheme(el.dataset.theme);
+              break;
+            }
+          }
+        });
+      }
+
+      // Mobile menu.
+      const toggle = document.querySelector<HTMLButtonElement>('[data-menu-toggle]');
+      const menu = document.querySelector<HTMLElement>('[data-menu]');
+      const setMenu = (open: boolean) => {
+        if (!toggle || !menu) return;
+        toggle.setAttribute('aria-expanded', String(open));
+        menu.classList.toggle('is-open', open);
+        menu.toggleAttribute('inert', !open);
+        document.documentElement.style.overflow = open ? 'hidden' : '';
+        hdr?.classList.toggle('is-solid', open || window.scrollY > 24);
+        setTheme(open ? 'dark' : chapterTheme, false);
+      };
+      toggle?.addEventListener('click', () => setMenu(toggle.getAttribute('aria-expanded') !== 'true'));
+      menu?.addEventListener('click', (e) => {
+        if ((e.target as HTMLElement).closest('a')) setMenu(false);
+      });
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && toggle?.getAttribute('aria-expanded') === 'true') {
+          setMenu(false);
+          toggle.focus();
+        }
+      });
+      window.matchMedia('(min-width: 861px)').addEventListener('change', (e) => e.matches && setMenu(false));
+
+      // Reveal document-flow content as it enters.
+      const reveal = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (!e.isIntersecting) continue;
+            e.target.classList.add('is-in');
+            reveal.unobserve(e.target);
+          }
+        },
+        { rootMargin: '0px 0px -12% 0px', threshold: 0.05 },
+      );
+      document.querySelectorAll('[data-reveal]').forEach((el) => reveal.observe(el));
+
+      // Section rail: mark the chapter under the middle of the viewport.
+      const rail = [...document.querySelectorAll<HTMLAnchorElement>('[data-rail] a')];
+      if (rail.length) {
+        const byId = new Map(rail.map((a) => [a.hash.slice(1), a]));
+        const spy = new IntersectionObserver(
+          (entries) => {
+            for (const e of entries) {
+              if (!e.isIntersecting) continue;
+              const id = (e.target as HTMLElement).dataset.chapter ?? e.target.id;
+              rail.forEach((a) => a.classList.remove('is-current'));
+              byId.get(id)?.classList.add('is-current');
+            }
+          },
+          { rootMargin: '-50% 0px -50% 0px' },
+        );
+        document.querySelectorAll<HTMLElement>('[data-chapter]').forEach((el) => spy.observe(el));
+      }
+    </script>
+  </body>
+</html>

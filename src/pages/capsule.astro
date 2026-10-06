@@ -1,0 +1,73 @@
+---
+import Base from '../layouts/Base.astro';
+import Showcase from '../components/sections/Showcase.tsx';
+import EnquiryForm from '../components/forms/EnquiryForm.tsx';
+
+// Lengths are the only capsule dimensions in the brief; nothing else is stated.
+const pods = [
+  { n: '01', name: '10′ long', note: 'The shortest of the three pods.' },
+  { n: '02', name: '16′ long', note: 'The mid-length pod.' },
+  { n: '03', name: '20′ long', note: 'The longest of the three pods.' },
+];
+---
+
+<Base
+  title="Capsule home — coming soon"
+  description="VEE.BUILD capsule pods in three lengths: 10′, 16′ and 20′. Coming soon. Register your interest."
+>
+  <section class="page-hero theme-light" data-theme="light">
+    <div class="wrap">
+      <p class="page-hero__meta"><span class="badge">Coming soon</span><span class="t-label">Capsule</span></p>
+      <h1 class="t-display">Capsule home</h1>
+      <p class="t-lead page-hero__lead">
+        Live a sci-fi life. Luxury pods engineered for tomorrow, in three lengths: 10′, 16′ and 20′.
+      </p>
+      <div class="page-hero__actions">
+        <a class="btn btn--down" href="#register">Register interest</a>
+        <a class="btn btn--ghost btn--plain" href="/">See the modular system</a>
+      </div>
+    </div>
+  </section>
+
+  <Showcase
+    client:load
+    kind="capsule"
+    description="Three matte-white capsule pods lined up side by side, labelled 10 feet, 16 feet and 20 feet long."
+    note="Real-time model · proportions indicative"
+  />
+
+  <section class="section theme-light" data-theme="light">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="t-label section-head__index">Range</p>
+        <h2 class="t-h2" data-reveal>Three lengths.</h2>
+        <p class="t-lead section-head__lead" data-reveal style="--i:1">
+          Specifications, interiors and availability will be published on this page at launch.
+        </p>
+      </header>
+      <ul class="facts">
+        {
+          pods.map((p, i) => (
+            <li data-reveal style={`--i:${i}`}>
+              <span class="t-label">{p.n}</span>
+              <h3>{p.name}</h3>
+              <p>{p.note}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <section class="section theme-dark" data-theme="dark" id="register" aria-labelledby="register-heading">
+    <div class="wrap contact__grid">
+      <div>
+        <h2 class="t-h2" id="register-heading" data-reveal>Register interest in a capsule pod.</h2>
+        <p class="t-lead contact__lead mute" data-reveal style="--i:1">
+          Tell us which length you are considering and where it would go.
+        </p>
+      </div>
+      <EnquiryForm client:visible variant="contact" preset="Capsule Pod" />
+    </div>
+  </section>
+</Base>

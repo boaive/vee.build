@@ -1,0 +1,467 @@
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import type { SceneProps } from '../film/progress';
+import { ATMOS, patchAtmosphere } from './kit/atmosphere';
+import { SkyDome } from './kit/env';
+import { LOOKS, type Look, type LookName } from './kit/looks';
+import Post, { NEUTRAL_GRADE, type PostOptions } from './kit/post';
+import { createPhysicalSky, horizonHaze, paintPhysicalSky } from './kit/sky';
+import { groundGrain } from './kit/textures';
+
+patchAtmosphere();
+
+export interface StageOptions {
+  /** Lighting and atmosphere preset. Scenes can change it later with rig.setLook. */
+  look?: LookName;
+  /** Where the camera's look target lands on screen, 0–1 from top-left. */
+  focus?: [number, number];
+  focusCompact?: [number, number];
+  /** Half-size of the area the key light shadows, in metres. */
+  shadowExtent?: number;
+  /**
+   * shadow: shadow-only plane on a transparent canvas.
+   * floor: a studio floor in the background colour that fades into it.
+   * land: plain open ground under the sky.
+   * none: the scene brings its own ground.
+   */
+  ground?: 'shadow' | 'floor' | 'land' | 'none';
+  shadowOpacity?: number;
+  /** Overrides the look's fog distances. */
+  fogRange?: [number, number];
+  sunIntensity?: number;
+  envIntensity?: number;
+  exposure?: number;
+  localClipping?: boolean;
+  /** Photographic finish (AO, bloom, grade). `false` renders straight to the screen. */
+  post?: PostOptions | false;
+  /** Lighter finish on small screens: no AO. */
+  postCompact?: PostOptions | false;
+}
+
+/** Shared with the scene: where to shadow, and the current mood. */
+export interface Rig {
+  lightTarget: THREE.Vector3;
+  look: Look;
+  /** Retune sky, haze and lights in place (no rebuild). */
+  setLook: (look: Look, fogRange?: [number, number]) => void;
+  /** Build a look's environment map ahead of time, so switching to it later is instant. */
+  prepare: (look: Look) => void;
+  /** Write this stage's values into the uniforms every stage shares, before it draws. */
+  sync: () => void;
+  /**
+   * Send what is about to come into shot to the GPU ahead of time. `arrange`
+   * shows it (and may move the camera) and returns the undo; the scene is
+   * drawn once into a tiny off-screen target, so buffers, textures and
+   * shaders are in place before the visitor gets there. Call it when the
+   * page is quiet: it is one long task.
+   */
+  warm: (arrange: () => () => void) => void;
+  /** True while the finish is still compiling shaders: nothing has been drawn yet. */
+  holding: boolean;
+}
+
+interface StageProps extends SceneProps, StageOptions {
+  children: (rig: Rig) => ReactNode;
+}
+
+const _sun = new THREE.Vector3();
+
+type V4 = [number, number, number, number];
+interface Haze {
+  sun: V4;
+  toward: V4;
+  away: V4;
+  /** Fog colour matched to the sky, or null for a flat studio fog. */
+  color: THREE.Color | null;
+}
+
+/** Directional haze from the sky model (outdoors) or the flat studio colour. */
+function hazeOf(l: Look): Haze {
+  if (l.sky) {
+    const h = horizonHaze(l.sun.dir, l.sky);
+    _sun.set(l.sun.dir[0], 0, l.sun.dir[2]).normalize();
+    return {
+      sun: [_sun.x, 0, _sun.z, h.power],
+      toward: [h.toward.r, h.toward.g, h.toward.b, l.fog?.thin ?? 0.8],
+      away: [h.away.r, h.away.g, h.away.b, 1],
+      color: h.away.clone(),
+    };
+  }
+  return { sun: [0, 0, 1, 8], toward: [1, 1, 1, 0], away: [1, 1, 1, 0], color: null };
+}
+
+/**
+ * The haze uniforms are one set of objects shared by every material on the
+ * page (see atmosphere.ts), and several stages can be mounted at once. Each
+ * stage writes its own values just before it draws.
+ */
+function writeHaze(h: Haze) {
+  const put = (t: { x: number; y: number; z: number; w: number }, v: V4) => {
+    t.x = v[0];
+    t.y = v[1];
+    t.z = v[2];
+    t.w = v[3];
+  };
+  put(ATMOS.sun, h.sun);
+  put(ATMOS.toward, h.toward);
+  put(ATMOS.away, h.away);
+}
+
+function Setup({
+  progress,
+  compact,
+  active,
+  onReady,
+  focus = [0.5, 0.5],
+  focusCompact = [0.5, 0.5],
+  shadowExtent = 30,
+  ground = 'shadow',
+  shadowOpacity,
+  fogRange,
+  sunIntensity,
+  envIntensity,
+  exposure,
+  localClipping = false,
+  rig,
+}: StageProps & { rig: Rig }) {
+  const { gl, scene, camera, size, invalidate, advance, get } = useThree();
+  const light = useRef<THREE.DirectionalLight>(null);
+  const hemi = useRef<THREE.HemisphereLight>(null);
+  const fill = useRef<THREE.DirectionalLight>(null);
+  const dome = useRef<THREE.Mesh>(null);
+  const frames = useRef(0);
+  const sunDir = useRef(new THREE.Vector3());
+  const initial = useRef(rig.look).current;
+  const sky = useMemo(() => createPhysicalSky((initial.sky ?? LOOKS.day.sky)!, initial.sun.dir), [initial]);
+  const landMat = useMemo(() => {
+    // Its texture is drawn on the main thread: only for the stages that show open ground.
+    const map = ground === 'land' ? groundGrain() : null;
+    const c = map?.clone() ?? null;
+    if (c) {
+      c.repeat.set(54, 54);
+      c.needsUpdate = true;
+    }
+    return new THREE.MeshStandardMaterial({ color: '#7e7e52', roughness: 1, map: c });
+  }, [ground]);
+  const floorMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#0a0b0d', roughness: 0.42, metalness: 0 }), []);
+  const shadowMat = useMemo(() => new THREE.ShadowMaterial({ transparent: true }), []);
+
+  /*
+   * Environment maps. Under a sky, light and reflections come from that sky
+   * (sun disc hidden, the directional light carries the sun); studios use a
+   * neutral room. One map per look, made once and kept, so a scene that
+   * moves between looks (the hero) pays for each only the first time.
+   */
+  const envs = useRef<{ pmrem: THREE.PMREMGenerator | null; maps: Map<Look | 'room', THREE.WebGLRenderTarget>; warm: THREE.WebGLRenderTarget | null }>({
+    pmrem: null,
+    maps: new Map(),
+    warm: null,
+  });
+  const haze = useRef<Haze>(hazeOf(initial));
+  const envFor = (l: Look): THREE.Texture => {
+    const store = envs.current;
+    const key = l.sky ? l : 'room';
+    const hit = store.maps.get(key);
+    if (hit) return hit.texture;
+    const pmrem = (store.pmrem ??= new THREE.PMREMGenerator(gl));
+    let made: THREE.WebGLRenderTarget;
+    if (l.sky) {
+      const scene2 = new THREE.Scene();
+      const skyMat = createPhysicalSky({ ...l.sky, disc: 0 }, l.sun.dir);
+      const domeGeo = new THREE.SphereGeometry(10, 48, 24);
+      scene2.add(new THREE.Mesh(domeGeo, skyMat));
+      made = pmrem.fromScene(scene2, 0.025);
+      domeGeo.dispose();
+      skyMat.dispose();
+    } else {
+      const room = new RoomEnvironment();
+      made = pmrem.fromScene(room, 0.04);
+      room.traverse((o) => {
+        const m = o as THREE.Mesh;
+        m.geometry?.dispose();
+        (m.material as THREE.Material | undefined)?.dispose?.();
+      });
+    }
+    store.maps.set(key, made);
+    return made.texture;
+  };
+
+  useLayoutEffect(() => {
+    gl.toneMapping = THREE.ACESFilmicToneMapping;
+    gl.localClippingEnabled = localClipping;
+    // Reading back each shader's link log makes the page wait for the compiler. Development only.
+    gl.debug.checkShaderErrors = import.meta.env.DEV;
+    const held = envs.current;
+    return () => {
+      scene.environment = null;
+      held.maps.forEach((t) => t.dispose());
+      held.maps.clear();
+      held.pmrem?.dispose();
+      held.pmrem = null;
+      held.warm?.dispose();
+      held.warm = null;
+    };
+  }, [gl, scene, localClipping]);
+
+  /* Mood: everything a look controls, applied in place. */
+  useLayoutEffect(() => {
+    rig.sync = () => writeHaze(haze.current);
+    rig.prepare = (l: Look) => void envFor(l);
+    rig.warm = (arrange) => {
+      const store = envs.current;
+      // Same kind of target as the finish draws into, so the same shader variants are used.
+      const target = (store.warm ??= new THREE.WebGLRenderTarget(64, 36, { type: THREE.HalfFloatType }));
+      const pos = camera.position.clone();
+      const rot = camera.quaternion.clone();
+      const undo = arrange();
+      camera.updateMatrixWorld();
+      rig.sync();
+      const before = gl.getRenderTarget();
+      gl.setRenderTarget(target);
+      gl.render(scene, camera);
+      gl.setRenderTarget(before);
+      undo();
+      camera.position.copy(pos);
+      camera.quaternion.copy(rot);
+      camera.updateMatrixWorld();
+    };
+    rig.setLook = (l: Look, range?: [number, number]) => {
+      rig.look = l;
+      scene.environment = envFor(l);
+      const h = hazeOf(l);
+      haze.current = h;
+      writeHaze(h);
+      gl.toneMappingExposure = exposure ?? l.exposure;
+      scene.environmentIntensity = envIntensity ?? l.env;
+      if (l.fog) {
+        const [near, far] = range ?? fogRange ?? [l.fog.near, l.fog.far];
+        if (scene.fog instanceof THREE.Fog) {
+          scene.fog.near = near;
+          scene.fog.far = far;
+        } else scene.fog = new THREE.Fog(l.fog.color, near, far);
+        if (h.color) scene.fog.color.copy(h.color);
+        else scene.fog.color.set(l.fog.color);
+      } else scene.fog = null;
+      if (hemi.current) {
+        hemi.current.color.set(l.hemi.sky);
+        hemi.current.groundColor.set(l.hemi.ground);
+        hemi.current.intensity = l.hemi.intensity;
+      }
+      if (light.current) {
+        light.current.color.set(l.sun.color);
+        light.current.intensity = sunIntensity ?? l.sun.intensity;
+      }
+      sunDir.current.set(...l.sun.dir).normalize().multiplyScalar(80);
+      if (fill.current) {
+        fill.current.color.set(l.fill.color);
+        fill.current.intensity = l.fill.intensity;
+        fill.current.position.set(...l.fill.dir).normalize().multiplyScalar(40);
+      }
+      if (dome.current) dome.current.visible = !!l.sky;
+      if (l.sky) paintPhysicalSky(sky, l.sky, l.sun.dir);
+      landMat.color.set(l.land ?? '#7e7e52');
+      floorMat.color.set(l.fog?.color ?? '#0a0b0d');
+      shadowMat.color.set(l.shadow.color);
+      shadowMat.opacity = shadowOpacity ?? l.shadow.opacity;
+      invalidate();
+    };
+    rig.setLook(rig.look);
+  }, [rig, gl, scene, sky, floorMat, shadowMat, landMat, exposure, envIntensity, sunIntensity, shadowOpacity, fogRange, invalidate]);
+
+  /* Dev only: a handle on this stage for QA and frame timing (window.__vee, canvas.__vee). */
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const probe = { rig, LOOKS, invalidate, advance, get, gl, scene, camera, progress };
+    (window as unknown as { __vee?: unknown }).__vee = probe;
+    (gl.domElement as unknown as { __vee?: unknown }).__vee = probe;
+  }, [rig, invalidate, advance, get, gl, scene, camera, progress]);
+
+  /* Scenes pull frames through this. */
+  useEffect(() => {
+    progress.invalidate = invalidate;
+    invalidate();
+    return () => {
+      progress.invalidate = null;
+    };
+  }, [progress, invalidate]);
+
+  /* Coming back on screen: draw the current state straight away. */
+  useEffect(() => {
+    if (active) invalidate();
+  }, [active, invalidate]);
+
+  /* Off-centre framing: put the look target where the layout leaves room. */
+  const [fx, fy] = compact ? focusCompact : focus;
+  useLayoutEffect(() => {
+    const cam = camera as THREE.PerspectiveCamera;
+    const { width: w, height: h } = size;
+    cam.setViewOffset(w, h, (0.5 - fx) * w, (0.5 - fy) * h, w, h);
+    invalidate();
+    return () => cam.clearViewOffset();
+  }, [camera, size, fx, fy, invalidate]);
+
+  /* Key light follows the action; snapped to shadow texels so edges stay still. */
+  const mapSize = compact ? 2048 : 4096;
+  useFrame(() => {
+    rig.sync();
+    const l = light.current;
+    if (l) {
+      const texel = (shadowExtent * 2) / mapSize;
+      const tx = Math.round(rig.lightTarget.x / texel) * texel;
+      const tz = Math.round(rig.lightTarget.z / texel) * texel;
+      l.target.position.set(tx, 0, tz);
+      l.position.set(tx + sunDir.current.x, sunDir.current.y, tz + sunDir.current.z);
+      l.target.updateMatrixWorld();
+    }
+    // The first frames can land before layout is known; draw a few, then report.
+    if (!rig.holding && frames.current < 4) {
+      frames.current++;
+      invalidate();
+      if (frames.current === 3) onReady();
+    }
+  });
+
+  useLayoutEffect(
+    () => () => {
+      sky.dispose();
+      floorMat.dispose();
+      shadowMat.dispose();
+      landMat.dispose();
+    },
+    [sky, floorMat, shadowMat, landMat],
+  );
+
+  return (
+    <>
+      <SkyDome material={sky} domeRef={dome} />
+      <hemisphereLight ref={hemi} />
+      <directionalLight
+        ref={light}
+        castShadow
+        shadow-mapSize={[mapSize, mapSize]}
+        shadow-bias={-0.00025}
+        shadow-normalBias={0.035}
+        shadow-radius={compact ? 2 : 2.6}
+      >
+        <orthographicCamera attach="shadow-camera" args={[-shadowExtent, shadowExtent, shadowExtent, -shadowExtent, 1, 220]} />
+      </directionalLight>
+      <directionalLight ref={fill} />
+      {ground === 'shadow' && (
+        <mesh rotation-x={-Math.PI / 2} receiveShadow material={shadowMat}>
+          <planeGeometry args={[900, 900]} />
+        </mesh>
+      )}
+      {ground === 'land' && (
+        <mesh rotation-x={-Math.PI / 2} receiveShadow material={landMat}>
+          <planeGeometry args={[1300, 1300]} />
+        </mesh>
+      )}
+      {ground === 'floor' && (
+        <mesh rotation-x={-Math.PI / 2} receiveShadow material={floorMat}>
+          <planeGeometry args={[900, 900]} />
+        </mesh>
+      )}
+    </>
+  );
+}
+
+const DEFAULT_POST: PostOptions = { ao: true, bloom: 0.32, bloomThreshold: 1.6 };
+const DEFAULT_POST_COMPACT: PostOptions = { ao: false, bloom: 0.25, bloomThreshold: 1.6 };
+
+/**
+ * The only <Canvas> component in the project. On-demand rendering, a
+ * procedural physical sky (no HDR download), one shadow-casting key light
+ * and an optional photographic finish.
+ */
+export default function Stage(props: StageProps) {
+  const { active, compact, children, look = 'studioLight', post = DEFAULT_POST, postCompact = DEFAULT_POST_COMPACT } = props;
+  const finish = compact ? postCompact : post;
+  const rig = useMemo<Rig>(
+    () => ({ lightTarget: new THREE.Vector3(), look: LOOKS[look], setLook: () => {}, prepare: () => {}, sync: () => {}, warm: () => {}, holding: !!finish }),
+    // The finish only decides the first value of `holding`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [look],
+  );
+
+  return (
+    <Canvas
+      shadows="percentage"
+      frameloop={active ? 'demand' : 'never'}
+      dpr={compact ? [1, 1.5] : [1, finish ? 1.5 : 1.75]}
+      // With a finish the scene is drawn into its own target; the canvas only receives the final pass.
+      gl={{ antialias: !finish, alpha: true, powerPreference: 'high-performance', stencil: false, depth: !finish }}
+      camera={{ fov: 28, near: 0.5, far: 1200, position: [20, 14, 26] }}
+      /*
+       * The stage's own box, not its painted bounds: the hero scales the
+       * stage while its title card opens, and a canvas measured through that
+       * transform was 14% larger than the screen and resized on every pause.
+       */
+      resize={{ scroll: false, offsetSize: true }}
+      style={{ position: 'absolute', inset: 0 }}
+    >
+      <Setup {...props} rig={rig} />
+      {children(rig)}
+      {finish && (
+        <Post
+          {...finish}
+          getGrade={() => rig.look.grade ?? NEUTRAL_GRADE}
+          before={() => rig.sync()}
+          onReady={() => {
+            rig.holding = false;
+          }}
+        />
+      )}
+    </Canvas>
+  );
+}
+
+const _v = new THREE.Vector3();
+
+/** Projects a world point to canvas pixels for DOM labels. */
+export function project(
+  camera: THREE.Camera,
+  size: { width: number; height: number },
+  x: number,
+  y: number,
+  z: number,
+): [number, number, boolean] {
+  _v.set(x, y, z).project(camera);
+  return [(_v.x * 0.5 + 0.5) * size.width, (-_v.y * 0.5 + 0.5) * size.height, _v.z < 1];
+}
+
+/**
+ * Sets the camera from a pose, pulling it back along its own line of sight
+ * when the canvas is narrower than the scene was composed for.
+ */
+export function aim(
+  camera: THREE.Camera,
+  pos: readonly number[],
+  look: readonly number[],
+  aspect: number,
+  composedAspect = 1.5,
+  strength = 0.85,
+) {
+  const fit = aspect < composedAspect ? 1 + (composedAspect / aspect - 1) * strength : 1;
+  camera.position.set(
+    look[0] + (pos[0] - look[0]) * fit,
+    look[1] + (pos[1] - look[1]) * fit,
+    look[2] + (pos[2] - look[2]) * fit,
+  );
+  camera.lookAt(look[0], look[1], look[2]);
+  camera.updateMatrixWorld();
+}
+
+/** Returns a function that places a DOM label at a world position. */
+export function useLabel(place: SceneProps['place']) {
+  const camera = useThree((s) => s.camera);
+  const size = useThree((s) => s.size);
+  return useMemo(
+    () => (id: string, x: number, y: number, z: number, opacity: number) => {
+      const [sx, sy, front] = project(camera, size, x, y, z);
+      place(id, sx, sy, front ? opacity : 0);
+    },
+    [camera, size, place],
+  );
+}

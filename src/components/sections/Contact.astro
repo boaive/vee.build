@@ -1,0 +1,21 @@
+---
+import EnquiryForm from '../forms/EnquiryForm.tsx';
+---
+
+<section class="section contact theme-dark" id="contact" data-theme="dark" data-chapter="contact" aria-labelledby="contact-heading">
+  <div class="wrap contact__grid">
+    <div>
+      <p class="eyebrow" style="margin-bottom:1.75rem"><b>09</b> Contact</p>
+      <h2 class="contact__title" id="contact-heading" data-reveal>
+        <span>Build smarter<em>.</em></span>
+        <span>Build with Vee<em>.</em></span>
+      </h2>
+      <p class="t-lead contact__lead mute" data-reveal style="--i:1">
+        Tell us what you want to build and where the site is. Mention a catalogue model if one fits.
+      </p>
+    </div>
+    <div data-reveal style="--i:2">
+      <EnquiryForm client:visible={{ rootMargin: '300px' }} variant="contact" />
+    </div>
+  </div>
+</section>

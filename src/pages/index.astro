@@ -1,0 +1,41 @@
+---
+import Base from '../layouts/Base.astro';
+import Hero from '../components/sections/Hero.tsx';
+import HowItWorks from '../components/sections/HowItWorks.tsx';
+import Components from '../components/sections/Components.tsx';
+import Difference from '../components/sections/Difference.astro';
+import BuildSection from '../components/sections/BuildSection.astro';
+import YourHouse from '../components/sections/YourHouse.tsx';
+import CatalogueSection from '../components/sections/CatalogueSection.astro';
+import FactoryTour from '../components/sections/FactoryTour.tsx';
+import Delivery from '../components/sections/Delivery.astro';
+import SitePrep from '../components/sections/SitePrep.astro';
+import Installation from '../components/sections/Installation.tsx';
+import Arrival from '../components/sections/Arrival.astro';
+import Gallery from '../components/sections/Gallery.astro';
+import Contact from '../components/sections/Contact.astro';
+
+/*
+ * The films below the hero hydrate once the page is idle after load. That
+ * is only their captions and scroll wiring (a few milliseconds each): every
+ * 3D scene still mounts when its section nears the viewport. Hydrating on
+ * approach instead put that work in the middle of a scroll.
+ */
+---
+
+<Base title="VEE.BUILD — Modular precast construction system" home boot>
+  <Hero client:load />
+  <HowItWorks client:idle />
+  <Components client:idle />
+  <Difference />
+  <BuildSection />
+  <YourHouse client:idle />
+  <FactoryTour client:idle />
+  <Delivery />
+  <SitePrep />
+  <Installation client:idle />
+  <Arrival />
+  <CatalogueSection />
+  <Gallery />
+  <Contact />
+</Base>

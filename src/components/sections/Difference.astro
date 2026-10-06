@@ -1,0 +1,40 @@
+---
+import { differences } from '../../data/difference';
+---
+
+<section class="section diff theme-light" id="difference" data-theme="light" data-chapter="difference" aria-labelledby="difference-heading">
+  <div class="wrap">
+    <header class="intro">
+      <p class="eyebrow"><b>04</b> How we are different</p>
+      <h2 class="t-h2" id="difference-heading" data-reveal>How are we different?</h2>
+      <p class="t-lead" data-reveal style="--i:1">
+        Six points separate a VEE.BUILD building from brick-and-mortar construction and from lightweight prefab.
+      </p>
+    </header>
+
+    <ol class="diff__list">
+      {
+        differences.map((d, i) => (
+          <li class="diff__row" data-reveal style={`--i:${i % 3}`}>
+            <span class="t-label diff__n">{String(i + 1).padStart(2, '0')}</span>
+            <h3 class="diff__word">{d.word}</h3>
+            <div class="diff__body">
+              <p class="diff__claim">{d.claim}</p>
+              <p class="diff__detail">{d.detail}</p>
+            </div>
+            <div class="diff__aside">
+              {d.versus && <p class="diff__versus">{d.versus}</p>}
+              {d.marks && (
+                <ul class="diff__marks" aria-label="Referenced bodies">
+                  {d.marks.map((m) => (
+                    <li>{m}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>
