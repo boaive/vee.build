@@ -43,10 +43,14 @@ export default function YourHouse() {
       chapter="configure"
       captions="fade"
       steps={view.sample ? revealSample : revealSteps}
-      length={3.4}
-      lengthCompact={3.6}
+      length={2.8}
+      lengthCompact={3}
       Scene={Scene}
       stepExtras={extras}
-    />
+    >
+      <p className="t-label film__hint" aria-hidden="true">
+        <span>↻</span> Drag to turn it
+      </p>
+    </Film>
   );
 }

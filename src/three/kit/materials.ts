@@ -107,6 +107,8 @@ export const mat = {
   foliage: std('#d3d0c8', 1),
   /** Measurement and highlight. */
   accent: std('#e2491d', 0.55),
+  /** The same, on a dark stage: hi-vis green (tokens.css, the accent follows its ground). */
+  accentInk: std('#c8f031', 0.55),
   /** Ghosted plant and options. */
   ghost: std('#c3c8cc', 1, 0, { transparent: true, opacity: 0.4, depthWrite: false }),
   /** Factory: bright green formwork boards (from the brief). */

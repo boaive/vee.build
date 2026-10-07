@@ -5,7 +5,7 @@
  */
 import { BufferGeometry, ExtrudeGeometry, Float32BufferAttribute, Shape, SphereGeometry, TorusGeometry } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import type { ModuleType } from '../../data/system';
+import { DOOR_AT, type DoorFace, type ModuleType } from '../../data/system';
 import { box, cyl, memo, merge, mergeGroups } from './geometry';
 import { boxUV } from './textures';
 
@@ -17,7 +17,7 @@ import { boxUV } from './textures';
 export const MODULE = { H: 3, base: 0.14, fascia: 0.26, inset: 0.035 } as const;
 
 type Face = 'front' | 'back' | 'left' | 'right';
-interface Opening {
+export interface Opening {
   face: Face;
   /** Centre along the face (x on front/back, z on the ends). */
   u: number;
@@ -27,40 +27,57 @@ interface Opening {
   door?: boolean;
 }
 
-/**
- * Openings, after the client's render of Shell A: on the long front a window
- * and a door between two sidelights; a clerestory on the +x end; the −x end
- * carries a door so rows of turned shells each open onto the street.
+/*
+ * Openings follow the client's single shell (notes H8), clear sizes inside
+ * a 60 mm frame: on the 6 m front a two-pane window and, on the right
+ * third, the door between two gridded sidelights, every head 2.1 m above
+ * the underside; a clerestory on the +x end; a window and a small high
+ * window on the back; the −x end blank.
+ *
+ * A shell has one door. It is on the front unless the front is built
+ * against, in which case it moves to a free face (build/model.ts,
+ * doorFaces): an end takes the door with a small window beside it, the
+ * back takes it in line with where it stood on the front.
  */
-const OPENINGS: Record<ModuleType, Opening[]> = {
-  A: [
-    { face: 'front', u: -1.75, w: 1.45, sill: 0.95, h: 1.25 },
-    { face: 'front', u: -0.08, w: 0.34, sill: 0.2, h: 2.15 },
-    { face: 'front', u: 0.62, w: 0.92, sill: 0.2, h: 2.15, door: true },
-    { face: 'front', u: 1.32, w: 0.34, sill: 0.2, h: 2.15 },
-    { face: 'back', u: -1.5, w: 1.2, sill: 1.0, h: 1.2 },
-    { face: 'back', u: 1.5, w: 1.2, sill: 1.0, h: 1.2 },
-    { face: 'left', u: -0.55, w: 0.92, sill: 0.2, h: 2.15, door: true },
-    { face: 'left', u: 0.75, w: 0.7, sill: 1.0, h: 1.2 },
-    { face: 'right', u: 0, w: 1.6, sill: 1.95, h: 0.5 },
-  ],
-  B: [
-    { face: 'front', u: 0, w: 1.6, sill: 0.95, h: 1.25 },
-    { face: 'back', u: 0, w: 1.4, sill: 1.95, h: 0.5 },
-    { face: 'left', u: -0.4, w: 0.92, sill: 0.2, h: 2.15, door: true },
-    { face: 'right', u: 0, w: 1.2, sill: 1.95, h: 0.5 },
-  ],
-};
+const WINDOW = { sill: 0.94, h: 1.1 };
+const DOOR = { w: 0.81, sill: 0.2, h: 1.84, door: true };
+const HIGH = { sill: 2.06, h: 0.38 };
+
+export function moduleOpenings(type: ModuleType, door: DoorFace = 'front'): Opening[] {
+  const at = DOOR_AT[type];
+  const o: Opening[] = [];
+  if (type === 'A') {
+    o.push({ face: 'front', u: -0.51, w: 1.38, ...WINDOW });
+    if (door === 'front')
+      o.push({ face: 'front', u: 0.95, w: 0.28, sill: 0.36, h: 1.68 }, { face: 'front', u: at.front, ...DOOR }, { face: 'front', u: 2.5, w: 0.3, sill: 0.36, h: 1.68 });
+    else o.push({ face: 'front', u: 1.72, w: 1.38, ...WINDOW });
+    o.push({ face: 'back', u: -0.6, w: 1.28, sill: 0.96, h: 1.08 }, { face: 'back', u: -2.325, w: 0.43, sill: 1.56, h: 0.53 });
+    if (door === 'back') o.push({ face: 'back', u: at.back, ...DOOR });
+    if (door === 'left') o.push({ face: 'left', u: at.left, ...DOOR }, { face: 'left', u: 0.75, w: 0.7, ...WINDOW });
+    if (door === 'right') o.push({ face: 'right', u: at.right, ...DOOR }, { face: 'right', u: -0.75, w: 0.7, ...WINDOW });
+    else o.push({ face: 'right', u: -0.4, w: 1.28, ...HIGH });
+    return o;
+  }
+  if (door === 'front') o.push({ face: 'front', u: -0.62, w: 1.0, ...WINDOW }, { face: 'front', u: at.front, ...DOOR });
+  else o.push({ face: 'front', u: 0, w: 1.5, ...WINDOW });
+  if (door === 'back') o.push({ face: 'back', u: -0.62, w: 1.0, ...HIGH }, { face: 'back', u: at.back, ...DOOR });
+  else o.push({ face: 'back', u: 0, w: 1.28, ...HIGH });
+  if (door === 'left') o.push({ face: 'left', u: at.left, ...DOOR });
+  if (door === 'right') o.push({ face: 'right', u: at.right, ...DOOR });
+  else o.push({ face: 'right', u: 0, w: 1.28, ...HIGH });
+  return o;
+}
 
 /**
  * Finished module. Origin: centre of the footprint, underside at y = 0.
  * Groups: 0 shell, 1 fascia (base recess, roof band, handles), 2 glass,
  * 3 frames, door leaves and glazing bars, 4 galvanised fittings (hook &
  * cleat: a lifting lug at each top corner and cleats along the long roof
- * edges, after the client's model, notes H4).
+ * edges, after the client's model, notes H4). `door` is the face that
+ * carries the shell's one door.
  */
-export function moduleGeometry(type: ModuleType): BufferGeometry {
-  return memo(`module-v3-${type}`, () => {
+export function moduleGeometry(type: ModuleType, door: DoorFace = 'front'): BufferGeometry {
+  return memo(`module-v4-${type}-${door}`, () => {
     const L = type === 'A' ? 6 : 3;
     const D = 3;
     const { H, base, fascia: F, inset } = MODULE;
@@ -88,7 +105,7 @@ export function moduleGeometry(type: ModuleType): BufferGeometry {
     };
 
     const FT = 0.06; // frame bar
-    for (const o of OPENINGS[type]) {
+    for (const o of moduleOpenings(type, door)) {
       const cy = o.sill + o.h / 2;
       const bar = (u: number, y: number, w: number, h: number, out = 0.022) => frames.push(onFace(o.face, u, y, out, w, h, 0.05));
       bar(o.u, o.sill + o.h + FT / 2, o.w + FT * 2, FT);
@@ -96,11 +113,12 @@ export function moduleGeometry(type: ModuleType): BufferGeometry {
       bar(o.u - o.w / 2 - FT / 2, cy, FT, o.h);
       bar(o.u + o.w / 2 + FT / 2, cy, FT, o.h);
       if (o.door) {
-        // Leaf with a glazed upper panel and two raised lower panels (H6).
+        // Leaf: glazed upper half, a letterbox under it, two raised panels below (H8).
         frames.push(onFace(o.face, o.u, cy, 0.012, o.w, o.h, 0.03));
-        glass.push(onFace(o.face, o.u, o.sill + o.h * 0.69, 0.03, o.w * 0.62, o.h * 0.42, 0.012));
-        for (const side of [-1, 1]) frames.push(onFace(o.face, o.u + side * o.w * 0.17, o.sill + o.h * 0.25, 0.034, o.w * 0.26, o.h * 0.3, 0.012));
-        dark.push(onFace(o.face, o.u + o.w * 0.38, o.sill + 1.02, 0.05, 0.03, 0.2, 0.04));
+        glass.push(onFace(o.face, o.u, o.sill + o.h * 0.7, 0.03, o.w * 0.7, o.h * 0.5, 0.012));
+        dark.push(onFace(o.face, o.u, o.sill + o.h * 0.385, 0.031, 0.26, 0.04, 0.012));
+        for (const side of [-1, 1]) frames.push(onFace(o.face, o.u + side * o.w * 0.19, o.sill + o.h * 0.19, 0.034, o.w * 0.27, o.h * 0.27, 0.012));
+        dark.push(onFace(o.face, o.u + o.w * 0.4, o.sill + 0.98, 0.05, 0.03, 0.17, 0.04));
       } else {
         glass.push(onFace(o.face, o.u, cy, 0.006, o.w, o.h, 0.012));
         if (o.w > 1.1) bar(o.u, cy, FT * 0.7, o.h);

@@ -34,23 +34,24 @@ distribution partners.
 5. I trust this is a real construction company.
 6. I want to enquire.
 
-## Narrative (main page, 8 sections)
+## Narrative (the brief's 8 sections)
 
 | # | Section | Question it answers | Form |
 | --- | --- | --- | --- |
-| 1 | Hero banner | What can be built? | Pinned film: four sets (modular home, capsule pods, workforce housing, institutional campus), a cut between each |
+| 1 | Hero banner | What can be built? | A title card with a window onto the first set, then a pinned film: four sets (modular home, capsule pods, workforce housing, institutional campus), a cut between each |
 | 2 | How it works? | How does the system work / configure? | Pinned film: shells → footprints → stacking |
 | 3 | Building components | What are the components? | Pinned film: exploded home, 3 steps |
-| 4 | How are we different? | Why this approach? | Typographic argument, document flow |
+| 4 | How are we different? | Why this approach? | Six points on ink: an index of the six words, one point set out at a time as the page scrolls (a plain list on narrow screens) |
 | 5 | Catalogue | What can I choose? | Architectural index, document flow |
-| 6 | Factory tour | Can I see the real process? | Pinned film, 7 stations |
+| 6 | Factory tour | Can I see the real process? | A full-screen title ("See how we manufacture it."), then a pinned film seen from above throughout: 7 stations and dispatch |
 | 7 | Photo gallery | Is this real? | Documentary grid, document flow |
 | 8 | Contact | How do I start? | Enquiry form |
 
-The page has grown beyond these eight: `configure` (the configurator),
-`your-house`, `delivery`, `site`, `installation` and `build-yours` now sit
-between them. The current list, in order, is in `vee-build-progress.md`,
-"What exists".
+The main page has grown beyond these: `configure` (the configurator),
+`your-house`, `delivery`, `site`, `installation` and `build-yours` sit
+between them. The factory tour follows `your-house` on the main page and
+opens with its own full-screen title. The current list, in order, is in
+`vee-build-progress.md`, "What exists".
 
 ## Terminology from the brief (use exactly)
 
@@ -84,6 +85,11 @@ between them. The current list, in order, is in `vee-build-progress.md`,
   This is the reference for the "Building components" home.
 - Indicative room layouts exist (Wieldy pricing HTML) for 200, 300 and 400
   sq.ft. single-floor footprints only.
+- The client's single-shell model (notes H8) is the standard shell
+  everywhere since 2026-10-07: one door, on the right third of the 6 m
+  front between two gridded sidelights, a two-pane window left of it, a
+  clerestory on one end, the other end blank. Each shell has exactly one
+  door; where the front is built against, it moves to a free face.
 
 ## Not supplied (see notes)
 

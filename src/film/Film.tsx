@@ -21,9 +21,9 @@ export interface FilmLabel {
 }
 
 /**
- * A title card before the film: a plain screen with a few words. Scrolling
- * drifts the words away and opens the card like a letterbox onto the scene,
- * which is already drawn underneath.
+ * A title card before the film: a few words and a window onto the scene,
+ * which is already running inside it. Scrolling grows the window until the
+ * picture fills the screen, while the words drift away (film.css, Prelude).
  */
 export interface Prelude {
   /** Scroll length in viewport heights. */
@@ -116,8 +116,12 @@ export default function Film({
   const [compact, setCompact] = useState(false);
   const [reduced, setReduced] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  /** The title card has opened all the way: it and its clip are taken off the stage. */
+  const [open, setOpen] = useState(false);
+  /** The picture has taken more of the screen than the card: the header reads against the picture from here. */
+  const [risen, setRisen] = useState(false);
 
-  const state = useRef({ raf: 0, last: 0, active: 0, reduced: false, visible: false, pre: '' });
+  const state = useRef({ raf: 0, last: 0, active: 0, reduced: false, visible: false, pre: '', open: false, risen: false, seen: false });
   const preLen = prelude?.length ?? 0;
 
   /* Environment queries */
@@ -188,6 +192,11 @@ export default function Film({
       const prePx = preLen * vh;
       const travel = r.height - vh - prePx;
       if (preLen > 0) {
+        // The title card's words rise once it has taken most of the screen (film.css, .is-seen).
+        if (!state.current.seen && r.top < vh * 0.45) {
+          state.current.seen = true;
+          card.current?.classList.add('is-seen');
+        }
         let pre = clamp01(-r.top / prePx);
         if (state.current.reduced) pre = pre > 0.5 ? 1 : 0;
         progress.pre = pre;
@@ -197,6 +206,16 @@ export default function Film({
           state.current.pre = v;
           card.current?.style.setProperty('--pre', v);
           pin.style.setProperty('--pre', v);
+          const done = pre >= 0.999;
+          if (done !== state.current.open) {
+            state.current.open = done;
+            setOpen(done);
+          }
+          const up = pre >= 0.8;
+          if (up !== state.current.risen) {
+            state.current.risen = up;
+            setRisen(up);
+          }
         }
       }
       progress.target = travel > 0 ? clamp01((-r.top - prePx) / travel) : 0;
@@ -229,9 +248,11 @@ export default function Film({
     };
   }, [progress, kick, preLen]);
 
+  // A scene that unmounts when it is far away reports ready again when it comes back. One that stays mounted
+  // (the hero) reports once, so its stage must not be hidden on the way out: it would never be shown again.
   useEffect(() => {
-    if (!near) setReady(false);
-  }, [near]);
+    if (!near && !eager) setReady(false);
+  }, [near, eager]);
 
   useEffect(() => {
     kick();
@@ -268,9 +289,11 @@ export default function Film({
 
   /* A step can switch the caption theme (a dark sky needs light text). */
   const stepTheme = steps[active].theme ?? theme;
+  /* What stands under the header: an ink title card until it has opened, then the film. */
+  const headerTheme = prelude?.tone === 'ink' && !risen ? 'dark' : stepTheme;
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('vee:theme'));
-  }, [stepTheme]);
+  }, [headerTheme]);
 
   // The hero stays mounted (`eager`) so its opening assembly does not replay.
   const mount = hydrated && (eager || near);
@@ -292,14 +315,17 @@ export default function Film({
       <section
         id={id}
         ref={root}
-        className={`film film--${variant} theme-${stepTheme}${reduced ? ' is-still' : ''}${prelude ? ' has-prelude' : ''}`}
-        data-theme={stepTheme}
+        className={`film film--${variant} theme-${stepTheme}${reduced ? ' is-still' : ''}${prelude ? ' has-prelude' : ''}${open ? ' is-open' : ''}`}
+        data-theme={headerTheme}
+        data-bare=""
+        data-pre={preLen || undefined}
         data-chapter={chapter ?? id}
         data-step={steps[active].id}
         aria-labelledby={`${id}-heading`}
         style={{ '--film-len': len, '--film-len-c': lenC } as CSSProperties}
       >
         <div className="film__sticky" ref={sticky}>
+          {prelude && <div className={`film__backdrop film__backdrop--${prelude.tone ?? 'paper'}`} aria-hidden="true" />}
           <div className={`film__stage${ready ? ' is-ready' : ''}`} aria-hidden="true">
             {mount && <Suspense fallback={null}>{scene}</Suspense>}
             <div className="film__labels">
@@ -377,7 +403,7 @@ export default function Film({
           </div>
 
           {prelude && (
-            <div className={`film__prelude film__prelude--${prelude.tone ?? 'paper'}`} ref={card}>
+            <div className={`film__prelude film__prelude--${prelude.tone ?? 'paper'}${prelude.tone === 'ink' ? ' on-ink' : ''}`} ref={card}>
               <div className="film__prelude-inner">{prelude.content}</div>
               <span className="film__prelude-cue" aria-hidden="true">
                 Scroll

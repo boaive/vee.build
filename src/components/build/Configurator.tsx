@@ -19,7 +19,7 @@ import {
   type Turn,
   type UnitSpec,
 } from '../../data/build';
-import { CELL, describe, floorName, totals } from '../../build/model';
+import { CELL, describe, floorName, totals, type Piece } from '../../build/model';
 import { build, encode, useBuild } from '../../build/store';
 import { createProgress, type PlaceLabel } from '../../film/progress';
 import type { AddOnHover, Hover, Orbit, Tool } from '../../three/scenes/BuildScene';
@@ -36,6 +36,8 @@ const SIDE_NAMES: { value: DeckSide; label: string }[] = [
   { value: 2, label: 'Back' },
 ];
 const SIDE_WORD = ['street side', 'right side', 'back', 'left side'];
+const nameOf = (k: ManualKind) => manualKinds.find((x) => x.id === k)?.name ?? '';
+const ACCESS_NOTE = 'The gallery and outer staircase come with the upper floor. They go when the shells they serve go.';
 const EXTEND_LABEL = ['Extend toward the street', 'Extend right', 'Extend back', 'Extend left'];
 
 /** Section 5: pick a shell, place it, stack it, finish it. */
@@ -48,6 +50,8 @@ export default function Configurator() {
   const [addOnTool, setAddOnTool] = useState<ManualKind | null>(null);
   const [turn, setTurn] = useState<Turn>(0);
   const [selected, setSelected] = useState<number | null>(null);
+  /** A selected add-on, or the gallery and staircase that come with an upper floor. */
+  const [piece, setPiece] = useState<Piece | null>(null);
   const [floor, setFloor] = useState(0);
   const [status, setStatus] = useState('Choose a shell, then click the plot to place it. R rotates.');
   const [top, setTop] = useState(false);
@@ -99,9 +103,10 @@ export default function Configurator() {
   // Keep the selection and the plan's floor valid as the build changes.
   useEffect(() => {
     if (selected !== null && !units.some((u) => u.id === selected)) setSelected(null);
+    if (piece && !units.some((u) => u.id === piece.u)) setPiece(null);
     const floors = Math.max(1, t.floors);
     if (floor > floors - 1) setFloor(floors - 1);
-  }, [units, selected, floor, t.floors]);
+  }, [units, selected, piece, floor, t.floors]);
 
   const repaint = () => progress.invalidate?.();
 
@@ -128,19 +133,28 @@ export default function Configurator() {
   const pick = useCallback((spec: UnitSpec) => {
     const r = build.place(spec);
     if (r.ok) {
-      say(`Shell ${spec.t} placed · ${floorName(spec.y)}. Select it to rotate or remove it.`);
+      say(`Shell ${spec.t} placed · ${floorName(spec.y)}.${spec.y > 0 ? ' A gallery and an outer staircase reach its door.' : ''} Select it to rotate or remove it.`);
       setFloor(spec.y);
     } else say(r.why);
   }, []);
 
   const select = useCallback((id: number | null) => {
     setSelected(id);
+    setPiece(null);
     if (id === null) return;
     const u = build.get().units.find((x) => x.id === id);
     if (u) {
       say(`Shell ${u.t} selected · ${floorName(u.y)}. Rotate it, remove it, or press Escape.`);
       setFloor(u.y);
     }
+  }, []);
+
+  const selectPiece = useCallback((p: Piece | null) => {
+    setPiece(p);
+    setSelected(null);
+    if (!p) return;
+    if (p.k === 'access') return say(ACCESS_NOTE);
+    say(`${nameOf(p.k)} selected${p.s !== undefined ? ` · ${SIDE_WORD[p.s]}` : ''}. Remove it, or press Escape.`);
   }, []);
 
   const onHover = useCallback((h: Hover | null) => {
@@ -173,7 +187,14 @@ export default function Configurator() {
   };
 
   const remove = () => {
-    if (selected === null) return say('Select a shell first.');
+    if (selected === null && piece) {
+      if (piece.k === 'access') return say(ACCESS_NOTE);
+      const r = build.removeManual(piece.s === undefined ? { k: piece.k, u: piece.u } : { k: piece.k, u: piece.u, s: piece.s });
+      if (!r.ok) return say(r.why);
+      say(`${nameOf(piece.k)} removed${piece.k === 'deck' ? ', with any steps on it' : ''}. Add-ons are now placed by hand.`);
+      return setPiece(null);
+    }
+    if (selected === null) return say('Select a shell or an add-on first.');
     const r = build.remove(selected);
     if (r.ok) {
       setSelected(null);
@@ -185,6 +206,7 @@ export default function Configurator() {
     if (!build.canUndo()) return say('Nothing to undo.');
     build.undo();
     setSelected(null);
+    setPiece(null);
     say('Undone.');
   };
 
@@ -200,8 +222,11 @@ export default function Configurator() {
   const choose = (next: Tool) => {
     setTool(next);
     setAddOnTool(null);
-    if (next) setSelected(null);
-    say(next ? `Shell ${next} ready. Point at the plot, a wall or a roof. R rotates it.` : 'Click a shell to select it.');
+    if (next) {
+      setSelected(null);
+      setPiece(null);
+    }
+    say(next ? `Shell ${next} ready. Point at the plot, a wall or a roof. R rotates it.` : 'Click a shell or an add-on to select it.');
   };
 
   const chooseAddOn = (k: ManualKind | null) => {
@@ -209,6 +234,7 @@ export default function Configurator() {
     if (k) {
       setTool(null);
       setSelected(null);
+      setPiece(null);
       build.setAddOnMode('manual');
       say(`${manualKinds.find((x) => x.id === k)?.name}: ${manualKinds.find((x) => x.id === k)?.hint}`);
     } else say('Add-on placing finished.');
@@ -229,6 +255,7 @@ export default function Configurator() {
   const loadPreset = (id: string) => {
     build.loadPreset(id);
     setSelected(null);
+    setPiece(null);
     setAddOnTool(null);
     setFloor(0);
     say(`${presets.find((p) => p.id === id)?.name} loaded. Change anything.`);
@@ -270,7 +297,7 @@ export default function Configurator() {
       undo();
     } else if (k === 'r') rotate();
     else if (k === 'delete' || k === 'backspace') {
-      if (selected !== null) {
+      if (selected !== null || piece) {
         e.preventDefault();
         remove();
       }
@@ -278,8 +305,10 @@ export default function Configurator() {
     else if (k === '2') choose('B');
     else if (k === 'escape') {
       if (addOnTool) chooseAddOn(null);
-      else if (selected !== null) setSelected(null);
-      else choose(null);
+      else if (selected !== null || piece) {
+        setSelected(null);
+        setPiece(null);
+      } else choose(null);
     } else if (k === 't') toggleTop();
   };
 
@@ -326,7 +355,7 @@ export default function Configurator() {
         ref={view}
         tabIndex={0}
         role="application"
-        aria-label="Configurator view. Keys: 1 Shell A, 2 Shell B, R rotate, Delete remove, Ctrl+Z undo, T top view, Escape select."
+        aria-label="Configurator view. Keys: 1 Shell A, 2 Shell B, R rotate, Delete remove the selected shell or add-on, Ctrl+Z undo, T top view, Escape select."
         onKeyDown={onKey}
         onPointerDown={onDown}
         onPointerMove={onMove}
@@ -347,11 +376,13 @@ export default function Configurator() {
                 addOnTool={addOnTool}
                 turn={turn}
                 selected={selected}
+                piece={piece}
                 orbit={orbit}
                 onHover={onHover}
                 onAddOnHover={onAddOnHover}
                 onPick={pick}
                 onSelect={select}
+                onSelectPiece={selectPiece}
                 onAddOn={onAddOn}
               />
             </Suspense>
@@ -372,11 +403,13 @@ export default function Configurator() {
               </button>
             ))}
             <div className="cfg__pill" ref={handleRef('selection')} style={{ visibility: 'hidden' }}>
-              <button type="button" onClick={rotate}>
-                <span aria-hidden="true">↻</span> Rotate
-              </button>
+              {selected !== null && (
+                <button type="button" onClick={rotate}>
+                  <span aria-hidden="true">↻</span> Rotate
+                </button>
+              )}
               <button type="button" onClick={remove}>
-                Remove
+                Remove{selected === null && piece && piece.k !== 'access' ? ` ${nameOf(piece.k).toLowerCase()}` : ''}
               </button>
             </div>
           </div>
@@ -402,7 +435,7 @@ export default function Configurator() {
             <button type="button" className="tool" onClick={addAuto} title="Add beside the house">
               + Add
             </button>
-            <button type="button" className="tool" onClick={remove} disabled={selected === null} title="Remove (Delete)">
+            <button type="button" className="tool" onClick={remove} disabled={selected === null && (!piece || piece.k === 'access')} title="Remove the selected shell or add-on (Delete)">
               Remove
             </button>
             <button type="button" className="tool" onClick={undo} title="Undo (Ctrl+Z)">
@@ -442,7 +475,7 @@ export default function Configurator() {
                 <small>{p.note}</small>
               </button>
             ))}
-            <button type="button" className="chip chip--quiet" onClick={() => (build.clear(), setSelected(null), say('Plot cleared.'))}>
+            <button type="button" className="chip chip--quiet" onClick={() => (build.clear(), setSelected(null), setPiece(null), say('Plot cleared.'))}>
               Clear the plot
             </button>
           </div>
@@ -516,7 +549,7 @@ export default function Configurator() {
             </>
           ) : (
             <>
-              <p className="cfg__note">Pick an add-on, then click where it goes on the house. Click a placed one again to remove it.</p>
+              <p className="cfg__note">Pick an add-on, then click where it goes on the house. To take one away, choose Select, click it and press Remove.</p>
               <ul className="palette">
                 {manualKinds.map((k) => (
                   <li key={k.id}>
@@ -607,6 +640,7 @@ export default function Configurator() {
             </div>
           </div>
           <BuildPlan units={units} addOns={addOns} deckSide={state.deckSide} manual={manualMode ? state.manual : null} plot={state.plot} floor={floor} selected={selected} onSelect={select} />
+          <p className="cfg__note">Each shell has one door, marked on the plan. It moves to a free wall when another shell stands against it.</p>
           <dl className="stats">
             <div>
               <dt>Area</dt>

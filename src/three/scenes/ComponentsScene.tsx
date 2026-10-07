@@ -124,7 +124,7 @@ function buildParts(): Part[] {
     const at: V3 = [sx * 3, GL + ABOVE, sz * 1.5];
     const w = seq(F.from + 0.095, F.from + 0.13, i++, 4, 0.6);
     P.push({ key: `jackb${sx}${sz}`, geo: jackBaseGeometry(), mat: mat.galv, pos: at, explode: [0, 0, 0], from: [0, 1.4, 0], win: w });
-    P.push({ key: `jackn${sx}${sz}`, geo: jackNutGeometry(), mat: mat.accent, pos: [at[0], GL + ABOVE + 0.055, at[2]], explode: [0, 0, 0], from: [0, 1.4, 0], win: w, kind: 'screw' });
+    P.push({ key: `jackn${sx}${sz}`, geo: jackNutGeometry(), mat: mat.accentInk, pos: [at[0], GL + ABOVE + 0.055, at[2]], explode: [0, 0, 0], from: [0, 1.4, 0], win: w, kind: 'screw' });
     P.push({ key: `jacks${sx}${sz}`, geo: jackScrewGeometry(), mat: mat.galv, pos: [at[0], FB, at[2]], explode: [0, 0, 0], from: [0, 1.4, 0], win: w, kind: 'screw' });
   }
 

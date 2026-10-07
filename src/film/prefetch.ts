@@ -4,7 +4,9 @@
  * the page is idle, and each 3D scene mounts as its section nears the
  * viewport; once the hero is up, this fetches the scene modules during idle
  * time, in page order, so a section's code is ready before the visitor
- * reaches it. Skipped when the visitor asks to save data.
+ * reaches it. A scene module may export `prepare`, a list of small jobs
+ * (building geometry it will need); each is run in an idle slot of its own.
+ * Skipped when the visitor asks to save data.
  */
 
 const queue: (() => Promise<unknown>)[] = [
@@ -37,6 +39,10 @@ export function prefetchScenes() {
     const load = queue[i++];
     idle(() => {
       load()
+        .then((m) => {
+          const jobs = (m as { prepare?: (() => void)[] } | undefined)?.prepare;
+          if (Array.isArray(jobs)) queue.splice(i, 0, ...jobs.map((job) => () => Promise.resolve().then(job)));
+        })
         .catch(() => {})
         .finally(next);
     });

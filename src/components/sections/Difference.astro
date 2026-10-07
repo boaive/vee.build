@@ -1,40 +1,132 @@
 ---
 import { differences } from '../../data/difference';
+
+/*
+ * Six points, one at a time. The six words stand as an index down the
+ * left; the point they belong to is set out beside them. The section pins
+ * and the page's own scroll walks through the six (a word can also be
+ * pointed at or clicked). On a narrow screen, without script or with
+ * reduced motion it is a plain list with everything on show.
+ */
+const n = differences.length;
+const pad = (i: number) => String(i + 1).padStart(2, '0');
 ---
 
-<section class="section diff theme-light" id="difference" data-theme="light" data-chapter="difference" aria-labelledby="difference-heading">
-  <div class="wrap">
-    <header class="intro">
-      <p class="eyebrow"><b>04</b> How we are different</p>
-      <h2 class="t-h2" id="difference-heading" data-reveal>How are we different?</h2>
-      <p class="t-lead" data-reveal style="--i:1">
-        Six points separate a VEE.BUILD building from brick-and-mortar construction and from lightweight prefab.
-      </p>
-    </header>
+<section class="diff theme-dark" id="difference" data-theme="dark" data-chapter="difference" aria-labelledby="difference-heading" data-diff style={`--n:${n}`}>
+  <div class="diff__pin" data-pin>
+    <div class="wrap diff__wrap">
+      <header class="diff__head">
+        <p class="eyebrow"><b>04</b> How we are different</p>
+        <h2 class="diff__title" id="difference-heading">How are we different?</h2>
+        <p class="diff__lead">
+          Six points separate a VEE.BUILD building from brick-and-mortar construction and from lightweight prefab.
+        </p>
+      </header>
 
-    <ol class="diff__list">
-      {
-        differences.map((d, i) => (
-          <li class="diff__row" data-reveal style={`--i:${i % 3}`}>
-            <span class="t-label diff__n">{String(i + 1).padStart(2, '0')}</span>
-            <h3 class="diff__word">{d.word}</h3>
-            <div class="diff__body">
-              <p class="diff__claim">{d.claim}</p>
-              <p class="diff__detail">{d.detail}</p>
-            </div>
-            <div class="diff__aside">
-              {d.versus && <p class="diff__versus">{d.versus}</p>}
-              {d.marks && (
-                <ul class="diff__marks" aria-label="Referenced bodies">
-                  {d.marks.map((m) => (
-                    <li>{m}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </li>
-        ))
-      }
-    </ol>
+      <ol class="diff__list">
+        {
+          differences.map((d, i) => (
+            <li class:list={['diff__item', { 'is-active': i === 0 }]} data-i={i}>
+              <h3 class="diff__h">
+                <button class="diff__tab" type="button" tabindex="-1">
+                  <span class="t-label diff__n" aria-hidden="true">{pad(i)}</span>
+                  <span class="diff__word">{d.word}</span>
+                </button>
+              </h3>
+              <div class="diff__panel">
+                <p class="diff__ghost" aria-hidden="true">{pad(i)}</p>
+                <p class="t-label diff__count" aria-hidden="true">
+                  <b>{pad(i)}</b> / {pad(n - 1)} · {d.word}
+                </p>
+                <p class="diff__claim">{d.claim}</p>
+                <p class="diff__detail">{d.detail}</p>
+                {d.versus && <p class="diff__versus">{d.versus}</p>}
+                {d.marks && (
+                  <ul class="diff__marks" aria-label="Referenced bodies">
+                    {d.marks.map((m) => (
+                      <li>{m}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+
+      <div class="diff__ticks" aria-hidden="true">
+        {differences.map((_, i) => <span class:list={{ 'is-on': i === 0 }} />)}
+      </div>
+    </div>
   </div>
 </section>
+
+<script>
+  const root = document.querySelector<HTMLElement>('[data-diff]');
+  const pin = root?.querySelector<HTMLElement>('[data-pin]');
+  const wide = window.matchMedia('(min-width: 900px) and (min-height: 600px)');
+  const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const still = new URLSearchParams(location.search).has('still');
+  if (root && pin) {
+    const items = [...root.querySelectorAll<HTMLElement>('.diff__item')];
+    const ticks = [...root.querySelectorAll<HTMLElement>('.diff__ticks span')];
+    const tabs = items.map((el) => el.querySelector<HTMLButtonElement>('.diff__tab')!);
+    const n = items.length;
+    let shown = 0;
+    let scrolled = 0;
+    let pointed = -1;
+    let visible = false;
+    let on = false;
+
+    const show = (i: number) => {
+      if (i === shown) return;
+      shown = i;
+      items.forEach((el, k) => el.classList.toggle('is-active', k === i));
+      ticks.forEach((el, k) => el.classList.toggle('is-on', k <= i));
+    };
+    // Scroll through the pinned section picks the point; a pointer on a word overrides it while it rests there.
+    const measure = () => {
+      if (!on) return;
+      const travel = root.offsetHeight - pin.offsetHeight;
+      const p = travel > 0 ? Math.min(1, Math.max(0, -root.getBoundingClientRect().top / travel)) : 0;
+      scrolled = Math.min(n - 1, Math.floor(p * n));
+      show(pointed >= 0 ? pointed : scrolled);
+    };
+    const goTo = (i: number) => {
+      const travel = root.offsetHeight - pin.offsetHeight;
+      const top = root.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({ top: top + ((i + 0.5) / n) * travel, behavior: calm.matches ? 'auto' : 'smooth' });
+    };
+    const mode = () => {
+      on = wide.matches && !calm.matches && !still;
+      root.classList.toggle('is-index', on);
+      tabs.forEach((t) => (t.tabIndex = on ? 0 : -1));
+      if (on) measure();
+      else items.forEach((el) => el.classList.remove('is-active'));
+    };
+
+    items.forEach((el, i) => {
+      el.addEventListener('pointerenter', (e) => {
+        if (!on || e.pointerType !== 'mouse') return;
+        pointed = i;
+        show(i);
+      });
+      el.addEventListener('pointerleave', () => {
+        if (pointed !== i) return;
+        pointed = -1;
+        show(scrolled);
+      });
+      tabs[i].addEventListener('click', () => on && goTo(i));
+      tabs[i].addEventListener('focus', () => on && show(i));
+    });
+    new IntersectionObserver(([e]) => {
+      visible = e.isIntersecting;
+      if (visible) measure();
+    }).observe(root);
+    window.addEventListener('scroll', () => visible && measure(), { passive: true });
+    window.addEventListener('resize', mode);
+    wide.addEventListener('change', mode);
+    calm.addEventListener('change', mode);
+    mode();
+  }
+</script>

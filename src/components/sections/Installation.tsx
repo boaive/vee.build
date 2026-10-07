@@ -17,7 +17,7 @@ export default function Installation() {
       id="installation"
       index="06"
       heading="On site"
-      theme="light"
+      theme="dark"
       chapter="factory"
       captions="track"
       steps={steps}

@@ -26,7 +26,7 @@ import {
   type Turn,
   type UnitSpec,
 } from '../data/build';
-import { baseOf, canRemove, cells, centred, check, plotFor, rotated, suggest, type Unit, type Verdict } from './model';
+import { baseOf, canRemove, cells, centred, check, materialise, plotFor, rotated, suggest, type Unit, type Verdict } from './model';
 
 export type AddOnMode = 'auto' | 'manual';
 
@@ -208,6 +208,9 @@ export type Result = Verdict & { id?: number };
 
 const sameManual = (a: ManualAddOn, b: ManualAddOn) => a.k === b.k && a.u === b.u && (a.s ?? -1) === (b.s ?? -1);
 
+/** The automatic layout of a build as hand placements. */
+const standing = (s: BuildState) => materialise(s.units, new Set(s.addOns), s.deckSide, baseOf(s.foundation));
+
 export const build = {
   get(): BuildState {
     load();
@@ -277,18 +280,40 @@ export const build = {
   setAddOnMode(mode: AddOnMode) {
     const s = build.get();
     if (s.addOnMode === mode) return;
-    commit({ ...s, addOnMode: mode });
+    // Placing by hand starts from what the automatic layout has standing, not from a bare house.
+    commit({ ...s, addOnMode: mode, manual: mode === 'manual' && !s.manual.length ? standing(s) : s.manual });
   },
-  /** Place a manual add-on, or take it away if it is already there. Returns true when placed. */
+  /**
+   * Place an add-on by hand, or take it away if it is already there.
+   * Returns true when placed. Steps bring their deck; a deck takes its
+   * steps with it.
+   */
   toggleManual(m: ManualAddOn): boolean {
     const s = build.get();
-    const has = s.manual.some((x) => sameManual(x, m));
-    // Roof and solar: one of each per shell, whichever side was clicked.
-    const manual = has ? s.manual.filter((x) => !sameManual(x, m)) : [...s.manual, m];
+    const base = s.addOnMode === 'manual' ? s.manual : standing(s);
+    const has = base.some((x) => sameManual(x, m));
+    let manual: ManualAddOn[];
+    if (has) manual = base.filter((x) => !sameManual(x, m) && !(m.k === 'deck' && x.k === 'steps' && x.u === m.u && x.s === m.s));
+    else {
+      manual = [...base, m];
+      const deck: ManualAddOn = { k: 'deck', u: m.u, s: m.s };
+      if (m.k === 'steps' && !base.some((x) => sameManual(x, deck))) manual.push(deck);
+    }
     commit({ ...s, manual, addOnMode: 'manual' });
     return !has;
   },
-  hasManual: (m: ManualAddOn) => build.get().manual.some((x) => sameManual(x, m)),
+  /** Take one placed add-on away. From an automatic layout this turns the rest into hand placements first. */
+  removeManual(m: ManualAddOn): Result {
+    const s = build.get();
+    const base = s.addOnMode === 'manual' ? s.manual : standing(s);
+    if (!base.some((x) => sameManual(x, m))) return { ok: false, why: 'That is not a placed add-on.' };
+    build.toggleManual(m);
+    return { ok: true };
+  },
+  hasManual: (m: ManualAddOn) => {
+    const s = build.get();
+    return (s.addOnMode === 'manual' ? s.manual : standing(s)).some((x) => sameManual(x, m));
+  },
   clearManual() {
     const s = build.get();
     if (!s.manual.length) return;

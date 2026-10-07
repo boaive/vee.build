@@ -75,10 +75,39 @@ export interface Rect {
   z0: number;
   x1: number;
   z1: number;
+  /** The rectangle is turned by this angle about y (radians), about `pivot` (the origin by default). */
+  turn?: number;
+  pivot?: readonly [number, number];
 }
 
 const inside = (rects: readonly Rect[] | undefined, x: number, z: number, pad = 0) =>
-  !!rects?.some((r) => x > r.x0 - pad && x < r.x1 + pad && z > r.z0 - pad && z < r.z1 + pad);
+  !!rects?.some((r) => {
+    let px = x;
+    let pz = z;
+    if (r.turn) {
+      // Into the rectangle's own frame: the inverse of a turn about y.
+      const [ox, oz] = r.pivot ?? [0, 0];
+      const c = Math.cos(r.turn);
+      const sn = Math.sin(r.turn);
+      px = ox + (x - ox) * c - (z - oz) * sn;
+      pz = oz + (x - ox) * sn + (z - oz) * c;
+    }
+    return px > r.x0 - pad && px < r.x1 + pad && pz > r.z0 - pad && pz < r.z1 + pad;
+  });
+
+/** A strip of ground along a polyline, as turned rectangles: for keeping a path clear of grass. */
+export function strip(pts: readonly (readonly [number, number])[], width: number): Rect[] {
+  const out: Rect[] = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x0, z0] = pts[i];
+    const [x1, z1] = pts[i + 1];
+    const len = Math.hypot(x1 - x0, z1 - z0) + width * 0.5;
+    const mx = (x0 + x1) / 2;
+    const mz = (z0 + z1) / 2;
+    out.push({ x0: mx - len / 2, x1: mx + len / 2, z0: mz - width / 2, z1: mz + width / 2, turn: Math.atan2(-(z1 - z0), x1 - x0), pivot: [mx, mz] });
+  }
+  return out;
+}
 
 /* ------------------------------------------------------------------ */
 /* Ground                                                              */

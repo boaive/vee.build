@@ -4,7 +4,7 @@
  */
 import type { KeyboardEvent } from 'react';
 import type { AddOnId, DeckSide, ManualAddOn, Plot } from '../../data/build';
-import { CELL, FRONT, cells, layoutAddOns, span, type Unit } from '../../build/model';
+import { CELL, FRONT, PLINTH, STOREY, cells, doorFaces, doorSpot, layoutAddOns, span, towerRect, type Unit } from '../../build/model';
 
 interface Props {
   units: readonly Unit[];
@@ -25,7 +25,9 @@ export default function BuildPlan({ units, addOns, deckSide, manual, plot, floor
   const below = units.filter((u) => u.y === floor - 1);
   const occupied = new Set(here.flatMap((u) => cells(u).map(([x, z]) => `${x},${z}`)));
   const terrace = floor > 0 ? below.flatMap((u) => cells(u)).filter(([x, z]) => !occupied.has(`${x},${z}`)) : [];
-  const layout = floor === 0 ? layoutAddOns(units, new Set(addOns), deckSide, manual) : null;
+  const layout = layoutAddOns(units, new Set(addOns), deckSide, manual, PLINTH, plot);
+  const galleries = layout.galleries.filter((g) => Math.round((g.y - 0.12 - PLINTH) / STOREY) === floor);
+  const doors = doorFaces(units);
 
   const all = units.filter((u) => u.y <= floor);
   let x0 = Infinity;
@@ -58,9 +60,16 @@ export default function BuildPlan({ units, addOns, deckSide, manual, plot, floor
         <line key={`gz${i}`} className="plan__grid" x1={0} y1={(i + 1) * CELL} x2={W} y2={(i + 1) * CELL} />
       ))}
 
-      {layout?.decks.map((r, i) => (
-        <rect key={`d${i}`} className="plan__deck" x={r.x0} y={r.z0} width={r.x1 - r.x0} height={r.z1 - r.z0} />
+      {floor === 0 && layout.decks.map((r, i) => <rect key={`d${i}`} className="plan__deck" x={r.x0} y={r.z0} width={r.x1 - r.x0} height={r.z1 - r.z0} />)}
+      {galleries.map((r, i) => (
+        <rect key={`g${i}`} className="plan__deck" x={r.x0} y={r.z0} width={r.x1 - r.x0} height={r.z1 - r.z0} />
       ))}
+      {layout.towers.map((t, i) => {
+        // The outer staircase, on every floor's plan up to the one it reaches.
+        if (floor > t.levels.length) return null;
+        const r = towerRect(t);
+        return <rect key={`s${i}`} className="plan__stair" x={r.x0} y={r.z0} width={r.x1 - r.x0} height={r.z1 - r.z0} />;
+      })}
       {terrace.map(([x, z]) => (
         <rect key={`t${x}${z}`} className="plan__terrace" x={x * CELL} y={z * CELL} width={CELL} height={CELL} />
       ))}
@@ -87,6 +96,10 @@ export default function BuildPlan({ units, addOns, deckSide, manual, plot, floor
                 ? [x + w - g, y + 0.5, x + w - g, y + h - 0.5]
                 : [x + g, y + 0.5, x + g, y + h - 0.5];
         const isSel = u.id === selected;
+        // The shell's one door: a gap in the wall line with a short leaf.
+        const face = doors.get(u.id);
+        const door = face && face !== 'none' ? doorSpot(u, face) : null;
+        const [nx, nz] = door ? FRONT[door.side] : [0, 0];
         return (
           <g
             key={u.id}
@@ -100,6 +113,12 @@ export default function BuildPlan({ units, addOns, deckSide, manual, plot, floor
           >
             <rect x={x} y={y} width={w} height={h} rx={0.12} />
             <line className="plan__front" x1={front[0]} y1={front[1]} x2={front[2]} y2={front[3]} />
+            {door && (
+              <>
+                <line className="plan__door-gap" x1={door.x - nz * 0.45 - nx * 0.08} y1={door.z - nx * 0.45 - nz * 0.08} x2={door.x + nz * 0.45 - nx * 0.08} y2={door.z + nx * 0.45 - nz * 0.08} />
+                <line className="plan__door" x1={door.x - nz * 0.45 - nx * 0.08} y1={door.z - nx * 0.45 - nz * 0.08} x2={door.x - nz * 0.45 + nx * 0.72} y2={door.z - nx * 0.45 + nz * 0.72} />
+              </>
+            )}
             <text x={x + w / 2} y={y + h / 2 + 0.42}>
               {u.t}
             </text>

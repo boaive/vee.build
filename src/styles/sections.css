@@ -2,64 +2,96 @@
 
 /* ---------- 04 How are we different? ---------- */
 
+/*
+ * Plain form (narrow screens, no script, reduced motion): a list, each
+ * point complete. Index form (.is-index, set by the section's script): the
+ * section pins, the six words stand down the left and one point at a time
+ * is set out on the right.
+ */
+.diff {
+  position: relative;
+  padding-block: clamp(5rem, 11vw, 9rem);
+}
+.diff__head {
+  display: grid;
+  gap: 1.1rem;
+  justify-items: start;
+  margin-bottom: clamp(2rem, 5vw, 3.5rem);
+}
+.diff__title {
+  font-size: clamp(2.2rem, 1.1rem + 4.2vw, 4.6rem);
+  font-weight: 630;
+  font-stretch: 104%;
+  line-height: 0.97;
+  letter-spacing: -0.036em;
+  text-wrap: balance;
+}
+.diff__lead {
+  max-width: 36rem;
+  font-size: clamp(1.05rem, 0.98rem + 0.4vw, 1.25rem);
+  line-height: 1.45;
+  color: var(--text-2);
+  text-wrap: pretty;
+}
 .diff__list {
   border-top: 1px solid var(--line);
 }
-.diff__row {
-  position: relative;
-  display: grid;
-  grid-template-columns: 3rem minmax(0, 1fr);
-  gap: 0.75rem 1.5rem;
-  padding-block: clamp(1.75rem, 3.6vw, 3.1rem);
+.diff__item {
+  padding-block: clamp(1.5rem, 4vw, 2.25rem);
   border-bottom: 1px solid var(--line);
 }
-.diff__row::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: -1px;
+.diff__h {
+  font: inherit;
+}
+.diff__tab {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
   width: 100%;
-  height: 2px;
-  background: var(--accent);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.7s var(--ease-out);
+  text-align: left;
+  cursor: default;
 }
 .diff__n {
-  padding-top: 0.55rem;
-  color: var(--mute);
+  flex: none;
+  width: 2rem;
+  color: var(--accent-ink);
 }
 .diff__word {
-  font-size: clamp(2.2rem, 1rem + 4.6vw, 5.2rem);
+  font-size: clamp(1.9rem, 1.2rem + 3vw, 3rem);
   font-weight: 640;
   font-stretch: 104%;
-  line-height: 0.92;
-  letter-spacing: -0.045em;
-  color: var(--text);
-  transition:
-    transform 0.6s var(--ease-out),
-    color 0.3s var(--ease);
+  line-height: 1;
+  letter-spacing: -0.04em;
 }
-.diff__body,
-.diff__aside {
-  grid-column: 2;
+.diff__panel {
+  position: relative;
+  display: grid;
+  gap: 0.7rem;
+  justify-items: start;
+  margin-top: 0.9rem;
+  padding-left: 3rem;
+}
+.diff__ghost,
+.diff__count,
+.diff__ticks {
+  display: none;
 }
 .diff__claim {
-  font-size: clamp(1.12rem, 1rem + 0.5vw, 1.42rem);
-  line-height: 1.3;
+  font-size: clamp(1.15rem, 1rem + 0.7vw, 1.5rem);
+  line-height: 1.25;
   font-weight: 560;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.012em;
   text-wrap: balance;
 }
 .diff__detail {
-  margin-top: 0.6rem;
   max-width: 34rem;
   color: var(--text-2);
   text-wrap: pretty;
 }
 .diff__versus {
   position: relative;
-  padding-left: 1.4rem;
+  margin-top: 0.35rem;
+  padding-left: 1.6rem;
   font-family: var(--font-mono);
   font-size: 0.74rem;
   letter-spacing: 0.06em;
@@ -71,14 +103,15 @@
   content: '';
   position: absolute;
   left: 0;
-  top: 0.5em;
-  width: 0.8rem;
-  height: 1px;
+  top: 0.55em;
+  width: 1rem;
+  height: 2px;
   background: var(--accent);
 }
 .diff__marks {
   display: flex;
   gap: 0.5rem;
+  margin-top: 0.35rem;
 }
 .diff__marks li {
   padding: 0.5rem 0.8rem;
@@ -89,31 +122,177 @@
   letter-spacing: 0.1em;
 }
 
-@media (hover: hover) {
-  .diff__row:hover::before {
-    transform: scaleX(1);
-  }
-  .diff__row:hover .diff__word {
-    transform: translateX(0.6rem);
-    color: var(--accent-ink);
-  }
+/* ----- Index form ----- */
+
+.diff.is-index {
+  /* One screen to arrive, then a stretch of scroll for each point. */
+  height: calc(100svh + var(--n) * 34svh);
+  padding-block: 0;
+}
+.is-index .diff__pin {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+}
+.is-index .diff__wrap {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding-top: calc(var(--hdr) + clamp(1rem, 4svh, 2.75rem));
+  padding-bottom: clamp(1.25rem, 4svh, 2.5rem);
+}
+.is-index .diff__head {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: clamp(2rem, 6vw, 6rem);
+  align-items: end;
+  margin-bottom: clamp(1.25rem, 4.5svh, 3rem);
+}
+.is-index .diff__head .eyebrow {
+  grid-column: 1 / -1;
+}
+.is-index .diff__title {
+  font-size: clamp(2rem, min(4.4vw, 8.6svh), 4.4rem);
+}
+.is-index .diff__lead {
+  padding-bottom: 0.35rem;
 }
 
-@media (min-width: 1000px) {
-  .diff__row {
-    grid-template-columns: 3.5rem minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.62fr);
-    align-items: start;
-    column-gap: 2.5rem;
-  }
-  .diff__body,
-  .diff__aside {
-    grid-column: auto;
-    padding-top: 0.5rem;
-  }
-  .diff__aside {
-    justify-self: end;
-    width: 100%;
-  }
+/* The words in the left column, every panel in the one cell on the right. */
+.is-index .diff__list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: repeat(var(--n), minmax(0, 1fr));
+  column-gap: clamp(2rem, 6vw, 6rem);
+  min-height: 0;
+}
+.is-index .diff__item {
+  display: contents;
+}
+.is-index .diff__h {
+  grid-column: 1;
+  display: grid;
+}
+.is-index .diff__tab {
+  position: relative;
+  height: 100%;
+  align-items: center;
+  gap: clamp(1rem, 2vw, 1.75rem);
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  color: var(--mute);
+  transition: color 0.35s var(--ease);
+}
+.is-index .diff__tab::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 100%;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.6s var(--ease-out);
+}
+.is-index .diff__n {
+  color: inherit;
+  transition: color 0.35s var(--ease);
+}
+.is-index .diff__word {
+  font-size: clamp(1.5rem, min(3.5vw, 6.2svh), 3.2rem);
+  transition: transform 0.6s var(--ease-out);
+}
+.is-index .diff__item.is-active .diff__tab {
+  color: var(--text);
+}
+.is-index .diff__item.is-active .diff__tab::after {
+  transform: scaleX(1);
+}
+.is-index .diff__item.is-active .diff__n {
+  color: var(--accent-ink);
+}
+.is-index .diff__item.is-active .diff__word {
+  transform: translateX(0.5rem);
+}
+.is-index .diff__tab:hover {
+  color: var(--text);
+}
+
+.is-index .diff__panel {
+  grid-column: 2;
+  grid-row: 1 / -1;
+  align-content: center;
+  gap: clamp(0.8rem, 2svh, 1.25rem);
+  margin: 0;
+  padding: 0 0 0 clamp(1.5rem, 3vw, 3rem);
+  border-left: 1px solid var(--line);
+  opacity: 0;
+  transform: translateY(0.9rem);
+  pointer-events: none;
+  transition:
+    opacity 0.3s var(--ease),
+    transform 0.5s var(--ease);
+}
+.is-index .diff__item.is-active .diff__panel {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  transition:
+    opacity 0.55s var(--ease) 0.08s,
+    transform 0.8s var(--ease-out) 0.08s;
+}
+.is-index .diff__count {
+  display: block;
+  color: var(--mute);
+}
+.is-index .diff__count b {
+  font-weight: 500;
+  color: var(--accent-ink);
+}
+/* The point's number, drawn in outline behind it: a sheet number. */
+.is-index .diff__ghost {
+  display: block;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  z-index: -1;
+  font-size: clamp(9rem, min(22vw, 44svh), 21rem);
+  font-weight: 700;
+  font-stretch: 110%;
+  line-height: 0.8;
+  letter-spacing: -0.06em;
+  color: transparent;
+  -webkit-text-stroke: 1px var(--line-strong);
+  transform: translateY(-50%);
+  user-select: none;
+}
+.is-index .diff__claim {
+  max-width: 22ch;
+  font-size: clamp(1.5rem, min(2.5vw, 5svh), 2.6rem);
+  line-height: 1.08;
+  font-weight: 600;
+  letter-spacing: -0.028em;
+}
+.is-index .diff__detail {
+  max-width: 30rem;
+  font-size: clamp(1rem, 0.94rem + 0.35vw, 1.2rem);
+  line-height: 1.5;
+}
+.is-index .diff__ticks {
+  display: flex;
+  gap: 0.3rem;
+  padding-top: clamp(1rem, 3svh, 1.75rem);
+}
+.is-index .diff__ticks span {
+  width: 1.6rem;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--line-strong);
+  transition: background-color 0.3s var(--ease);
+}
+.is-index .diff__ticks span.is-on {
+  background: var(--accent);
 }
 
 /* ---------- 07 Catalogue ---------- */

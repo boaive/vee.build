@@ -77,7 +77,7 @@ button {
 
 ::selection {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .sr-only {
@@ -279,7 +279,7 @@ button {
 }
 .btn:hover {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 .btn:active {
   transform: scale(0.98);
@@ -371,6 +371,17 @@ button {
   -webkit-backdrop-filter: saturate(1.6) blur(18px);
   backdrop-filter: saturate(1.6) blur(18px);
 }
+/*
+ * Over a film the header has no backing: a frosted band in the page colour
+ * read as a strip of haze across the top of the picture (and blurring a
+ * live canvas under it was paid for on every frame).
+ */
+.hdr.is-solid.is-bare {
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
 
 .brand {
   display: inline-flex;
@@ -453,7 +464,7 @@ button {
 }
 .hdr__link--cta:hover {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .hdr__toggle {
@@ -669,6 +680,9 @@ button {
   width: 1.5rem;
   height: 2px;
   background: #d9431b;
+}
+.rail.is-dark a.is-current::after {
+  background: #c8f031;
 }
 @media (min-width: 1180px) and (hover: hover) {
   .rail {

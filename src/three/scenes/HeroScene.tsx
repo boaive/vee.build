@@ -14,9 +14,12 @@ import { CampusSet, FarmSet, PodSet, SETS, WorkSet, type SetName } from '../kit/
  * their set arrives.
  *
  * Only the first set is built before the first frame. The other three are
- * built one at a time once the picture is up (normally while the opening
- * card still covers it), and each is warmed (its light, its geometry and
- * its textures sent to the GPU) so that scrolling into it costs nothing.
+ * built one at a time as soon as the picture is up, while it still stands
+ * unmoving in the title card's window, and each is warmed (its light, its
+ * geometry and its textures sent to the GPU) so that scrolling into it
+ * costs nothing. The first house is put together after that, so its
+ * assembly is not interrupted by the work; a visitor who scrolls at once
+ * gets it at once.
  */
 
 const ORDER: SetName[] = ['farm', 'pods', 'work', 'campus'];
@@ -30,6 +33,8 @@ const RANGE: [number, number][] = [
 ];
 const VEIL = 0.035;
 const INTRO_SECONDS = 2.6;
+/** The first house waits this long at most for the other sets to be warmed. */
+const INTRO_WAIT = 4000;
 /** How far before a cut the next set must exist, in progress (about a third of a screen). */
 const AHEAD = 0.07;
 const COMPOSED = 1.55;
@@ -89,9 +94,28 @@ function Hero({ progress, place, reduced, rig }: SceneProps & { rig: Rig }) {
   const warmed = useRef(1);
   const aspect = size.width / size.height;
 
+  // The first house is put together in the title card's window, once the loading screen has lifted.
+  const booting = useRef(typeof document !== 'undefined' && document.documentElement.classList.contains('is-booting'));
+  useEffect(() => {
+    if (!booting.current) return;
+    const go = () => {
+      booting.current = false;
+      invalidate();
+    };
+    window.addEventListener('vee:booted', go, { once: true });
+    return () => window.removeEventListener('vee:booted', go);
+  }, [invalidate]);
+
+  // The assembly starts when the other sets are ready, when the visitor starts to scroll, or after INTRO_WAIT.
+  const go = useRef(false);
+  const started = useRef(0);
+
   useFrame((_, dt) => {
-    // The first house assembles as the opening card opens, not behind it.
-    if (intro.t < 1 && progress.pre > 0.3) {
+    if (!go.current && !booting.current) {
+      started.current ||= performance.now();
+      go.current = warmed.current >= ORDER.length || progress.pre > 0.02 || progress.value > 0 || performance.now() - started.current > INTRO_WAIT;
+    }
+    if (intro.t < 1 && go.current) {
       intro.t = Math.min(1, intro.t + Math.min(dt, 0.05) / INTRO_SECONDS);
       invalidate();
     }
@@ -121,12 +145,8 @@ function Hero({ progress, place, reduced, rig }: SceneProps & { rig: Rig }) {
     let cancel = () => {};
     let alive = true;
     if (import.meta.env.DEV) (rig as unknown as { hero?: unknown }).hero = { built, warmed };
-    // Quiet: the first picture is up and the boot screen has lifted, and nothing is moving.
-    const quiet = () =>
-      !rig.holding &&
-      !document.documentElement.classList.contains('is-booting') &&
-      Math.abs(progress.target - progress.value) < 1e-4 &&
-      (intro.t >= 1 || progress.pre <= 0.3);
+    // Quiet: the first picture is up and nothing is moving, the first house's assembly included.
+    const quiet = () => !rig.holding && !booting.current && Math.abs(progress.target - progress.value) < 1e-4 && (intro.t <= 0 || intro.t >= 1);
     const step = () => {
       if (!alive) return;
       if (!quiet()) {
@@ -149,13 +169,18 @@ function Hero({ progress, place, reduced, rig }: SceneProps & { rig: Rig }) {
         return;
       }
       if (built < ORDER.length) setBuilt(built + 1);
+      // Everything is warm: a frame, so that the first house starts.
+      else invalidate();
     };
     cancel = idle(step, 200);
+    // And one after the longest it may wait.
+    const late = window.setTimeout(() => invalidate(), INTRO_WAIT + 300);
     return () => {
       alive = false;
       cancel();
+      window.clearTimeout(late);
     };
-  }, [built, rig, progress, intro, camera, aspect]);
+  }, [built, rig, progress, intro, camera, aspect, invalidate]);
 
   /** Building k assembles as its set arrives. */
   const arrive = (k: number) => () => {

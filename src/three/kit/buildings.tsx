@@ -6,7 +6,7 @@
 import { useFrame } from '@react-three/fiber';
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { EdgesGeometry, ExtrudeGeometry, Object3D, Shape, type Group, type InstancedMesh, type Material, type Mesh } from 'three';
-import type { ModuleType, Placement } from '../../data/system';
+import type { DoorFace, ModuleType, Placement } from '../../data/system';
 import { clamp01, ease, stagger, win } from '../../film/timeline';
 import { UNIT_BOX, box, memo, merge, planCentre, pose, setInst } from './geometry';
 import type { Look } from './looks';
@@ -43,10 +43,12 @@ interface DropProps {
   total?: number;
   drop?: number;
   overlap?: number;
+  /** The face that carries each shell's door. */
+  door?: DoorFace;
 }
 
 /** Modules lowered into place one after another, as they are on site. */
-export function DropModules({ type, list, centre, base = 0, getT, materials, first = 0, total, drop = 7, overlap = 0.62 }: DropProps) {
+export function DropModules({ type, list, centre, base = 0, getT, materials, first = 0, total, drop = 7, overlap = 0.62, door = 'front' }: DropProps) {
   const ref = useRef<InstancedMesh>(null);
   const last = useRef(-1);
   const poses = useMemo(() => list.map((p) => pose(p, centre[0], centre[1])), [list, centre]);
@@ -66,7 +68,7 @@ export function DropModules({ type, list, centre, base = 0, getT, materials, fir
     m.instanceMatrix.needsUpdate = true;
   });
 
-  return <instancedMesh ref={ref} args={[moduleGeometry(type), instanced(materials), list.length]} castShadow receiveShadow frustumCulled={false} />;
+  return <instancedMesh ref={ref} args={[moduleGeometry(type, door), instanced(materials), list.length]} castShadow receiveShadow frustumCulled={false} />;
 }
 
 /** A flat slab with rounded corners, lying on the ground with its underside at y = 0. Cached: clone before changing it. */
@@ -330,8 +332,8 @@ export function WorkforceBlock({ x = 0, getA, look }: BuildingProps) {
 
   return (
     <group position-x={x}>
-      <DropModules type="A" list={WORK.slice(0, WORK_LAST)} centre={WORK_C} base={GROUND} materials={mats} getT={() => win(getA(), 0, 0.6, ease.linear)} overlap={0.72} />
-      <mesh ref={last} geometry={moduleGeometry('A')} material={mats} position={[lx, GROUND + ly, lz]} rotation-y={lry} castShadow receiveShadow />
+      <DropModules type="A" door="left" list={WORK.slice(0, WORK_LAST)} centre={WORK_C} base={GROUND} materials={mats} getT={() => win(getA(), 0, 0.6, ease.linear)} overlap={0.72} />
+      <mesh ref={last} geometry={moduleGeometry('A', 'left')} material={mats} position={[lx, GROUND + ly, lz]} rotation-y={lry} castShadow receiveShadow />
 
       <group ref={extras} position-y={GROUND}>
         <mesh geometry={UNIT_BOX} material={mat.concrete} scale={[WORK_W + 0.1, 0.14, 1.5]} position={[0, 3 - 0.07, front + 0.75]} castShadow receiveShadow />

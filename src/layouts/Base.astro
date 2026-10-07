@@ -174,18 +174,21 @@ const organisation = {
 
       const railEl = document.querySelector<HTMLElement>('[data-rail]');
       let chapterTheme: string | undefined;
-      const setTheme = (t: string | undefined, remember = true) => {
+      // `bare`: the section under the header is a film, and the header takes no backing over it.
+      const setTheme = (t: string | undefined, remember = true, bare?: boolean) => {
         if (remember) chapterTheme = t;
+        if (bare !== undefined) hdr?.classList.toggle('is-bare', bare);
         const dark = t === 'dark';
         hdr?.classList.toggle('theme-dark', dark);
         hdr?.classList.toggle('theme-light', !dark);
         railEl?.classList.toggle('is-dark', dark);
       };
+      const bareOf = (el: HTMLElement) => el.dataset.bare !== undefined;
       const themed = document.querySelectorAll<HTMLElement>('[data-theme]');
       if (themed.length) {
         const under = new IntersectionObserver(
           (entries) => {
-            for (const e of entries) if (e.isIntersecting) setTheme((e.target as HTMLElement).dataset.theme);
+            for (const e of entries) if (e.isIntersecting) setTheme((e.target as HTMLElement).dataset.theme, true, bareOf(e.target as HTMLElement));
           },
           { rootMargin: '0px 0px -94% 0px' },
         );
@@ -196,7 +199,7 @@ const organisation = {
           for (const el of themed) {
             const r = el.getBoundingClientRect();
             if (r.top <= y && r.bottom > y) {
-              setTheme(el.dataset.theme);
+              setTheme(el.dataset.theme, true, bareOf(el));
               break;
             }
           }

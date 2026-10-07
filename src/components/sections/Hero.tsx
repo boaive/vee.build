@@ -1,5 +1,6 @@
 import { lazy } from 'react';
 import { heroSteps } from '../../data/narrative';
+import { shells } from '../../data/system';
 import Film, { type FilmLabel, type Prelude } from '../../film/Film';
 import { prefetchScenes } from '../../film/prefetch';
 import { POD_FEET_LABELS } from './labels';
@@ -25,19 +26,34 @@ const actions = {
   ),
 };
 
-/** The opening card: a plain screen and the system in a sentence, before the first set. */
+/**
+ * The opening card: the system in a sentence, and a window onto the first
+ * set, where the house is being put together. Scrolling opens the window.
+ */
 const opening: Prelude = {
-  length: 1.1,
+  length: 1,
   tone: 'paper',
   content: (
     <div className="prelude">
-      <p className="t-label prelude__kicker">VEE.BUILD · Modular precast construction system</p>
-      <p className="prelude__line">
-        One system.
-        <br />
-        <em>Many buildings.</em>
-      </p>
-      <p className="prelude__sub">Two precast shells, made in a factory and set on your site.</p>
+      <div className="prelude__top">
+        <p className="t-label prelude__kicker">VEE.BUILD · Modular precast construction system</p>
+        <p className="prelude__line">
+          <span className="prelude__ln">
+            <span>One system.</span>
+          </span>
+          <span className="prelude__ln">
+            <span>
+              <em>Many buildings.</em>
+            </span>
+          </span>
+        </p>
+      </div>
+      <div className="prelude__rest">
+        <p className="prelude__sub">Two precast shells, made in a factory and set on your site.</p>
+      </div>
+      <span className="prelude__tag" aria-hidden="true">
+        {shells.A.name} · {shells.A.label}
+      </span>
     </div>
   ),
 };

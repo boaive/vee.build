@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import { Vector3, type Mesh } from 'three';
-import { STOREY, extent, placeOf, type Unit } from '../../build/model';
+import { STOREY, doorFaces, extent, placeOf, type Unit } from '../../build/model';
 import { shown, useBuild } from '../../build/store';
 import type { SceneProps } from '../../film/progress';
 import { clamp01, ease, lerp, win } from '../../film/timeline';
@@ -42,6 +42,8 @@ function Install({ progress, rig }: SceneProps & { rig: Rig }) {
   const fit = useMemo(() => extent(view.units, view.base), [view.units, view.base]);
   const order = useMemo(() => liftOrder(view.units), [view.units]);
   const rank = useMemo(() => new Map(order.map((u, k) => [u.id, k])), [order]);
+  const doors = useMemo(() => doorFaces(view.units), [view.units]);
+  const waiting = useRef(0);
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
   const cargo = useRef<Mesh>(null);
@@ -111,6 +113,11 @@ function Install({ progress, rig }: SceneProps & { rig: Rig }) {
     ] as const) {
       if (!m) continue;
       m.visible = show && next?.t === t;
+      // The same shell that is about to be lifted, its door on the same face.
+      if (m.visible && next && waiting.current !== next.id) {
+        waiting.current = next.id;
+        m.geometry = moduleGeometry(t, doors.get(next.id) ?? 'front');
+      }
       m.position.set(truckX(p), TRUCK.deckY, truckZ);
     }
 
@@ -134,7 +141,7 @@ function Install({ progress, rig }: SceneProps & { rig: Rig }) {
       <Paving w={2} d={6} x={-fit.w / 2 + 2} z={fit.d / 2 + 4} tile={1} y={0.015} material={mat.paving} lineOpacity={0.08} />
       <group position={off.toArray()}>
         <FoundationParts units={view.units} foundation={view.foundation} />
-        <House units={view.units} addOns={view.addOns} deckSide={view.deckSide} manual={view.manual} shellHex={view.shellHex} deckHex={view.deckHex} trimHex={view.trimHex} foundation={view.foundation} look={rig.look} footings={false} pose={pose} addOnT={() => win(progress.value, ADDONS.from, ADDONS.to, ease.out)} />
+        <House units={view.units} addOns={view.addOns} deckSide={view.deckSide} manual={view.manual} shellHex={view.shellHex} deckHex={view.deckHex} trimHex={view.trimHex} foundation={view.foundation} look={rig.look} footings={false} pose={pose} addOnT={() => win(progress.value, ADDONS.from, ADDONS.to, ease.out)} plot={view.plot} />
       </group>
       <Truck getX={() => truckX(progress.value)} z={truckZ} ry={Math.PI} />
       <mesh ref={cargo} geometry={moduleGeometry('A')} material={mats} castShadow visible={false} />

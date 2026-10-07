@@ -165,24 +165,19 @@ export const componentSteps: FilmStep[] = [
 const revealRest: FilmStep[] = [
   {
     id: 'whole',
-    at: 0.4,
-    pose: 0.56,
+    at: 0.5,
+    pose: 0.86,
     kicker: 'Made whole',
     title: 'Every shell leaves the factory finished.',
     body: 'Cast with its insulation panels in place, then sprayed, glazed and fitted with doors on the finishing line.',
   },
-  {
-    id: 'next',
-    at: 0.76,
-    pose: 1,
-    kicker: 'Next',
-    title: 'See how we manufacture it.',
-    link: { label: 'Enter the factory', href: '#factory' },
-  },
 ];
 
+/** The factory tour's title screen: it takes the whole screen after "your house", then opens onto the yard. */
+export const factoryTitle = { kicker: 'Factory tour', line: ['See how we', 'manufacture it.'] } as const;
+
 export const revealSteps: FilmStep[] = [
-  { id: 'yours', at: 0, pose: 0.1, cue: 0.05, kicker: 'Your build', title: 'Your house, on its own.', body: 'Exactly as you configured it, shell by shell.' },
+  { id: 'yours', at: 0, pose: 0.14, cue: 0.05, kicker: 'Your build', title: 'Your house, on its own.', body: 'Exactly as you configured it, shell by shell.' },
   ...revealRest,
 ];
 
@@ -190,7 +185,7 @@ export const revealSample: FilmStep[] = [
   {
     id: 'yours',
     at: 0,
-    pose: 0.1,
+    pose: 0.14,
     cue: 0.05,
     kicker: 'A sample build',
     title: 'This could be your house.',

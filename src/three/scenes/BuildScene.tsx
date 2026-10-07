@@ -13,7 +13,7 @@ import {
   type Mesh,
 } from 'three';
 import { deckDetails, type ManualAddOn, type ManualKind, type Plot, type ShellType, type Turn, type UnitSpec } from '../../data/build';
-import { CELL, FRONT, STOREY, baseOf, cells, check, layoutAddOns, occupancy, placeOf, sideOf, span, worldToCell, type AddOnLayout, type Unit } from '../../build/model';
+import { CELL, FRONT, STOREY, baseOf, cells, check, layoutAddOns, occupancy, pieceAt, placeOf, sideOf, span, worldToCell, type AddOnLayout, type Piece, type Unit } from '../../build/model';
 import { build, shown, useBuild } from '../../build/store';
 import type { SceneProps } from '../../film/progress';
 import { clamp01, ease } from '../../film/timeline';
@@ -56,11 +56,14 @@ export interface BuildSceneProps extends SceneProps {
   addOnTool: ManualKind | null;
   turn: Turn;
   selected: number | null;
+  /** A selected add-on (deck, steps, shade, roof, solar) or the upper-floor access. */
+  piece: Piece | null;
   orbit: Orbit;
   onHover: (h: Hover | null) => void;
   onAddOnHover: (h: AddOnHover | null) => void;
   onPick: (spec: UnitSpec) => void;
   onSelect: (id: number | null) => void;
+  onSelectPiece: (p: Piece | null) => void;
   onAddOn: (m: ManualAddOn) => void;
 }
 
@@ -189,6 +192,14 @@ function Selection({ units, selected, base }: { units: readonly Unit[]; selected
   return <lineSegments geometry={geo} material={selLine} position={[x, y + STOREY / 2, z]} rotation-y={ry} />;
 }
 
+/** The box a selected add-on fills, outlined. */
+function PieceBox({ piece }: { piece: Piece | null }) {
+  const geo = useMemo(() => memo('unit-edges', () => new EdgesGeometry(UNIT_BOX)), []);
+  if (!piece) return null;
+  const [x0, y0, z0, x1, y1, z1] = piece.box;
+  return <lineSegments geometry={geo} material={selLine} position={[(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2]} scale={[x1 - x0 + 0.1, y1 - y0 + 0.1, z1 - z0 + 0.1]} />;
+}
+
 /* ---------- Camera ---------- */
 
 function Director({ orbit, units, plot, base, rig }: { orbit: Orbit; units: readonly Unit[]; plot: Plot; base: number; rig: Rig }) {
@@ -268,7 +279,7 @@ const LINES: [number, number, number, number, number][] = [
 
 /* ---------- Scene ---------- */
 
-function Configurator({ tool, addOnTool, turn, selected, orbit, onHover, onAddOnHover, onPick, onSelect, onAddOn, place, rig, reduced }: BuildSceneProps & { rig: Rig }) {
+function Configurator({ tool, addOnTool, turn, selected, piece, orbit, onHover, onAddOnHover, onPick, onSelect, onSelectPiece, onAddOn, place, rig, reduced }: BuildSceneProps & { rig: Rig }) {
   const state = useBuild((s) => s);
   const view = useMemo(() => shown(state), [state]);
   const units = state.units;
@@ -281,6 +292,10 @@ function Configurator({ tool, addOnTool, turn, selected, orbit, onHover, onAddOn
   const invalidate = useThree((s) => s.invalidate);
   const label = useLabel(place);
   const [addHover, setAddHover] = useState<AddOnHover | null>(null);
+  // The same layout the house draws, for telling which add-on a click landed on.
+  const layout = useMemo(() => layoutAddOns(units, new Set(view.addOns), view.deckSide, view.manual, base, plot), [units, view.addOns, view.deckSide, view.manual, base, plot]);
+  // A selected piece is looked up again in each new layout: it may have moved, or gone.
+  const shownPiece = useMemo(() => (piece ? (layout.pieces.find((p) => p.k === piece.k && p.u === piece.u && p.s === piece.s) ?? null) : null), [piece, layout]);
 
   // When a shell arrives, it drops in.
   const arrivals = useRef(new Map<number, number>());
@@ -310,6 +325,9 @@ function Configurator({ tool, addOnTool, turn, selected, orbit, onHover, onAddOn
     if (u) {
       const [x, y, z] = placeOf(u, base);
       label('selection', ox + x, y + STOREY + 0.7, oz + z, 1);
+    } else if (shownPiece && shownPiece.k !== 'access') {
+      const [x0, , z0, x1, y1, z1] = shownPiece.box;
+      label('selection', ox + (x0 + x1) / 2, y1 + 0.6, oz + (z0 + z1) / 2, 1);
     } else label('selection', 0, 0, 0, 0);
   });
 
@@ -368,12 +386,34 @@ function Configurator({ tool, addOnTool, turn, selected, orbit, onHover, onAddOn
   };
 
   const unitHit = (e: ThreeEvent<PointerEvent | MouseEvent>) => {
-    const mesh = e.object as InstancedMesh;
-    const type = mesh.userData.type as ShellType | undefined;
-    if (!type || e.instanceId === undefined || !e.face) return null;
-    const u = units.filter((x) => x.t === type)[e.instanceId];
+    const list = (e.object as InstancedMesh).userData.units as Unit[] | undefined;
+    if (!list || e.instanceId === undefined || !e.face) return null;
+    const u = list[e.instanceId];
     if (!u) return null;
-    return { u, n: e.face.normal.clone().applyAxisAngle(Y, (u.r * Math.PI) / 2) };
+    /*
+     * Which face of the shell: the one whose plane the hit lies nearest. The
+     * triangle's own normal misleads on frames, sills and fittings, which
+     * have side faces of their own (a click on a window jamb read as a click
+     * on the end wall).
+     */
+    const [cx, by, cz, ry] = placeOf(u, base);
+    const [px, pz] = local(e.point);
+    const cos = Math.cos(ry);
+    const sin = Math.sin(ry);
+    const lx = (px - cx) * cos - (pz - cz) * sin;
+    const lz = (px - cx) * sin + (pz - cz) * cos;
+    const hx = u.t === 'A' ? CELL : CELL / 2;
+    const d = [Math.abs(hx - lx), Math.abs(hx + lx), Math.abs(CELL / 2 - lz), Math.abs(CELL / 2 + lz), Math.abs(by + STOREY - e.point.y)];
+    const k = d.indexOf(Math.min(...d));
+    return { u, n: new Vector3(k === 0 ? 1 : k === 1 ? -1 : 0, k === 4 ? 1 : 0, k === 2 ? 1 : k === 3 ? -1 : 0).applyAxisAngle(Y, ry) };
+  };
+
+  /** The add-on under the pointer, when the hit is on a deck, steps, a shade, a roof or panels. */
+  const pieceHit = (e: ThreeEvent<PointerEvent | MouseEvent>): Piece | null => {
+    const kinds = e.object.userData.addon as Piece['k'][] | undefined;
+    if (!kinds) return null;
+    const [lx, lz] = local(e.point);
+    return pieceAt(layout, lx, e.point.y, lz, kinds);
   };
 
   const fromUnit = (e: ThreeEvent<PointerEvent | MouseEvent>) => {
@@ -389,26 +429,34 @@ function Configurator({ tool, addOnTool, turn, selected, orbit, onHover, onAddOn
     return { unit: u, hover: candidate(cx, cz, u.y, 0.5 + n.x * 0.5, 0.5 + n.z * 0.5) };
   };
 
-  /** What the armed add-on would do at this hit. */
-  const addOnAt = (e: ThreeEvent<PointerEvent | MouseEvent>): AddOnHover | null => {
+  /** What the armed add-on would do on shell `u`, side `s` (null: the roof). */
+  const addOnOn = (u: Unit, s: Turn | null): AddOnHover | null => {
     if (!addOnTool) return null;
-    const hit = unitHit(e);
-    if (!hit) return null;
-    const { u, n } = hit;
     const occ = occupancy(units);
     if (addOnTool === 'roof' || addOnTool === 'solar') {
       const m: ManualAddOn = { k: addOnTool, u: u.id };
       const covered = cells(u).some(([x, z]) => occ.has(`${x},${z},${u.y + 1}`)) || units.some((o) => o.y === u.y + 1);
       return { m, ok: !covered, placed: build.hasManual(m), why: covered ? 'Only the top shells take a roof or panels.' : undefined };
     }
-    if (n.y > 0.5) return { m: { k: addOnTool, u: u.id }, ok: false, placed: false, why: 'Point at a wall of the shell.' };
-    const s = sideOf(n.x, n.z);
+    if (s === null) return { m: { k: addOnTool, u: u.id }, ok: false, placed: false, why: 'Point at a wall of the shell.' };
     const m: ManualAddOn = { k: addOnTool, u: u.id, s };
     const [fx, fz] = FRONT[s];
     if (!cells(u).some(([x, z]) => !occ.has(`${x + fx},${z + fz},${u.y}`))) return { m, ok: false, placed: false, why: 'That wall meets another shell.' };
-    if ((addOnTool === 'deck' || addOnTool === 'steps') && u.y !== 0) return { m, ok: false, placed: false, why: 'Decks and steps go on the ground floor.' };
-    if (addOnTool === 'steps' && !build.hasManual({ k: 'deck', u: u.id, s })) return { m, ok: false, placed: false, why: 'Place a deck on that side first.' };
+    if ((addOnTool === 'deck' || addOnTool === 'steps') && u.y !== 0) return { m, ok: false, placed: false, why: 'Decks and steps go on the ground floor. Upper floors get their gallery and staircase on their own.' };
     return { m, ok: true, placed: build.hasManual(m) };
+  };
+
+  /** What the armed add-on would do at this hit: on a wall or roof, or on an add-on already standing. */
+  const addOnAt = (e: ThreeEvent<PointerEvent | MouseEvent>): AddOnHover | null => {
+    if (!addOnTool) return null;
+    const p = pieceHit(e);
+    if (p && p.k !== 'access') {
+      const u = units.find((x) => x.id === p.u);
+      if (u) return addOnOn(u, p.s ?? null);
+    }
+    const hit = unitHit(e);
+    if (!hit) return null;
+    return addOnOn(hit.u, hit.n.y > 0.5 ? null : sideOf(hit.n.x, hit.n.z));
   };
 
   const ghostLayout = useMemo<AddOnLayout | null>(() => {
@@ -416,7 +464,9 @@ function Configurator({ tool, addOnTool, turn, selected, orbit, onHover, onAddOn
     const extra: ManualAddOn[] = [addHover.m];
     if (addHover.m.k === 'steps' && addHover.m.s !== undefined) extra.push({ k: 'deck', u: addHover.m.u, s: addHover.m.s });
     const on = new Set(state.addOns.filter((a) => deckDetails.includes(a)));
-    return layoutAddOns(units, on, 'auto', extra, base);
+    // Only the piece in hand: the upper-floor access is already standing.
+    const l = layoutAddOns(units, on, 'auto', extra, base);
+    return { ...l, galleries: [], columns: [], towers: [], rails: l.rails.filter((r) => Math.abs(r.y - l.deckY) < 0.01) };
   }, [addHover, units, state.addOns, base]);
 
   const onGroundMove = (e: ThreeEvent<PointerEvent>) => {
@@ -427,6 +477,7 @@ function Configurator({ tool, addOnTool, turn, selected, orbit, onHover, onAddOn
   };
   const onUnitMove = (e: ThreeEvent<PointerEvent>) => {
     if (e.pointerType === 'touch') return;
+    if (e.object.userData.addon !== undefined && tool) return;
     e.stopPropagation();
     if (addOnTool) return setAdd(addOnAt(e));
     setHover(fromUnit(e)?.hover ?? null);
@@ -440,17 +491,21 @@ function Configurator({ tool, addOnTool, turn, selected, orbit, onHover, onAddOn
     else setHover(h);
   };
   const onUnitClick = (e: ThreeEvent<MouseEvent>) => {
+    if (e.delta > 6) return e.stopPropagation();
+    const onAddOnMesh = e.object.userData.addon !== undefined;
+    // A shell in hand passes through decks and rails to whatever it can stand on behind them.
+    if (onAddOnMesh && tool) return;
     e.stopPropagation();
-    if (e.delta > 6) return;
     if (addOnTool) {
       const h = addOnAt(e);
       if (h?.ok) {
         onAddOn(h.m);
-        lastKey.current = '';
-        setAdd({ ...h, placed: !h.placed });
+        // Shown as built, without a ghost over it, until the pointer moves again.
+        setAdd(null);
       } else if (h) setAdd(h);
       return;
     }
+    if (onAddOnMesh) return onSelectPiece(pieceHit(e));
     const hit = fromUnit(e);
     if (!hit) return;
     if (!tool) return onSelect(hit.unit.id);
@@ -493,10 +548,12 @@ function Configurator({ tool, addOnTool, turn, selected, orbit, onHover, onAddOn
               foundation={view.foundation}
               look={rig.look}
               pose={pose}
+              plot={plot}
             />
           </group>
         )}
         <Selection units={units} selected={selected} base={base} />
+        <PieceBox piece={selected === null ? shownPiece : null} />
         <Ghost hover={hover} base={base} />
         <AddOnGhost layout={ghostLayout} material={addHover?.placed ? removeGhost : addGhost} />
       </group>

@@ -10,7 +10,7 @@ import type { CameraKey } from '../../film/timeline';
 import { Paving } from './env';
 import { CapsulePods, InstitutionalBlock, Pad, WorkforceBlock, padGeometry, type BuildingProps } from './buildings';
 import { merge } from './geometry';
-import { Flowers, Fence, Grass, Ground, LAND, TreeLine, Woodland, along, settled, type Eye, type FieldPatch, type LandPalette, type Rect, type TreeSpot } from './landscape';
+import { Flowers, Fence, Grass, Ground, LAND, TreeLine, Woodland, along, strip, settled, type Eye, type FieldPatch, type LandPalette, type Rect, type TreeSpot } from './landscape';
 import type { LookName } from './looks';
 import { mat } from './materials';
 import { HOME_FOOTPRINT, HOME_LAMP, HOME_LANDING, HOME_STEP_FOOT, ModelHome } from './modelhome';
@@ -28,8 +28,8 @@ export interface SetInfo {
 export const SETS: Record<SetName, SetInfo> = {
   farm: {
     look: 'sunset',
-    from: { pos: [10.4, 2.12, 21.8], look: [0.5, 2.6, 0.6] },
-    to: { pos: [7.55, 1.96, 18.3], look: [0.75, 2.46, 0.6] },
+    from: { pos: [11.2, 2.1, 23.5], look: [0.5, 2.6, 0.6] },
+    to: { pos: [8.1, 1.94, 19.7], look: [0.75, 2.46, 0.6] },
     shadow: 26,
   },
   pods: {
@@ -166,18 +166,34 @@ const FARM_LINES: [number, number, number, number, number][] = [
 ];
 // One woodland for the set: the trees by the house, the hedgerows and the shrubs at the deck.
 const FARM_WOOD: TreeSpot[] = [...settled(FARM_TREES), ...FARM_HEDGE_TREES, ...settled(FARM_SHRUBS)];
-// The meadow runs up to the walls, as the lawn does in the client's model.
-const FARM_EXCLUDE: Rect[] = [
-  { x0: HOME_FOOTPRINT.x0 - 0.45, z0: HOME_FOOTPRINT.z0 - 0.45, x1: HOME_FOOTPRINT.x1 + 0.45, z1: HOME_FOOTPRINT.z1 + 0.3 },
-  { x0: HOME_LANDING.x0 - 0.3, z0: HOME_LANDING.z0, x1: HOME_LANDING.x1 + 0.3, z1: HOME_LANDING.z1 + 0.35 },
-  { x0: HOME_STEP_FOOT[0] - 0.8, z0: HOME_STEP_FOOT[1], x1: HOME_STEP_FOOT[0] + 0.9, z1: HOME_STEP_FOOT[1] + 2.2 },
-];
+/*
+ * The house stands a little turned towards the low sun (client, 2026-10-07),
+ * so its steps point out into the meadow and the path has to come round to
+ * them. Everything that belongs to the house turns with it.
+ */
+const FARM_YAW = -0.24;
+const YAW_COS = Math.cos(FARM_YAW);
+const YAW_SIN = Math.sin(FARM_YAW);
+/** A point on the house's own plan, as it lies in the set. */
+const turned = (x: number, z: number): [number, number] => [x * YAW_COS + z * YAW_SIN, -x * YAW_SIN + z * YAW_COS];
+
+/** Stepping stones from the foot of the steps, out and round to where the camera stands. */
 const FARM_PATH: [number, number][] = [
-  [HOME_STEP_FOOT[0], HOME_STEP_FOOT[1] + 0.55],
-  [HOME_STEP_FOOT[0] + 0.5, 6.4],
-  [4.6, 10],
-  [6.3, 13.6],
-  [7.6, 17.5],
+  turned(HOME_STEP_FOOT[0], HOME_STEP_FOOT[1] + 0.5),
+  turned(HOME_STEP_FOOT[0] + 0.1, HOME_STEP_FOOT[1] + 2.4),
+  [0.9, 8.4],
+  [1.6, 10.6],
+  [3.0, 12.6],
+  [4.9, 14.5],
+  [6.9, 16.4],
+  [8.6, 18.6],
+  [10.2, 21.4],
+];
+// The meadow runs up to the walls, as the lawn does in the client's model, and stands back from the path.
+const FARM_EXCLUDE: Rect[] = [
+  { x0: HOME_FOOTPRINT.x0 - 0.45, z0: HOME_FOOTPRINT.z0 - 0.45, x1: HOME_FOOTPRINT.x1 + 0.45, z1: HOME_FOOTPRINT.z1 + 0.3, turn: FARM_YAW },
+  { x0: HOME_LANDING.x0 - 0.3, z0: HOME_LANDING.z0, x1: HOME_LANDING.x1 + 0.3, z1: HOME_LANDING.z1 + 0.35, turn: FARM_YAW },
+  ...strip(FARM_PATH, 1.15),
 ];
 /** Backfilled pits round the four footings. */
 const FARM_PITS: [number, number][] = [-1, 1].flatMap((sx) => [-1, 1].map((sz) => [sx * (HOME_FOOTPRINT.x1 - 0.28), sz * (HOME_FOOTPRINT.z1 - 0.28)] as [number, number]));
@@ -206,11 +222,13 @@ export function FarmSet({ getA, look }: Omit<BuildingProps, 'x'>) {
         flat={FARM_FLAT}
         hills={FARM_HILLS}
       />
-      <Pits at={FARM_PITS} />
       <Stones pts={FARM_PATH} />
-      <ModelHome getA={getA} look={look} shellHex={HOME_FINISH.shell} deckHex={HOME_FINISH.deck} trimHex={HOME_FINISH.trim} />
-      {/* A soft porch light: the door and its sidelights stay readable under it. */}
-      <Lamp at={HOME_LAMP} intensity={(look.lamps ?? 0) * 0.9} />
+      <group rotation-y={FARM_YAW}>
+        <Pits at={FARM_PITS} />
+        <ModelHome getA={getA} look={look} shellHex={HOME_FINISH.shell} deckHex={HOME_FINISH.deck} trimHex={HOME_FINISH.trim} />
+        {/* A soft porch light: the door and its sidelights stay readable under it. */}
+        <Lamp at={HOME_LAMP} intensity={(look.lamps ?? 0) * 0.9} />
+      </group>
     </group>
   );
 }
@@ -320,7 +338,6 @@ export function WorkSet({ getA, look }: Omit<BuildingProps, 'x'>) {
         seed={21}
         trees={WORK_TREES}
         lines={WORK_LINES}
-        grass={{ center: [8, 18], radius: [34, 12], count: 4200, exclude: [{ x0: -18, z0: -9, x1: 20, z1: 9.5 }], height: 0.45 }}
         eye={EYE.work}
       />
       <Pad w={36} d={18} r={0.6} y={-0.02} material={mat.gravel} thickness={0.06} />
@@ -358,7 +375,6 @@ export function CampusSet({ getA, label, getShow, look }: Omit<BuildingProps, 'x
         seed={33}
         trees={CAMPUS_TREES}
         lines={CAMPUS_LINES}
-        grass={{ center: [0, 26], radius: [40, 10], count: 3600, exclude: [{ x0: -26, z0: 12, x1: 26, z1: 22 }], height: 0.32 }}
         eye={EYE.campus}
       />
       <Paving w={52} d={28} tile={2} y={0.012} material={mat.paving} line="#3b3e43" lineOpacity={0.09} />

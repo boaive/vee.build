@@ -1,7 +1,9 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import { BufferGeometry, Color, Float32BufferAttribute, type Group, type InstancedMesh } from 'three';
-import { footprints, stacks, type Placement } from '../../data/system';
+import { doorFaces, type Unit } from '../../build/model';
+import type { Turn } from '../../data/build';
+import { footprints, stacks, type DoorFace, type Placement } from '../../data/system';
 import type { SceneProps } from '../../film/progress';
 import { SETTLE, START, STATE, locate } from '../../film/systemTimeline';
 import { ease, hold, lerp, sampleCamera, stagger, win, type CameraKey } from '../../film/timeline';
@@ -20,6 +22,9 @@ type Pose = [number, number, number, number] | null;
 interface Config {
   A: Pose[];
   B: Pose[];
+  /** The face each shell's door is on in this configuration, by slot. */
+  doorA: DoorFace[];
+  doorB: DoorFace[];
 }
 
 const A_POOL = 18;
@@ -31,39 +36,70 @@ const PAIR_B: [number, number, number] = [4.5, 0, Z0];
 const snap = (v: number) => Math.round(v / 3) * 3;
 const same = (a: Pose, b: Pose) => !!a && !!b && a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
 
-function fill(list: Pose[], n: number): Pose[] {
-  return Array.from({ length: n }, (_, i) => list[i] ?? null);
+function fill<T>(list: T[], n: number, empty: T): T[] {
+  return Array.from({ length: n }, (_, i) => list[i] ?? empty);
+}
+
+/** The same door rule as the configurator (build/model.ts), on a list of placements. */
+function doorsOf(list: Placement[]): DoorFace[] {
+  const units: Unit[] = list.map((p, i) => ({ id: i + 1, t: p.t, x: p.x, z: p.z, y: p.y, r: (p.r ?? 0) as Turn }));
+  const doors = doorFaces(units);
+  return units.map((u) => doors.get(u.id) ?? 'front');
 }
 
 const CONFIGS: Config[] = (() => {
-  const out: Config[] = [{ A: fill([[...PAIR_A, 0]], A_POOL), B: fill([[...PAIR_B, 0]], B_POOL) }];
+  const out: Config[] = [{ A: fill<Pose>([[...PAIR_A, 0]], A_POOL, null), B: fill<Pose>([[...PAIR_B, 0]], B_POOL, null), doorA: fill<DoorFace>([], A_POOL, 'front'), doorB: fill<DoorFace>([], B_POOL, 'front') }];
   for (const f of footprints) {
     const present = f.slots.filter(Boolean) as Placement[];
     const [cx, cz] = planCentre(present).map(snap);
+    const doors = doorsOf(present);
+    const door = (p: Placement | null): DoorFace => (p ? doors[present.indexOf(p)] : 'front');
     out.push({
-      A: fill(
+      A: fill<Pose>(
         f.slots.slice(0, 4).map((p) => (p ? pose(p, cx, cz) : null)),
         A_POOL,
+        null,
       ),
-      B: fill([f.slots[4] ? pose(f.slots[4], cx, cz) : null], B_POOL),
+      B: fill<Pose>([f.slots[4] ? pose(f.slots[4], cx, cz) : null], B_POOL, null),
+      doorA: fill<DoorFace>(f.slots.slice(0, 4).map(door), A_POOL, 'front'),
+      doorB: fill<DoorFace>([door(f.slots[4])], B_POOL, 'front'),
     });
   }
   for (const st of stacks) {
     const ground = st.modules.filter((m) => m.t === 'A' && m.y === 0);
     const [cx, cz] = planCentre(ground);
+    const doors = doorsOf(st.modules);
+    // A massing study has no galleries: an upper lobby module is reached from the floor it serves, not from outside.
+    const door = (p: Placement): DoorFace => {
+      const d = doors[st.modules.indexOf(p)];
+      return p.t === 'B' && p.y > 0 && d === 'front' ? 'none' : d;
+    };
+    const listA = st.modules.filter((m) => m.t === 'A');
+    const listB = st.modules.filter((m) => m.t === 'B');
     out.push({
-      A: fill(st.modules.filter((m) => m.t === 'A').map((p) => pose(p, cx, cz)), A_POOL),
-      B: fill(st.modules.filter((m) => m.t === 'B').map((p) => pose(p, cx, cz)), B_POOL),
+      A: fill<Pose>(listA.map((p) => pose(p, cx, cz)), A_POOL, null),
+      B: fill<Pose>(listB.map((p) => pose(p, cx, cz)), B_POOL, null),
+      doorA: fill<DoorFace>(listA.map(door), A_POOL, 'front'),
+      doorB: fill<DoorFace>(listB.map(door), B_POOL, 'front'),
     });
   }
   return out;
 })();
 
+/** The door faces each pool ever shows: one instanced mesh for each. */
+const FACES = {
+  A: [...new Set(CONFIGS.flatMap((c) => c.doorA))],
+  B: [...new Set(CONFIGS.flatMap((c) => c.doorB))],
+};
+
+/** One job per shell geometry this film uses, for building them during idle time before it mounts (film/prefetch.ts). */
+export const prepare: (() => void)[] = [...FACES.A.map((d) => () => void moduleGeometry('A', d)), ...FACES.B.map((d) => () => void moduleGeometry('B', d))];
+
 const CAM: CameraKey[] = [
   { p: 0, look: [0.4, 1.3, -1.2], pos: [14.5, 8.4, 27] },
   { p: 0.12, look: [0.4, 1.4, -1.2], pos: [13.5, 8.2, 25.5] },
-  { p: 0.2, look: [-0.4, 2.7, -0.35], pos: [3.1, 4.5, 5.4] },
-  { p: 0.265, look: [-0.4, 2.7, -0.35], pos: [3.5, 4.4, 5.1] },
+  { p: 0.2, look: [-4.5, 2.75, -0.2], pos: [-6.7, 4.6, 6.5] },
+  { p: 0.265, look: [-4.5, 2.75, -0.2], pos: [-6.3, 4.5, 6.2] },
   { p: 0.34, look: [0, 0.6, 0], pos: [17, 23, 25] },
   { p: 0.59, look: [0, 0.6, 0], pos: [20, 22, 23] },
   { p: 0.7, look: [0.5, 2.6, 0], pos: [24, 15, 33] },
@@ -74,51 +110,79 @@ const CAM: CameraKey[] = [
 /* ---------- Module pool ---------- */
 
 function Pool({ type, progress }: { type: 'A' | 'B'; progress: SceneProps['progress'] }) {
-  const ref = useRef<InstancedMesh>(null);
+  const refs = useRef<(InstancedMesh | null)[]>([]);
   const n = type === 'A' ? A_POOL : B_POOL;
+  const faces = FACES[type];
+  const counts = useMemo(() => faces.map(() => 0), [faces]);
+  const doorKey = type === 'A' ? 'doorA' : 'doorB';
 
   useFrame(() => {
-    const m = ref.current;
-    if (!m) return;
     const p = progress.value;
     const { s, t } = locate(p);
     const from = CONFIGS[s - 1][type];
     const to = CONFIGS[s][type];
+    const doorFrom = CONFIGS[s - 1][doorKey];
+    const doorTo = CONFIGS[s][doorKey];
     // Rise inside the drawn frame at the very start.
     const birth = win(p, 0.075, 0.125, ease.out);
 
     let moving = 0;
     for (let i = 0; i < n; i++) if ((from[i] || to[i]) && !same(from[i], to[i])) moving++;
     let k = 0;
+    counts.fill(0);
+    // Each shell is drawn by the mesh that carries its door on the right face; the door changes sides half-way through a move.
+    const put = (door: DoorFace, x: number, y: number, z: number, ry: number, sx = 1, sy = sx, sz = sx) => {
+      const v = faces.indexOf(door);
+      const m = refs.current[v];
+      if (m) setInst(m, counts[v]++, x, y, z, ry, sx, sy, sz);
+    };
 
     for (let i = 0; i < n; i++) {
       const a = from[i];
       const b = to[i];
-      if (!a && !b) {
-        setInst(m, i, 0, -50, 0, 0, 0.0001);
-        continue;
-      }
+      if (!a && !b) continue;
       if (same(a, b) && a) {
-        setInst(m, i, a[0], a[1], a[2], a[3], 1, s === 1 ? Math.max(0.0001, birth) : 1, 1);
+        put(t >= 0.5 ? doorTo[i] : doorFrom[i], a[0], a[1], a[2], a[3], 1, s === 1 ? Math.max(0.0001, birth) : 1, 1);
         continue;
       }
       const ti = stagger(t, k++, Math.max(1, moving), 0.6);
       if (a && b) {
         const e = ease.inOutCubic(ti);
         const hop = Math.sin(Math.PI * e) * 0.5;
-        setInst(m, i, lerp(a[0], b[0], e), lerp(a[1], b[1], e) + hop, lerp(a[2], b[2], e), lerp(a[3], b[3], e), 1, s === 1 ? Math.max(0.0001, birth) : 1, 1);
+        put(e >= 0.5 ? doorTo[i] : doorFrom[i], lerp(a[0], b[0], e), lerp(a[1], b[1], e) + hop, lerp(a[2], b[2], e), lerp(a[3], b[3], e), 1, s === 1 ? Math.max(0.0001, birth) : 1, 1);
       } else if (b) {
         const sc = ti <= 0 ? 0.0001 : Math.min(1, ti * 7);
-        setInst(m, i, b[0], b[1] + (1 - ease.outQuart(ti)) * 9, b[2], b[3], sc);
+        put(doorTo[i], b[0], b[1] + (1 - ease.outQuart(ti)) * 9, b[2], b[3], sc);
       } else if (a) {
         const e = ease.in(ti);
-        setInst(m, i, a[0], a[1] + e * 9, a[2], a[3], Math.max(0.0001, 1 - e));
+        put(doorFrom[i], a[0], a[1] + e * 9, a[2], a[3], Math.max(0.0001, 1 - e));
       }
     }
-    m.instanceMatrix.needsUpdate = true;
+    faces.forEach((_, v) => {
+      const m = refs.current[v];
+      if (!m) return;
+      m.count = counts[v];
+      m.visible = counts[v] > 0;
+      m.instanceMatrix.needsUpdate = true;
+    });
   });
 
-  return <instancedMesh ref={ref} args={[moduleGeometry(type), instanced(moduleMats()), n]} castShadow receiveShadow frustumCulled={false} />;
+  return (
+    <>
+      {faces.map((door, v) => (
+        <instancedMesh
+          key={door}
+          ref={(m) => {
+            refs.current[v] = m;
+          }}
+          args={[moduleGeometry(type, door), instanced(moduleMats()), n]}
+          castShadow
+          receiveShadow
+          frustumCulled={false}
+        />
+      ))}
+    </>
+  );
 }
 
 /* ---------- Step 2.1: frames, dimensions, hook & cleat ---------- */
@@ -229,7 +293,7 @@ function HookCleats({ progress, label }: Pick<SceneProps, 'progress'> & { label:
     CORNERS.forEach(([x, z, ry], i) => setInst(m, i, x, 3 + (1 - v) * 0.6, z, ry, Math.max(0.0001, v)));
     m.instanceMatrix.needsUpdate = true;
     tint.color.copy(STEEL).lerp(ACCENT, hold(p, 0.165, 0.265, 0.025));
-    label('hook-cleat', CORNERS[0][0] - 0.13, 3.19, CORNERS[0][1] - 0.13, hold(p, 0.185, 0.255, 0.015));
+    label('hook-cleat', CORNERS[1][0] + 0.13, 3.19, CORNERS[1][1] - 0.13, hold(p, 0.185, 0.255, 0.015));
   });
   return <instancedMesh ref={ref} args={[hookCleatGeometry(), tint, CORNERS.length]} castShadow frustumCulled={false} />;
 }

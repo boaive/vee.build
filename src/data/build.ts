@@ -58,7 +58,7 @@ export interface ManualAddOn {
 }
 export const manualKinds: { id: ManualKind; name: string; hint: string }[] = [
   { id: 'deck', name: addOns[0], hint: 'Click the side of a ground-floor shell.' },
-  { id: 'steps', name: addOns[4], hint: 'Click a deck edge.' },
+  { id: 'steps', name: addOns[4], hint: 'Click a deck, or a ground-floor wall to place a deck with its steps.' },
   { id: 'shade', name: addOns[5], hint: 'Click a wall with a window or door.' },
   { id: 'roof', name: addOns[6], hint: 'Click the roof of a top shell.' },
   { id: 'solar', name: addOns[7], hint: 'Click the roof of a top shell.' },
@@ -74,11 +74,11 @@ export type AddOnId = (typeof addOnIds)[number];
 export const deckDetails: AddOnId[] = ['posts', 'spandrel', 'handrail'];
 
 export const addOnInfo: Record<AddOnId, { name: string; hint: string; needs?: AddOnId }> = {
-  deck: { name: addOns[0], hint: 'Runs along the glazed front of the ground floor.' },
+  deck: { name: addOns[0], hint: 'Runs along the side the doors open to.' },
   posts: { name: addOns[1], hint: 'Carry the deck.', needs: 'deck' },
   spandrel: { name: addOns[2], hint: 'Closes the deck edge.', needs: 'deck' },
   handrail: { name: addOns[3], hint: 'On the deck edge and around open roof terraces.' },
-  steps: { name: addOns[4], hint: 'From the deck down to the ground.', needs: 'deck' },
+  steps: { name: addOns[4], hint: 'From the deck down to the ground, at a door.', needs: 'deck' },
   shades: { name: addOns[5], hint: 'Over every exposed glazed front.' },
   roof: { name: addOns[6], hint: 'A mono-pitch roof on each top shell.' },
   solar: { name: addOns[7], hint: 'Panels on every top roof.' },
@@ -153,7 +153,7 @@ export const presets: Preset[] = [
     id: s.id,
     name: s.name,
     note: s.floors,
-    // Rows of turned shells put each shell's door end on the street.
+    // Rows of turned shells: every door ends up on the street end (build/model.ts, doorFaces).
     units: s.modules.map((p) => U(p.t, p.x, p.z, p.y, p.t === 'A' ? 1 : 0)),
     addOns: (s.id === 'highrise' ? ['handrail', 'shades', 'solar'] : ['deck', 'posts', 'spandrel', 'handrail', 'steps', 'shades']) as AddOnId[],
     deckSide: 0 as DeckSide,

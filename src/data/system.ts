@@ -9,6 +9,17 @@ export const CELL = 3;
 export const STOREY = 3;
 
 export type ModuleType = 'A' | 'B';
+/** The face of a shell that carries its one door. `none`: it is reached through the shell beside it. */
+export type DoorFace = 'front' | 'left' | 'right' | 'back' | 'none';
+/**
+ * Where the door stands along each face, in metres from the shell's centre
+ * (x on the front and back, z on the ends). The front position is measured
+ * on the client's single-shell model (notes H8).
+ */
+export const DOOR_AT: Record<ModuleType, Record<Exclude<DoorFace, 'none'>, number>> = {
+  A: { front: 1.715, back: 1.715, left: -0.55, right: 0.55 },
+  B: { front: 0.72, back: 0.72, left: -0.4, right: 0.4 },
+};
 
 export interface Placement {
   t: ModuleType;

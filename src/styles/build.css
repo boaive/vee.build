@@ -146,7 +146,7 @@
   padding: 0.35rem 0.9rem;
   border-radius: 999px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 0.86rem;
   font-weight: 560;
   box-shadow: 0 8px 24px -12px rgb(17 18 20 / 0.45);
@@ -193,7 +193,7 @@
 .cfg__extend:hover,
 .cfg__extend:focus-visible {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 .cfg__pill {
   display: flex;
@@ -300,7 +300,7 @@
 .palette__btn.is-on {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 .palette__count {
   font-family: var(--font-mono);
@@ -636,6 +636,23 @@
   fill: rgb(169 120 75 / 0.22);
   stroke: #a9784b;
   stroke-width: 0.05;
+}
+/* The outer staircase that comes with an upper floor. */
+.plan__stair {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 0.06;
+  stroke-dasharray: 0.12 0.16;
+}
+/* A shell's door: the wall opened, and the leaf standing out from it. */
+.plan__door-gap {
+  stroke: var(--surface);
+  stroke-width: 0.2;
+}
+.plan__door {
+  stroke: var(--accent);
+  stroke-width: 0.1;
+  stroke-linecap: round;
 }
 .plan__terrace,
 .plan__below {

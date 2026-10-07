@@ -29,13 +29,23 @@
   display: block;
 }
 
-/* Keeps the caption column legible where the scene runs behind it. */
+/*
+ * Nothing is washed over a light picture: a veil in the page colour showed
+ * as a milky haze wherever the scene ran under it. A dark stage keeps a
+ * vignette in its own tone behind the caption column, where it reads as
+ * shadow. A light picture carries its captions as plain text: the scene is
+ * framed so that they stand on calm ground (the factory's yard slab, the
+ * studio floor), or the captions take the light theme's opposite (the
+ * installation, in evening light).
+ */
 .film__stage::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgb(var(--scrim) / 0.82) 0%, rgb(var(--scrim) / 0.5) 25%, rgb(var(--scrim) / 0) 46%);
   pointer-events: none;
+}
+.film.theme-dark .film__stage::after {
+  background: linear-gradient(90deg, rgb(var(--scrim) / 0.82) 0%, rgb(var(--scrim) / 0.5) 25%, rgb(var(--scrim) / 0) 46%);
 }
 
 .film__labels {
@@ -405,49 +415,90 @@ button.film__tag:focus-visible {
   }
 }
 
-/* ---------- Prelude: a title card that opens onto the film ---------- */
+/* ---------- Prelude: a title card with a window onto the film ---------- */
+
+/*
+ * The film is already running under the card. It shows through a window
+ * (--win-*: the window's insets from the edges of the screen), and scrolling
+ * grows the window until the picture fills the screen: --pre is the scroll
+ * through the card, --o the eased amount the window has opened. Once it is
+ * fully open the card, its backdrop and the clip are taken off (.is-open),
+ * so the film itself runs on an untouched stage.
+ */
+.film.has-prelude .film__sticky {
+  --p: clamp(0, var(--pre, 0) / 0.86, 1);
+  --o: calc(var(--p) * var(--p) * (3 - 2 * var(--p)));
+  --win-t: 45svh;
+  --win-l: 46vw;
+  --win-r: var(--gutter);
+  --win-b: clamp(1.75rem, 5.5svh, 3.25rem);
+  --win-round: var(--radius);
+}
+/* The factory tour's title screen is ink from edge to edge: its window opens from nothing, at the point the camera looks at. */
+.film--factory.has-prelude .film__sticky {
+  --win-t: 56svh;
+  --win-b: 44svh;
+  --win-l: 67vw;
+  --win-r: 33vw;
+}
+.film--factory .film__prelude-cue {
+  bottom: clamp(1.75rem, 5.5svh, 3.25rem);
+}
+.film__backdrop {
+  position: absolute;
+  inset: 0;
+  background: #f2f0eb;
+}
+.film__backdrop--ink {
+  background: #0a0b0d;
+}
+.has-prelude .film__stage {
+  clip-path: inset(
+    calc(var(--win-t) * (1 - var(--o))) calc(var(--win-r) * (1 - var(--o))) calc(var(--win-b) * (1 - var(--o))) calc(var(--win-l) * (1 - var(--o))) round
+      calc(var(--win-round) * (1 - var(--o)))
+  );
+}
+.has-prelude.is-open .film__stage {
+  clip-path: none;
+}
+.has-prelude.is-open .film__backdrop,
+.has-prelude.is-open .film__prelude {
+  display: none;
+}
 
 .film__prelude {
-  --open: clamp(0, (var(--pre, 0) - 0.32) / 0.6, 1);
   position: absolute;
   inset: 0;
   z-index: 4;
-  display: grid;
-  place-items: center;
-  padding: calc(var(--hdr) + 1rem) var(--gutter) 4rem;
-  background: #f2f0eb;
+  padding-inline: var(--gutter);
   color: #111214;
-  clip-path: inset(calc(var(--open) * 50%) 0 calc(var(--open) * 50%) 0);
   pointer-events: none;
 }
 .film__prelude--ink {
-  background: #0a0b0d;
   color: #f2f0eb;
 }
 .film__prelude-inner {
-  width: min(100%, 76rem);
-  opacity: clamp(0, 1 - var(--pre, 0) * 2.4, 1);
-  transform: translateY(calc(var(--pre, 0) * -10vh)) scale(calc(1 - var(--pre, 0) * 0.05));
-  will-change: transform, opacity;
+  height: 100%;
+  opacity: clamp(0, 1 - var(--pre, 0) * 2.8, 1);
+  will-change: opacity;
 }
 .film__prelude-cue {
   position: absolute;
-  left: 50%;
-  bottom: clamp(1.25rem, 4vh, 2.5rem);
-  display: grid;
-  justify-items: center;
-  gap: 0.6rem;
+  left: var(--gutter);
+  bottom: var(--win-b);
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
   font-family: var(--font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   opacity: clamp(0, 1 - var(--pre, 0) * 6, 1);
-  transform: translateX(-50%);
 }
-.film__prelude-cue::after {
+.film__prelude-cue::before {
   content: '';
   width: 1px;
-  height: 2.6rem;
+  height: 2.4rem;
   background: currentColor;
   transform-origin: top;
   animation: cue 2.4s var(--ease-out) infinite;
@@ -467,40 +518,110 @@ button.film__tag:focus-visible {
   }
 }
 
-/* The scene comes into focus as the card opens; captions follow. */
-.has-prelude .film__stage {
-  transform: scale(calc(1 + (1 - var(--pre, 0)) * 0.07));
-  transform-origin: 60% 55%;
-}
+/* Captions arrive once the picture has nearly filled the screen. */
 .has-prelude .film__hud {
   opacity: clamp(0, (var(--pre, 0) - 0.72) / 0.28, 1);
 }
 
+/* The words: the statement stands on the line of the window's top edge, the rest beside the window. */
 .prelude {
-  display: grid;
-  gap: clamp(1.25rem, 3vh, 2rem);
-  justify-items: start;
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.prelude__top {
+  flex: none;
+  height: var(--win-t);
+  padding-bottom: clamp(1rem, 3.2svh, 2rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: clamp(0.75rem, 2svh, 1.4rem);
+  transform: translateY(calc(var(--pre, 0) * -7svh));
+  will-change: transform;
 }
 .prelude__kicker {
   color: var(--accent);
 }
 .prelude__line {
-  font-size: clamp(3rem, 1rem + 8vw, 9.5rem);
+  font-size: clamp(2.6rem, min(7.6vw, 13.5svh), 9rem);
   font-weight: 640;
   font-stretch: 104%;
   line-height: 0.9;
   letter-spacing: -0.05em;
-  text-wrap: balance;
 }
 .prelude__line em {
   font-style: normal;
   color: var(--accent);
 }
+/* Each line rises out of its own mask when the loading screen lifts. */
+.prelude__ln {
+  display: block;
+  /* Room for descenders inside the mask, taken back from the line below. */
+  padding-bottom: 0.14em;
+  margin-bottom: -0.14em;
+  overflow: hidden;
+}
+.prelude__ln > span {
+  display: block;
+  transition: transform 1.15s var(--ease-out);
+}
+.prelude__ln:nth-child(2) > span {
+  transition-delay: 90ms;
+}
+.is-booting .prelude__ln > span,
+.film:not(.film--hero) .film__prelude:not(.is-seen) .prelude__ln > span {
+  transform: translateY(108%);
+}
+.film:not(.film--hero) .film__prelude:not(.is-seen) .prelude__kicker {
+  opacity: 0;
+}
+.prelude__kicker {
+  transition: opacity 0.8s var(--ease) 0.25s;
+}
+.prelude__rest {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  max-width: calc(var(--win-l) - var(--gutter) - 3rem);
+  padding-top: clamp(1.25rem, 3.4svh, 2.25rem);
+  transition:
+    opacity 0.9s var(--ease) 0.35s,
+    transform 1.1s var(--ease-out) 0.35s;
+}
+.is-booting .prelude__rest {
+  opacity: 0;
+  transform: translateY(1rem);
+}
 .prelude__sub {
-  max-width: 34rem;
+  max-width: 30rem;
   font-size: clamp(1.05rem, 0.95rem + 0.5vw, 1.4rem);
   line-height: 1.4;
-  opacity: 0.72;
+  opacity: 0.74;
+}
+/* A caption on the picture in the window. */
+.prelude__tag {
+  position: absolute;
+  left: calc(var(--win-l) - var(--gutter) + 1rem);
+  top: calc(var(--win-t) + 1rem);
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  background: #111214;
+  color: #f2f0eb;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: opacity 0.8s var(--ease) 0.6s;
+}
+.film__prelude--ink .prelude__tag {
+  background: #f2f0eb;
+  color: #111214;
+}
+.is-booting .prelude__tag {
+  opacity: 0;
 }
 
 /* ---------- Hero ---------- */
@@ -621,16 +742,76 @@ button.film__tag:focus-visible {
   color: var(--text);
 }
 
+/* A quiet word that the scene can be turned by hand (your house). */
+.film__hint {
+  position: absolute;
+  right: var(--gutter);
+  bottom: clamp(1.5rem, 4vh, 2.75rem);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--mute);
+}
+.film__hint span {
+  font-size: 1rem;
+  color: var(--accent-ink);
+}
+@media (max-width: 860px) {
+  .film__hint {
+    top: calc(var(--hdr) + 2.6rem);
+    bottom: auto;
+  }
+}
+
 /* ---------- Compact: the same layout, captions at the foot of the scene ---------- */
 
 @media (max-width: 860px) {
   .film {
     height: calc(var(--film-len-c) * 100svh);
   }
-  .film__stage::after {
+  /* Captions stand at the foot of the stage here: its lower part fades to the page under them. */
+  .film__stage::after,
+  .film.theme-dark .film__stage::after {
     background:
       linear-gradient(0deg, rgb(var(--scrim) / 0.96) 0%, rgb(var(--scrim) / 0.8) 30%, rgb(var(--scrim) / 0) 56%),
       linear-gradient(180deg, rgb(var(--scrim) / 0.7) 0%, rgb(var(--scrim) / 0) 18%);
+  }
+  /* A full-bleed outdoor picture is not faded: its captions stand on the picture's own foreground. */
+  .film--factory .film__stage::after {
+    background: none;
+  }
+  .film.has-prelude .film__sticky {
+    --win-t: calc(var(--hdr) + 0.75rem);
+    --win-l: var(--gutter);
+    --win-r: var(--gutter);
+    --win-b: 47svh;
+  }
+  .film--factory.has-prelude .film__sticky {
+    --win-t: 36svh;
+    --win-b: 64svh;
+    --win-l: 50vw;
+    --win-r: 50vw;
+  }
+  .film--factory .prelude__top {
+    padding-top: 0;
+    height: 100%;
+    justify-content: center;
+  }
+  .prelude__top {
+    height: auto;
+    justify-content: flex-start;
+    padding-top: calc(100svh - var(--win-b) + 1.5rem);
+    padding-bottom: 0;
+  }
+  .prelude__rest {
+    max-width: none;
+    padding-top: 1rem;
+  }
+  .prelude__tag {
+    left: 0.75rem;
+  }
+  .film__prelude-cue {
+    bottom: 1.25rem;
   }
   .film--hero .film__stage::after {
     display: block;
@@ -721,14 +902,30 @@ button.film__tag:focus-visible {
 .no-js .film__prelude-cue {
   display: none;
 }
+.no-js .film__backdrop,
+.no-js .prelude__tag {
+  display: none;
+}
 .no-js .film__prelude {
   position: relative;
-  min-height: 80svh;
-  clip-path: none;
+  padding-top: calc(var(--hdr) + 3rem);
 }
 .no-js .film__prelude-inner {
   opacity: 1;
+}
+.no-js .prelude__top {
+  height: auto;
+  padding-top: 0;
   transform: none;
+}
+.no-js .prelude__ln > span {
+  transform: none !important;
+}
+.no-js .prelude__kicker {
+  opacity: 1 !important;
+}
+.no-js .prelude__rest {
+  max-width: none;
 }
 .no-js .film__hud {
   position: static;
@@ -755,8 +952,13 @@ button.film__tag:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .film__prelude-cue::after {
+  .film__prelude-cue::before {
     animation: none;
+  }
+  .prelude__ln > span,
+  .prelude__rest,
+  .prelude__tag {
+    transition: none;
   }
   .film__step,
   .film__stage,

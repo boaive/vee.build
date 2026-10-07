@@ -18,12 +18,13 @@ import {
   type DeckSide,
   type Foundation,
   type ManualAddOn,
+  type ManualKind,
   type Plot,
   type ShellType,
   type Turn,
   type UnitSpec,
 } from '../data/build';
-import { shells } from '../data/system';
+import { DOOR_AT, shells, type DoorFace } from '../data/system';
 
 export const CELL = 3;
 export const STOREY = 3;
@@ -460,6 +461,90 @@ export function foundationLayout(units: readonly Unit[]): FoundationLayout {
 }
 
 /* ------------------------------------------------------------------ */
+/* Doors                                                               */
+/* ------------------------------------------------------------------ */
+
+export const WALL_FACES = ['front', 'left', 'right', 'back'] as const;
+export type WallFace = (typeof WALL_FACES)[number];
+
+/** World side (a Turn) a shell's face looks out of. The right end is the shell's +x end. */
+export function faceSide(f: WallFace, r: Turn): Turn {
+  return ((r + (f === 'front' ? 0 : f === 'right' ? 1 : f === 'back' ? 2 : 3)) % 4) as Turn;
+}
+
+export interface DoorSpot {
+  /** Centre of the door on its wall, metres from the plot corner; y is the shell's underside. */
+  x: number;
+  y: number;
+  z: number;
+  /** The side it opens to. */
+  side: Turn;
+  /** The shell's own cell behind it. */
+  cell: [number, number];
+}
+
+export function doorSpot(u: Pick<UnitSpec, 't' | 'x' | 'z' | 'y' | 'r'>, f: WallFace, base = PLINTH): DoorSpot {
+  const [cx, by, cz, ry] = placeOf(u, base);
+  const half = u.t === 'A' ? 3 : 1.5;
+  const at = DOOR_AT[u.t][f];
+  // On the shell's own plan: x along it, z towards its front.
+  const lx = f === 'front' || f === 'back' ? at : f === 'right' ? half : -half;
+  const lz = f === 'front' ? 1.5 : f === 'back' ? -1.5 : at;
+  const cos = Math.round(Math.cos(ry));
+  const sin = Math.round(Math.sin(ry));
+  const x = cx + lx * cos + lz * sin;
+  const z = cz - lx * sin + lz * cos;
+  const side = faceSide(f, u.r);
+  const [dx, dz] = FRONT[side];
+  return { x, y: by, z, side, cell: worldToCell(x - dx * 0.5, z - dz * 0.5) };
+}
+
+/**
+ * The face each shell's one door is on. The front, as the client's model
+ * has it, unless a shell stands against it there; then the door goes to a
+ * free face, the street side first. Two refinements: a turned shell at the
+ * end of a row of turned shells opens to the street like the rest of its
+ * row, and between otherwise equal faces an upper shell takes the one that
+ * opens onto a roof below it.
+ * `none`: every face is built against, and the shell is reached through
+ * its neighbours.
+ */
+export function doorFaces(units: readonly Unit[]): Map<number, DoorFace> {
+  const occ = occupancy(units);
+  const at = new Map<string, Unit>();
+  for (const u of units) for (const [x, z] of cells(u)) at.set(key(x, z, u.y), u);
+  const out = new Map<number, DoorFace>();
+  for (const u of units) {
+    const [bx, bz] = FRONT[((u.r + 2) % 4) as Turn];
+    const row =
+      u.t === 'A' &&
+      u.r % 2 === 1 &&
+      cells(u).every(([x, z]) => {
+        const o = at.get(key(x + bx, z + bz, u.y));
+        return !!o && o.t === 'A' && o.r === u.r;
+      });
+    let best: DoorFace = 'none';
+    let top = -Infinity;
+    for (const f of WALL_FACES) {
+      const d = doorSpot(u, f);
+      const [dx, dz] = FRONT[d.side];
+      const nx = d.cell[0] + dx;
+      const nz = d.cell[1] + dz;
+      if (occ.has(key(nx, nz, u.y))) continue;
+      let s = f === 'front' ? 4 : f === 'left' ? 1 : f === 'right' ? 0.9 : 0;
+      if (f !== 'front' && d.side === 0) s += 1.5 + (row ? 2 : 0);
+      if (u.y > 0 && occ.has(key(nx, nz, u.y - 1))) s += 0.3;
+      if (s > top) {
+        top = s;
+        best = f;
+      }
+    }
+    out.set(u.id, best);
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------ */
 /* Add-on layout                                                       */
 /* ------------------------------------------------------------------ */
 
@@ -485,6 +570,43 @@ export interface Placed {
   w: number;
 }
 
+/** A walkway outside an upper floor's door. `y` is its top. */
+export interface Gallery extends Rect {
+  side: Turn;
+  y: number;
+}
+
+/**
+ * The outer staircase at the end of a wall's galleries: a dog-leg flight
+ * per floor in one footprint, a landing at each floor.
+ */
+export interface Tower {
+  /** Where it meets the end of the galleries, on the wall line. */
+  x: number;
+  z: number;
+  /** The side the galleries are on, and which end of them it stands at (+1 / −1 along x for sides 0 and 2, along z for 1 and 3). */
+  side: Turn;
+  dir: 1 | -1;
+  /** `along`: its length continues the wall. `out`: it stands beside the corner and runs out from the wall, where the plot has no room along it. */
+  turn: 'along' | 'out';
+  /** Height of each floor's landing, lowest first. */
+  levels: number[];
+  /** Whether a gallery meets the landing at that floor. */
+  open: boolean[];
+}
+/** Gallery depth, and the staircase's plan: two lanes side by side, a landing at each end of the run. */
+export const GALLERY_D = 1.5;
+export const TOWER = { w: 2, lane: 0.95, land: 1, run: 2.16, len: 4.16, tread: 0.27 } as const;
+
+/** One selectable thing in the layout: what it is, the shell it belongs to, and the box it fills. */
+export interface Piece {
+  k: ManualKind | 'access';
+  u: number;
+  s?: Turn;
+  /** x0, y0, z0, x1, y1, z1 in metres from the plot corner. */
+  box: [number, number, number, number, number, number];
+}
+
 export interface AddOnLayout {
   side: Turn;
   deckY: number;
@@ -492,39 +614,46 @@ export interface AddOnLayout {
   posts: [number, number][];
   spandrels: Seg[];
   rails: Seg[];
-  steps: (Placed & { side: Turn })[];
+  steps: (Placed & { side: Turn; u: number })[];
   shades: Placed[];
   roofs: (Placed & { t: ShellType })[];
   solar: (Placed & { t: ShellType; sloped: boolean })[];
+  /** Upper floors: a gallery at each door and an outer staircase up to it. Always there, never chosen. */
+  galleries: Gallery[];
+  /** Posts under the galleries: x, z, from height, to height. */
+  columns: [number, number, number, number][];
+  towers: Tower[];
+  pieces: Piece[];
 }
 
-/** The side most glazed fronts face out of, street side first on a tie. */
-export function dominantSide(units: readonly Unit[]): Turn {
+/** The side most doors open to, street side first on a tie. Fronts decide when no shell has a door. */
+export function dominantSide(units: readonly Unit[], doors: ReadonlyMap<number, DoorFace> = doorFaces(units)): Turn {
   const occ = occupancy(units);
   const score = [0, 0, 0, 0];
   for (const u of units) {
     if (u.y !== 0) continue;
+    const f = doors.get(u.id);
+    if (f && f !== 'none') score[faceSide(f, u.r)] += u.t === 'A' ? 2 : 1;
     const [fx, fz] = FRONT[u.r];
-    const open = cells(u).some(([x, z]) => !occ.has(key(x + fx, z + fz, 0)));
-    if (open) score[u.r] += u.t === 'A' ? 2 : 1;
+    if (cells(u).some(([x, z]) => !occ.has(key(x + fx, z + fz, 0)))) score[u.r] += 0.25;
   }
   const order: Turn[] = [0, 1, 3, 2];
   return order.reduce((best, s) => (score[s] > score[best] ? s : best), order[0]);
 }
 
-/** Exposed cell edges of ground unit `u` on world side `s`: [cellX, cellZ] list. */
+/** Exposed cell edges of unit `u` on world side `s`: [cellX, cellZ] list. */
 function exposedOn(u: Unit, s: Turn, occ: Set<string>, y = 0): [number, number][] {
   const [dx, dz] = FRONT[s];
   return cells(u).filter(([x, z]) => !occ.has(key(x + dx, z + dz, y)));
 }
 
-/** Deck rect for one exposed cell edge on side s. */
-function deckRect(x: number, z: number, s: Turn): Rect & { side: Turn } {
+/** Rect of depth `depth` outside one cell edge on side s. */
+function edgeRect(x: number, z: number, s: Turn, depth = DECK_D): Rect & { side: Turn } {
   const [wx, wz] = cellToWorld(x, z);
-  if (s === 0) return { x0: wx, x1: wx + CELL, z0: wz + CELL, z1: wz + CELL + DECK_D, side: s };
-  if (s === 2) return { x0: wx, x1: wx + CELL, z0: wz - DECK_D, z1: wz, side: s };
-  if (s === 1) return { x0: wx + CELL, x1: wx + CELL + DECK_D, z0: wz, z1: wz + CELL, side: s };
-  return { x0: wx - DECK_D, x1: wx, z0: wz, z1: wz + CELL, side: s };
+  if (s === 0) return { x0: wx, x1: wx + CELL, z0: wz + CELL, z1: wz + CELL + depth, side: s };
+  if (s === 2) return { x0: wx, x1: wx + CELL, z0: wz - depth, z1: wz, side: s };
+  if (s === 1) return { x0: wx + CELL, x1: wx + CELL + depth, z0: wz, z1: wz + CELL, side: s };
+  return { x0: wx - depth, x1: wx, z0: wz, z1: wz + CELL, side: s };
 }
 
 /** Merge touching deck rects on the same side and line into runs. */
@@ -566,7 +695,180 @@ const endsOf = (r: Rect & { side: Turn }, y: number): Seg[] =>
         { x0: r.x0, z0: r.z1, x1: r.x1, z1: r.z1, y },
       ];
 
-const STEP_W = 1.2;
+export const STEP_W = 1.2;
+/** Risers and going of the steps from a deck at height `deckY` down to the ground. */
+export const stepRun = (deckY: number) => {
+  const risers = Math.max(2, Math.round(deckY / 0.18));
+  return { risers, run: risers * 0.28 };
+};
+
+/** Plan of a staircase tower: the rectangle it stands on. */
+export function towerRect(t: Pick<Tower, 'x' | 'z' | 'side' | 'dir' | 'turn'>): Rect {
+  const alongX = t.side === 0 || t.side === 2;
+  const out = t.side === 0 || t.side === 1 ? 1 : -1;
+  const a0 = alongX ? t.x : t.z;
+  const o0 = alongX ? t.z : t.x;
+  const a = [a0, a0 + t.dir * (t.turn === 'along' ? TOWER.len : TOWER.w)].sort((p, q) => p - q);
+  const o = [o0, o0 + out * (t.turn === 'along' ? TOWER.w : TOWER.len)].sort((p, q) => p - q);
+  return alongX ? { x0: a[0], x1: a[1], z0: o[0], z1: o[1] } : { x0: o[0], x1: o[1], z0: a[0], z1: a[1] };
+}
+
+/**
+ * Upper floors. Every upper shell's door needs a floor outside it and a way
+ * up: a gallery along the wall at each floor (or along the edge of the roof
+ * the door opens onto), and one outer staircase at the end of each wall's
+ * galleries, on whichever end is free, inside the plot if it can be.
+ */
+function layoutAccess(units: readonly Unit[], doors: ReadonlyMap<number, DoorFace>, occ: Set<string>, base: number, decks: readonly (Rect & { side: Turn })[], plot: Plot | undefined, out: AddOnLayout) {
+  interface Edge {
+    side: Turn;
+    level: number;
+    line: number;
+    a0: number;
+    u: number;
+  }
+  const edges: Edge[] = [];
+  for (const u of units) {
+    if (u.y === 0) continue;
+    const f = doors.get(u.id);
+    if (!f || f === 'none') continue;
+    const d = doorSpot(u, f, base);
+    const [dx, dz] = FRONT[d.side];
+    let [cx, cz] = d.cell;
+    // Across the roof the door opens onto, to its edge.
+    for (let i = 0; i < 24 && occ.has(key(cx + dx, cz + dz, u.y - 1)) && !occ.has(key(cx + dx, cz + dz, u.y)); i++) {
+      cx += dx;
+      cz += dz;
+    }
+    if (occ.has(key(cx + dx, cz + dz, u.y))) continue; // the roof ends at a wall
+    const alongX = d.side === 0 || d.side === 2;
+    const line = (alongX ? (d.side === 0 ? cz + 1 : cz) : d.side === 1 ? cx + 1 : cx) * CELL;
+    edges.push({ side: d.side, level: u.y, line, a0: (alongX ? cx : cz) * CELL, u: u.id });
+  }
+  const walls = new Map<string, Edge[]>();
+  for (const e of edges) {
+    const k = `${e.side}:${e.line}`;
+    const list = walls.get(k);
+    if (list) list.push(e);
+    else walls.set(k, [e]);
+  }
+  const topOf = (level: number) => base + level * STOREY + 0.12;
+
+  for (const list of walls.values()) {
+    const { side, line } = list[0];
+    const alongX = side === 0 || side === 2;
+    const sign = side === 0 || side === 1 ? 1 : -1;
+    /** The row of cells just outside the wall. */
+    const outside = line / CELL + (sign > 0 ? 0 : -1);
+    const cellAt = (a: number): [number, number] => (alongX ? [Math.floor(a / CELL + 1e-6), outside] : [outside, Math.floor(a / CELL + 1e-6)]);
+    const top = Math.max(...list.map((e) => e.level));
+    const levels = [...new Set(list.map((e) => e.level))].sort((p, q) => p - q);
+    const spanOf = (level: number) => {
+      const mine = list.filter((e) => e.level === level);
+      return [Math.min(...mine.map((e) => e.a0)), Math.max(...mine.map((e) => e.a0 + CELL))] as const;
+    };
+    // Everything on this wall line, a ground deck included: the staircase stands clear of all of it.
+    let lo = Math.min(...list.map((e) => e.a0));
+    let hi = Math.max(...list.map((e) => e.a0 + CELL));
+    for (const r of decks) {
+      if (r.side !== side) continue;
+      const onLine = alongX ? (side === 0 ? r.z0 : r.z1) : side === 1 ? r.x0 : r.x1;
+      if (Math.abs(onLine - line) > 0.01) continue;
+      lo = Math.min(lo, alongX ? r.x0 : r.z0);
+      hi = Math.max(hi, alongX ? r.x1 : r.z1);
+    }
+
+    let best: { at: number; dir: 1 | -1; turn: Tower['turn']; cost: number } | null = null;
+    for (const dir of [1, -1] as const) {
+      const at = dir > 0 ? hi : lo;
+      // Each floor's gallery has to reach the staircase without running into a shell.
+      let reach = 0;
+      let clear = true;
+      for (const level of levels) {
+        const [s0, s1] = spanOf(level);
+        const from = dir > 0 ? s0 : at;
+        const to = dir > 0 ? at : s1;
+        reach += to - from;
+        for (let a = from + CELL / 2; a < to && clear; a += CELL) {
+          const [gx, gz] = cellAt(a);
+          if (occ.has(key(gx, gz, level))) clear = false;
+        }
+      }
+      if (!clear) continue;
+      for (const turn of ['along', 'out'] as const) {
+        const r = towerRect({ x: alongX ? at : line, z: alongX ? line : at, side, dir, turn });
+        // Its own ground, at every floor it passes.
+        let free = true;
+        for (let x = r.x0 + 0.05; x <= r.x1 && free; x += 0.5)
+          for (let z = r.z0 + 0.05; z <= r.z1 && free; z += 0.5) {
+            const [gx, gz] = worldToCell(Math.min(x, r.x1 - 0.05), Math.min(z, r.z1 - 0.05));
+            for (let y = 0; y <= top; y++) if (occ.has(key(gx, gz, y))) free = false;
+          }
+        if (!free) continue;
+        // Inside the plot's walls; the street side is open, and a staircase may stand out onto it.
+        const inside = !plot || (r.x0 >= -0.01 && r.x1 <= plot.x * CELL + 0.01 && r.z0 >= -0.01 && r.z1 <= plot.z * CELL + 4.5);
+        const cost = reach + (inside ? 0 : 1000) + (turn === 'out' ? 0.5 : 0);
+        if (!best || cost < best.cost) best = { at, dir, turn, cost };
+      }
+    }
+
+    for (const level of levels) {
+      const [s0, s1] = spanOf(level);
+      const a0 = best && best.dir < 0 ? best.at : s0;
+      const a1 = best && best.dir > 0 ? best.at : s1;
+      const y = topOf(level);
+      const g: Gallery = alongX
+        ? { x0: a0, x1: a1, z0: sign > 0 ? line : line - GALLERY_D, z1: sign > 0 ? line + GALLERY_D : line, side, y }
+        : { x0: sign > 0 ? line : line - GALLERY_D, x1: sign > 0 ? line + GALLERY_D : line, z0: a0, z1: a1, side, y };
+      out.galleries.push(g);
+      const edge = outerOf(g, y);
+      out.rails.push(edge);
+      // Open towards the staircase, railed at the other end (and at both when there is no staircase).
+      endsOf(g, y).forEach((end, i) => {
+        const atTower = best && (best.dir > 0 ? i === 1 : i === 0);
+        if (!atTower) out.rails.push(end);
+        else if (best?.turn === 'out') {
+          // The staircase's landing is shallower than the gallery: the rest of this end keeps its rail.
+          const o0 = line + sign * TOWER.land;
+          const o1 = line + sign * GALLERY_D;
+          const a = best.at;
+          out.rails.push(alongX ? { x0: a, z0: o0, x1: a, z1: o1, y } : { x0: o0, z0: a, x1: o1, z1: a, y });
+        }
+      });
+      const n = Math.max(1, Math.round((a1 - a0) / CELL));
+      for (let k = 0; k <= n; k++) {
+        const a = a0 + ((a1 - a0) * k) / n;
+        const o = line + sign * (GALLERY_D - 0.06);
+        // From the ground, or from a lower roof where one reaches out under the gallery.
+        let from = 0;
+        for (const near of [a - 0.2, a + 0.2]) {
+          const [gx, gz] = cellAt(near);
+          for (let below = level - 1; below >= 0; below--)
+            if (occ.has(key(gx, gz, below))) {
+              from = Math.max(from, base + (below + 1) * STOREY);
+              break;
+            }
+        }
+        if (y - 0.08 - from > 0.3) out.columns.push(alongX ? [a, o, from, y - 0.08] : [o, a, from, y - 0.08]);
+      }
+      out.pieces.push({ k: 'access', u: list.find((e) => e.level === level)!.u, s: side, box: [g.x0, y - 0.3, g.z0, g.x1, y + 1.1, g.z1] });
+    }
+    if (best) {
+      const t: Tower = {
+        x: alongX ? best.at : line,
+        z: alongX ? line : best.at,
+        side,
+        dir: best.dir,
+        turn: best.turn,
+        levels: Array.from({ length: top }, (_, i) => topOf(i + 1)),
+        open: Array.from({ length: top }, (_, i) => levels.includes(i + 1)),
+      };
+      out.towers.push(t);
+      const r = towerRect(t);
+      out.pieces.push({ k: 'access', u: list[0].u, s: side, box: [r.x0, 0, r.z0, r.x1, topOf(top) + 1.1, r.z1] });
+    }
+  }
+}
 
 export function layoutAddOns(
   units: readonly Unit[],
@@ -574,26 +876,29 @@ export function layoutAddOns(
   deckSide: DeckSide,
   manual: readonly ManualAddOn[] | null = null,
   base = PLINTH,
+  plot?: Plot,
 ): AddOnLayout {
-  const side: Turn = deckSide === 'auto' ? dominantSide(units) : deckSide;
+  const doors = doorFaces(units);
+  const side: Turn = deckSide === 'auto' ? dominantSide(units, doors) : deckSide;
   const deckY = base + 0.12;
-  const out: AddOnLayout = { side, deckY, decks: [], posts: [], spandrels: [], rails: [], steps: [], shades: [], roofs: [], solar: [] };
+  const out: AddOnLayout = { side, deckY, decks: [], posts: [], spandrels: [], rails: [], steps: [], shades: [], roofs: [], solar: [], galleries: [], columns: [], towers: [], pieces: [] };
   const occ = occupancy(units);
   const ground = units.filter((u) => u.y === 0);
   const byId = new Map(units.map((u) => [u.id, u]));
+  const pieceOf = (k: ManualKind, u: number, s: Turn | undefined, r: Rect, y0: number, y1: number) => out.pieces.push({ k, u, s, box: [r.x0, y0, r.z0, r.x1, y1, r.z1] });
 
   /* Decks */
-  const rects: (Rect & { side: Turn })[] = [];
+  const rects: (Rect & { side: Turn; u: number })[] = [];
   if (manual) {
     for (const m of manual) {
       if (m.k !== 'deck' || m.s === undefined) continue;
       const u = byId.get(m.u);
       if (!u || u.y !== 0) continue;
-      for (const [x, z] of exposedOn(u, m.s, occ)) rects.push(deckRect(x, z, m.s));
+      for (const [x, z] of exposedOn(u, m.s, occ)) rects.push({ ...edgeRect(x, z, m.s), u: u.id });
     }
   } else if (on.has('deck') && ground.length) {
-    for (const u of ground) for (const [x, z] of exposedOn(u, side, occ)) rects.push(deckRect(x, z, side));
-    // Keep only the outermost line on the deck side (as before: one deck along the front).
+    for (const u of ground) for (const [x, z] of exposedOn(u, side, occ)) rects.push({ ...edgeRect(x, z, side), u: u.id });
+    // Keep only the outermost line on the deck side: one deck along the front.
     const alongX = side === 0 || side === 2;
     const outward = side === 0 || side === 1;
     const best = new Map<number, number>();
@@ -608,27 +913,56 @@ export function layoutAddOns(
     rects.push(...kept);
   }
   out.decks = mergeDecks(rects);
+  for (const r of rects) pieceOf('deck', r.u, r.side, r, 0, deckY + 1.1);
+  const decked = (u: Unit, s: Turn) => rects.some((r) => r.u === u.id && r.side === s);
 
-  /* Steps */
-  const stepsWanted: { u?: Unit; s: Turn }[] = [];
+  /* Steps: opposite the shell's door when it opens onto this deck, else in the middle of the shell's stretch. */
+  const stepsWanted: { u: Unit; s: Turn }[] = [];
   if (manual) {
-    for (const m of manual) if (m.k === 'steps' && m.s !== undefined) stepsWanted.push({ u: byId.get(m.u), s: m.s });
-  } else if (on.has('steps') && out.decks.length) {
-    const longest = out.decks.reduce((b, r) => (Math.abs(r.x1 - r.x0) + Math.abs(r.z1 - r.z0) > Math.abs(b.x1 - b.x0) + Math.abs(b.z1 - b.z0) ? r : b), out.decks[0]);
-    const e = outerOf(longest, deckY);
-    out.steps.push({ x: (e.x0 + e.x1) / 2, y: 0, z: (e.z0 + e.z1) / 2, ry: (longest.side * Math.PI) / 2, w: STEP_W, side: longest.side });
+    for (const m of manual) {
+      const u = byId.get(m.u);
+      if (m.k === 'steps' && m.s !== undefined && u) stepsWanted.push({ u, s: m.s });
+    }
+  } else if (on.has('steps') && rects.length) {
+    const byDoor = ground
+      .filter((u) => decked(u, side) && doors.get(u.id) !== 'none' && faceSide(doors.get(u.id) as WallFace, u.r) === side)
+      .sort((a, b) => (a.t === b.t ? a.x - b.x || a.z - b.z : a.t === 'A' ? -1 : 1));
+    const u = byDoor[0] ?? byId.get(rects[Math.floor(rects.length / 2)].u);
+    if (u) stepsWanted.push({ u, s: side });
   }
+  const { run } = stepRun(deckY);
   for (const w of stepsWanted) {
-    if (!w.u) continue;
-    const exposed = exposedOn(w.u, w.s, occ);
-    if (!exposed.length) continue;
-    // Middle of this shell's stretch of deck on that side, if a deck is there.
-    const segs = exposed.map(([x, z]) => outerOf(deckRect(x, z, w.s), deckY));
-    const deck = out.decks.find((d) => d.side === w.s && segs.some((sg) => touchesSeg(d, sg)));
-    if (!deck) continue;
-    const mx = segs.reduce((a, sg) => a + (sg.x0 + sg.x1) / 2, 0) / segs.length;
-    const mz = segs.reduce((a, sg) => a + (sg.z0 + sg.z1) / 2, 0) / segs.length;
-    out.steps.push({ x: mx, y: 0, z: mz, ry: (w.s * Math.PI) / 2, w: STEP_W, side: w.s });
+    const mine = rects.filter((r) => r.u === w.u.id && r.side === w.s);
+    if (!mine.length) continue;
+    const f = doors.get(w.u.id);
+    const alongX = w.s === 0 || w.s === 2;
+    const segs = mine.map((r) => outerOf(r, deckY));
+    let mx = segs.reduce((a, sg) => a + (sg.x0 + sg.x1) / 2, 0) / segs.length;
+    let mz = segs.reduce((a, sg) => a + (sg.z0 + sg.z1) / 2, 0) / segs.length;
+    if (f && f !== 'none' && faceSide(f, w.u.r) === w.s) {
+      const d = doorSpot(w.u, f, base);
+      // Along the wall the door's own position; out from the wall the deck's edge.
+      const lo = Math.min(...mine.map((r) => (alongX ? r.x0 : r.z0))) + STEP_W / 2 + 0.1;
+      const hi = Math.max(...mine.map((r) => (alongX ? r.x1 : r.z1))) - STEP_W / 2 - 0.1;
+      if (alongX) mx = Math.min(hi, Math.max(lo, d.x));
+      else mz = Math.min(hi, Math.max(lo, d.z));
+    }
+    out.steps.push({ x: mx, y: 0, z: mz, ry: (w.s * Math.PI) / 2, w: STEP_W, side: w.s, u: w.u.id });
+    const [fx, fz] = FRONT[w.s];
+    const half = STEP_W / 2 + 0.05;
+    pieceOf(
+      'steps',
+      w.u.id,
+      w.s,
+      {
+        x0: Math.min(mx, mx + fx * run) - (alongX ? half : 0),
+        x1: Math.max(mx, mx + fx * run) + (alongX ? half : 0),
+        z0: Math.min(mz, mz + fz * run) - (alongX ? 0 : half),
+        z1: Math.max(mz, mz + fz * run) + (alongX ? 0 : half),
+      },
+      0,
+      deckY + 0.1,
+    );
   }
 
   /* Deck details: follow the decks in both modes. */
@@ -663,6 +997,9 @@ export function layoutAddOns(
     }
   });
 
+  /* Upper floors: galleries and the outer staircase. */
+  layoutAccess(units, doors, occ, base, out.decks, plot, out);
+
   /* Roof terraces: open roof beside a floor above gets a handrail. */
   if (on.has('handrail')) {
     const topLevels = new Set(units.map((u) => u.y));
@@ -686,6 +1023,9 @@ export function layoutAddOns(
                 : dz === 1
                   ? { x0: wx, z0: wz + CELL, x1: wx + CELL, z1: wz + CELL, y }
                   : { x0: wx, z0: wz, x1: wx + CELL, z1: wz, y };
+          // A gallery along this edge already carries the rail, and the way through.
+          const mid: [number, number] = [(seg.x0 + seg.x1) / 2 + dx * 0.3, (seg.z0 + seg.z1) / 2 + dz * 0.3];
+          if (out.galleries.some((g) => Math.abs(g.y - (y + 0.12)) < 0.01 && mid[0] > g.x0 && mid[0] < g.x1 && mid[1] > g.z0 && mid[1] < g.z1)) continue;
           out.rails.push(inset(seg, 0.12));
         }
       }
@@ -695,21 +1035,32 @@ export function layoutAddOns(
   /* Shades, roofs and solar. */
   const levels = new Set(units.map((u) => u.y));
   const topShell = (u: Unit) => !cells(u).some(([x, z]) => occ.has(key(x, z, u.y + 1))) && !levels.has(u.y + 1);
+  const footprint = (u: Unit): Rect => {
+    const [sx, sz] = span(u.t, u.r);
+    return { x0: u.x * CELL, x1: (u.x + sx) * CELL, z0: u.z * CELL, z1: (u.z + sz) * CELL };
+  };
   const shadeOn = (u: Unit, s: Turn) => {
     const [cx, by, cz] = placeOf(u, base);
     const [sx, sz] = span(u.t, u.r);
     const along = s === 0 || s === 2 ? sx * CELL : sz * CELL;
     const [fx, fz] = FRONT[s];
     const half = s === 0 || s === 2 ? (sz * CELL) / 2 : (sx * CELL) / 2;
-    out.shades.push({ x: cx + fx * (half + 0.28), y: by + 2.52, z: cz + fz * (half + 0.28), ry: (s * Math.PI) / 2, w: along - 0.7 });
+    const x = cx + fx * (half + 0.28);
+    const z = cz + fz * (half + 0.28);
+    out.shades.push({ x, y: by + 2.52, z, ry: (s * Math.PI) / 2, w: along - 0.7 });
+    const hw = (along - 0.7) / 2;
+    const alongX = s === 0 || s === 2;
+    pieceOf('shade', u.id, s, { x0: x - (alongX ? hw : 0.45), x1: x + (alongX ? hw : 0.45), z0: z - (alongX ? 0.45 : hw), z1: z + (alongX ? 0.45 : hw) }, by + 2.2, by + 2.75);
   };
   const roofOn = (u: Unit) => {
     const [cx, by, cz, ry] = placeOf(u, base);
     out.roofs.push({ x: cx, y: by + STOREY, z: cz, ry, w: u.t === 'A' ? 6 : 3, t: u.t });
+    pieceOf('roof', u.id, undefined, footprint(u), by + STOREY, by + STOREY + 0.95);
   };
   const solarOn = (u: Unit, sloped: boolean) => {
     const [cx, by, cz, ry] = placeOf(u, base);
     out.solar.push({ x: cx, y: by + STOREY, z: cz, ry, w: u.t === 'A' ? 6 : 3, t: u.t, sloped });
+    pieceOf('solar', u.id, undefined, footprint(u), by + STOREY, by + STOREY + 1.2);
   };
 
   if (manual) {
@@ -731,6 +1082,41 @@ export function layoutAddOns(
   }
 
   return out;
+}
+
+/**
+ * The automatic layout as a list of hand placements, so that taking one
+ * piece away (or adding one) starts from what is standing there.
+ */
+export function materialise(units: readonly Unit[], on: ReadonlySet<AddOnId>, deckSide: DeckSide, base = PLINTH): ManualAddOn[] {
+  const seen = new Set<string>();
+  const out: ManualAddOn[] = [];
+  for (const p of layoutAddOns(units, on, deckSide, null, base).pieces) {
+    if (p.k === 'access') continue;
+    const k = `${p.k}:${p.u}:${p.s ?? ''}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(p.s === undefined ? { k: p.k, u: p.u } : { k: p.k, u: p.u, s: p.s });
+  }
+  return out;
+}
+
+/** The piece under a point (metres from the plot corner), the smallest that holds it. */
+export function pieceAt(layout: AddOnLayout, x: number, y: number, z: number, kinds?: readonly Piece['k'][]): Piece | null {
+  let best: Piece | null = null;
+  let size = Infinity;
+  const pad = 0.12;
+  for (const p of layout.pieces) {
+    if (kinds && !kinds.includes(p.k)) continue;
+    const [x0, y0, z0, x1, y1, z1] = p.box;
+    if (x < x0 - pad || x > x1 + pad || y < y0 - pad || y > y1 + pad || z < z0 - pad || z > z1 + pad) continue;
+    const v = (x1 - x0) * (y1 - y0) * (z1 - z0);
+    if (v < size) {
+      size = v;
+      best = p;
+    }
+  }
+  return best;
 }
 
 function touchesSeg(r: Rect, s: Seg) {

@@ -27,6 +27,12 @@
  * Two themes. Every component reads the semantic tokens below; a chapter
  * picks its theme with .theme-light or .theme-dark, so the same component
  * works on either.
+ *
+ * The accent follows the ground it stands on: vermilion on paper, hi-vis
+ * green on ink (the client's suggestion of 2026-10-06, taken where he saw
+ * it working: "as the page moves into darker colour the green will
+ * elevate"). The green is the yellow-green of site safety wear, used flat:
+ * a mark, a rule, a number. No glow and no gradient.
  */
 :root,
 .theme-light {
@@ -45,12 +51,15 @@
   --btn-text: #f7f5f0;
   --accent: #d9431b;
   --accent-ink: #b5370f;
+  /* Text and icons on a fill of the accent. */
+  --on-accent: #fff;
   --error: #b8320c;
   --shadow: 0 1px 2px rgba(17, 18, 20, 0.05), 0 18px 48px -20px rgba(17, 18, 20, 0.22);
   color-scheme: light;
 }
 
-.theme-dark {
+.theme-dark,
+.on-ink {
   --bg: #0a0b0d;
   --bg-2: #111316;
   --surface: #16181b;
@@ -63,8 +72,9 @@
   --scrim: 10 11 13;
   --btn: #f2f0eb;
   --btn-text: #0a0b0d;
-  --accent: #f05a2c;
-  --accent-ink: #ff8159;
+  --accent: #c8f031;
+  --accent-ink: #c8f031;
+  --on-accent: #0a0b0d;
   --error: #ff9d7d;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 24px 60px -24px rgba(0, 0, 0, 0.7);
   color-scheme: dark;
