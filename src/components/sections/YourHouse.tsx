@@ -43,8 +43,8 @@ export default function YourHouse() {
       chapter="configure"
       captions="fade"
       steps={view.sample ? revealSample : revealSteps}
-      length={2.8}
-      lengthCompact={3}
+      length={2.2}
+      lengthCompact={2.4}
       Scene={Scene}
       stepExtras={extras}
     >

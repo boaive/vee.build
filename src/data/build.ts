@@ -74,11 +74,11 @@ export type AddOnId = (typeof addOnIds)[number];
 export const deckDetails: AddOnId[] = ['posts', 'spandrel', 'handrail'];
 
 export const addOnInfo: Record<AddOnId, { name: string; hint: string; needs?: AddOnId }> = {
-  deck: { name: addOns[0], hint: 'Runs along the side the doors open to.' },
+  deck: { name: addOns[0], hint: 'Outside every ground-floor door.' },
   posts: { name: addOns[1], hint: 'Carry the deck.', needs: 'deck' },
   spandrel: { name: addOns[2], hint: 'Closes the deck edge.', needs: 'deck' },
   handrail: { name: addOns[3], hint: 'On the deck edge and around open roof terraces.' },
-  steps: { name: addOns[4], hint: 'From the deck down to the ground, at a door.', needs: 'deck' },
+  steps: { name: addOns[4], hint: 'From each deck down to the ground, at a door.', needs: 'deck' },
   shades: { name: addOns[5], hint: 'Over every exposed glazed front.' },
   roof: { name: addOns[6], hint: 'A mono-pitch roof on each top shell.' },
   solar: { name: addOns[7], hint: 'Panels on every top roof.' },
@@ -135,7 +135,7 @@ const HOME: AddOnId[] = ['deck', 'posts', 'spandrel', 'handrail', 'steps', 'shad
 const fromCatalogue: Record<string, UnitSpec[]> = {
   'the-pod': [U('A', 0, 0)],
   'studio-max': [U('A', 0, 0), U('B', 1, 1)],
-  'urban-suite': [U('A', 0, 0, 0, 3), U('A', 1, 0, 0, 1)],
+  'urban-suite': [U('A', 0, 0, 0, 1), U('A', 1, 0, 0, 1)],
   'the-homestead': [U('A', 0, 0, 0, 2), U('A', 0, 1), U('B', 2, 1)],
   'duplex-prime': [U('A', 0, 0, 0, 2), U('A', 0, 1), U('A', 0, 0, 1)],
 };
@@ -147,7 +147,7 @@ export const presets: Preset[] = [
     note: `${m.sqft} sq.ft. · ${m.floors === 1 ? 'single floor' : `${m.floors} floors`}`,
     units: fromCatalogue[m.id] ?? m.levels.flatMap((l) => l.modules.map((p) => U(p.t, p.x, p.z, p.y, p.r ?? 0))),
     addOns: m.floors > 1 ? [...HOME, 'solar' as const] : HOME,
-    deckSide: (m.id === 'urban-suite' ? 0 : 'auto') as DeckSide,
+    deckSide: 'auto' as DeckSide,
   })),
   ...stacks.map((s) => ({
     id: s.id,

@@ -2,131 +2,101 @@
 import { differences } from '../../data/difference';
 
 /*
- * Six points, one at a time. The six words stand as an index down the
- * left; the point they belong to is set out beside them. The section pins
- * and the page's own scroll walks through the six (a word can also be
- * pointed at or clicked). On a narrow screen, without script or with
- * reduced motion it is a plain list with everything on show.
+ * The six points, all on show: a ledger of six cells (number, word, claim,
+ * detail), then the comparisons the brief draws, each set against what it
+ * replaces. Document flow, nothing pinned. Each part comes in as it is
+ * scrolled to; a point and its comparison light up together under the
+ * pointer. Without script, with reduced motion or with ?still it is the
+ * same page standing still.
  */
-const n = differences.length;
 const pad = (i: number) => String(i + 1).padStart(2, '0');
+const compared = differences.filter((d) => d.other);
 ---
 
-<section class="diff theme-dark" id="difference" data-theme="dark" data-chapter="difference" aria-labelledby="difference-heading" data-diff style={`--n:${n}`}>
-  <div class="diff__pin" data-pin>
-    <div class="wrap diff__wrap">
-      <header class="diff__head">
-        <p class="eyebrow"><b>04</b> How we are different</p>
-        <h2 class="diff__title" id="difference-heading">How are we different?</h2>
-        <p class="diff__lead">
-          Six points separate a VEE.BUILD building from brick-and-mortar construction and from lightweight prefab.
-        </p>
-      </header>
+<section class="diff theme-light" id="difference" data-theme="light" data-chapter="difference" aria-labelledby="difference-heading" data-diff>
+  <div class="wrap">
+    <header class="diff__head">
+      <p class="eyebrow" data-rv><b>04</b> How we are different</p>
+      <h2 class="diff__title" id="difference-heading">
+        <span class="diff__ln" data-rv><span>How are we</span></span>
+        <span class="diff__ln" data-rv style="--i:1"><span>different?</span></span>
+      </h2>
+      <p class="diff__lead" data-rv style="--i:2">
+        Six points separate a VEE.BUILD building from brick-and-mortar construction and from lightweight prefab.
+      </p>
+    </header>
 
-      <ol class="diff__list">
+    <ol class="diff__grid">
+      {
+        differences.map((d, i) => (
+          <li class="diff__cell" data-rv data-id={d.id} style={`--i:${i % 3}`}>
+            <p class="t-label diff__n" aria-hidden="true">
+              {pad(i)}
+            </p>
+            <h3 class="diff__word">{d.word}</h3>
+            <p class="diff__claim">{d.claim}</p>
+            <p class="diff__detail">{d.detail}</p>
+            {d.marks && (
+              <ul class="diff__marks" aria-label="Referenced bodies">
+                {d.marks.map((m) => (
+                  <li>{m}</li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))
+      }
+    </ol>
+
+    <div class="diff__vs">
+      <div class="diff__vs-head" data-rv aria-hidden="true">
+        <span></span>
+        <p class="t-label">VEE.BUILD</p>
+        <p class="t-label">Others</p>
+      </div>
+      <ul class="diff__rows">
         {
-          differences.map((d, i) => (
-            <li class:list={['diff__item', { 'is-active': i === 0 }]} data-i={i}>
-              <h3 class="diff__h">
-                <button class="diff__tab" type="button" tabindex="-1">
-                  <span class="t-label diff__n" aria-hidden="true">{pad(i)}</span>
-                  <span class="diff__word">{d.word}</span>
-                </button>
-              </h3>
-              <div class="diff__panel">
-                <p class="diff__ghost" aria-hidden="true">{pad(i)}</p>
-                <p class="t-label diff__count" aria-hidden="true">
-                  <b>{pad(i)}</b> / {pad(n - 1)} · {d.word}
-                </p>
-                <p class="diff__claim">{d.claim}</p>
-                <p class="diff__detail">{d.detail}</p>
-                {d.versus && <p class="diff__versus">{d.versus}</p>}
-                {d.marks && (
-                  <ul class="diff__marks" aria-label="Referenced bodies">
-                    {d.marks.map((m) => (
-                      <li>{m}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+          compared.map((d) => (
+            <li class="diff__row" data-rv data-id={d.id}>
+              <p class="t-label diff__tag">{d.word}</p>
+              <p class="diff__ours">{d.claim}</p>
+              <p class="diff__other">
+                <span class="sr-only">Instead of: </span>
+                <span class="diff__struck">{d.other}</span>
+              </p>
             </li>
           ))
         }
-      </ol>
-
-      <div class="diff__ticks" aria-hidden="true">
-        {differences.map((_, i) => <span class:list={{ 'is-on': i === 0 }} />)}
-      </div>
+      </ul>
     </div>
   </div>
 </section>
 
 <script>
   const root = document.querySelector<HTMLElement>('[data-diff]');
-  const pin = root?.querySelector<HTMLElement>('[data-pin]');
-  const wide = window.matchMedia('(min-width: 900px) and (min-height: 600px)');
-  const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const still = new URLSearchParams(location.search).has('still');
-  if (root && pin) {
-    const items = [...root.querySelectorAll<HTMLElement>('.diff__item')];
-    const ticks = [...root.querySelectorAll<HTMLElement>('.diff__ticks span')];
-    const tabs = items.map((el) => el.querySelector<HTMLButtonElement>('.diff__tab')!);
-    const n = items.length;
-    let shown = 0;
-    let scrolled = 0;
-    let pointed = -1;
-    let visible = false;
-    let on = false;
-
-    const show = (i: number) => {
-      if (i === shown) return;
-      shown = i;
-      items.forEach((el, k) => el.classList.toggle('is-active', k === i));
-      ticks.forEach((el, k) => el.classList.toggle('is-on', k <= i));
-    };
-    // Scroll through the pinned section picks the point; a pointer on a word overrides it while it rests there.
-    const measure = () => {
-      if (!on) return;
-      const travel = root.offsetHeight - pin.offsetHeight;
-      const p = travel > 0 ? Math.min(1, Math.max(0, -root.getBoundingClientRect().top / travel)) : 0;
-      scrolled = Math.min(n - 1, Math.floor(p * n));
-      show(pointed >= 0 ? pointed : scrolled);
-    };
-    const goTo = (i: number) => {
-      const travel = root.offsetHeight - pin.offsetHeight;
-      const top = root.getBoundingClientRect().top + window.scrollY;
-      window.scrollTo({ top: top + ((i + 0.5) / n) * travel, behavior: calm.matches ? 'auto' : 'smooth' });
-    };
-    const mode = () => {
-      on = wide.matches && !calm.matches && !still;
-      root.classList.toggle('is-index', on);
-      tabs.forEach((t) => (t.tabIndex = on ? 0 : -1));
-      if (on) measure();
-      else items.forEach((el) => el.classList.remove('is-active'));
-    };
-
-    items.forEach((el, i) => {
-      el.addEventListener('pointerenter', (e) => {
-        if (!on || e.pointerType !== 'mouse') return;
-        pointed = i;
-        show(i);
-      });
-      el.addEventListener('pointerleave', () => {
-        if (pointed !== i) return;
-        pointed = -1;
-        show(scrolled);
-      });
-      tabs[i].addEventListener('click', () => on && goTo(i));
-      tabs[i].addEventListener('focus', () => on && show(i));
+  if (root) {
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches || new URLSearchParams(location.search).has('still');
+    // Each part comes in once, when it is scrolled to. Nothing is hidden unless this runs.
+    if (!calm && 'IntersectionObserver' in window) {
+      root.classList.add('is-armed');
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (!e.isIntersecting) continue;
+            e.target.classList.add('is-in');
+            io.unobserve(e.target);
+          }
+        },
+        { rootMargin: '0px 0px -10% 0px', threshold: 0.12 },
+      );
+      root.querySelectorAll('[data-rv]').forEach((el) => io.observe(el));
+    }
+    // A point and its comparison light up together.
+    const linked = [...root.querySelectorAll<HTMLElement>('[data-id]')];
+    const hot = (id: string | undefined, on: boolean) => linked.forEach((el) => el.dataset.id === id && el.classList.toggle('is-hot', on));
+    linked.forEach((el) => {
+      el.addEventListener('pointerenter', (e) => e.pointerType === 'mouse' && hot(el.dataset.id, true));
+      el.addEventListener('pointerleave', () => hot(el.dataset.id, false));
     });
-    new IntersectionObserver(([e]) => {
-      visible = e.isIntersecting;
-      if (visible) measure();
-    }).observe(root);
-    window.addEventListener('scroll', () => visible && measure(), { passive: true });
-    window.addEventListener('resize', mode);
-    wide.addEventListener('change', mode);
-    calm.addEventListener('change', mode);
-    mode();
   }
 </script>

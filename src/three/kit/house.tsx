@@ -20,7 +20,7 @@ import {
 } from 'three';
 import { DEFAULT_FOUNDATION, FOUNDATION_HEIGHTS, trimFinishes, type AddOnId, type DeckSide, type Foundation, type ManualAddOn, type Plot, type ShellType } from '../../data/build';
 import type { DoorFace } from '../../data/system';
-import { CELL, FRONT, GALLERY_D, JACK, TOWER, baseOf, doorFaces, foundationLayout, layoutAddOns, placeOf, stepRun, type AddOnLayout, type Seg, type Tower, type Unit } from '../../build/model';
+import { CELL, FRONT, JACK, STAIR, baseOf, doorFaces, foundationLayout, layoutAddOns, placeOf, stepRun, type AddOnLayout, type Seg, type Stair, type Unit } from '../../build/model';
 import { UNIT_BOX, merge, mergeGroups } from './geometry';
 import type { Look } from './looks';
 import { deckMat, instanced, mat, moduleMats, trimMat } from './materials';
@@ -49,6 +49,8 @@ function placedBox(w: number, h: number, d: number, x: number, y: number, z: num
 }
 
 const mergeOr = (parts: BufferGeometry[]) => (parts.length ? merge(parts) : null);
+/** A dog-leg turns half-way up a storey. */
+const STOREY_HALF = 1.5;
 
 /** Posts every ~1.5 m, a top rail, a bottom rail and slim balusters, as the render. */
 function railParts(segs: readonly Seg[], height = 1) {
@@ -111,63 +113,61 @@ function slopedRail(parts: BufferGeometry[], x0: number, y0: number, z0: number,
 }
 
 /**
- * The outer staircase (model.ts, Tower): for each floor a flight out along
- * the inner lane to a half landing and a flight back along the outer lane
- * to that floor's landing, all in one footprint, between four posts.
+ * The outer staircase (model.ts, Stair): for each floor a flight out along
+ * one lane to a half landing, a turn, and a flight back along the other
+ * lane to that floor's landing, all in one footprint between four posts.
  */
-function towerParts(t: Tower, deck: BufferGeometry[], trim: BufferGeometry[], treads: BufferGeometry[], stringers: BufferGeometry[], rails: BufferGeometry[]) {
-  const alongX = t.side === 0 || t.side === 2;
-  const a: [number, number] = alongX ? [t.dir, 0] : [0, t.dir];
-  const o = FRONT[t.side];
-  // Its long axis and its width: along the wall and out from it, or the other way round.
-  const [lx, lz] = t.turn === 'out' ? o : a;
-  const [wx, wz] = t.turn === 'out' ? a : o;
+function stairParts(t: Stair, deck: BufferGeometry[], trim: BufferGeometry[], treads: BufferGeometry[], stringers: BufferGeometry[], rails: BufferGeometry[]) {
+  const [lx, lz] = FRONT[t.u];
+  const [wx, wz] = FRONT[t.v];
+  /** l metres along its length from the landings' end, w metres across from the side the floor meets. */
   const at = (l: number, w: number): [number, number] => [t.x + lx * l + wx * w, t.z + lz * l + wz * w];
   // Local x of a slab onto the long axis.
   const ry = Math.atan2(-lz, lx);
-  const { w, lane, land, run, len, tread } = TOWER;
+  const { w, lane, land, half, run, len } = STAIR;
   const far = land + run;
   const seg = (l0: number, w0: number, l1: number, w1: number, y: number): Seg => {
     const [x0, z0] = at(l0, w0);
     const [x1, z1] = at(l1, w1);
     return { x0, z0, x1, z1, y };
   };
+  const slab = (l0: number, length: number, y: number) => {
+    const [x, z] = at(l0 + length / 2, w / 2);
+    deck.push(placedBox(length, 0.08, w, x, y - 0.04, z, ry));
+    trim.push(placedBox(length - 0.04, 0.12, w - 0.04, x, y - 0.14, z, ry));
+  };
   const flat: Seg[] = [];
+  const last = t.levels.length - 1;
   t.levels.forEach((yk, k) => {
     const y0 = k ? t.levels[k - 1] : 0;
-    const mid = yk - 1.5;
-    // Out, along the inner lane. The first floor's flight starts on the ground and is longer.
+    const mid = yk - STOREY_HALF;
+    // Out along the outer lane. The first floor's flight starts on the ground and is longer.
     const nA = Math.max(2, Math.round((mid - y0) / 0.1875));
-    const runA = Math.min(nA * tread, far - 0.1);
-    const [sx, sz] = at(far - runA, lane / 2);
+    const runA = Math.min(nA * 0.25, far - 0.05);
+    const [sx, sz] = at(far - runA, w - lane / 2);
     flight(treads, stringers, sx, y0, sz, lx, lz, runA, mid, lane - 0.08, nA);
-    const [hx, hz] = at(far + land / 2, w / 2);
-    deck.push(placedBox(land, 0.08, w, hx, mid - 0.04, hz, ry));
-    // Back, along the outer lane, up to the floor.
-    const [bx, bz] = at(far, w - lane / 2);
+    slab(far, half, mid);
+    // Back along the inner lane, up to the floor.
+    const [bx, bz] = at(far, lane / 2);
     flight(treads, stringers, bx, mid, bz, -lx, -lz, run, yk, lane - 0.08, 8);
-    const [px, pz] = at(land / 2, w / 2);
-    deck.push(placedBox(land, 0.08, w, px, yk - 0.04, pz, ry));
+    slab(0, land, yk);
 
-    const [r0x, r0z] = at(far - runA, 0.03);
-    const [r1x, r1z] = at(far, 0.03);
+    const [r0x, r0z] = at(far - runA, w - 0.03);
+    const [r1x, r1z] = at(far, w - 0.03);
     slopedRail(rails, r0x, y0, r0z, r1x, mid, r1z);
-    const [q0x, q0z] = at(far, w - 0.03);
-    const [q1x, q1z] = at(land, w - 0.03);
+    const [q0x, q0z] = at(far, 0.03);
+    const [q1x, q1z] = at(land, 0.03);
     slopedRail(rails, q0x, mid, q0z, q1x, yk, q1z);
+    // The half landing: railed on its three free sides.
     flat.push(seg(len, 0, len, w, mid), seg(far, 0, len, 0, mid), seg(far, w, len, w, mid));
-    // The floor's landing: railed all round, but for where a gallery meets it and where the flights join.
-    flat.push(seg(0, w, land, w, yk));
-    if (t.turn === 'along') flat.push(seg(0, 0, land, 0, yk), t.open[k] ? seg(0, GALLERY_D, 0, w, yk) : seg(0, 0, 0, w, yk));
-    else {
-      flat.push(seg(0, 0, 0, w, yk));
-      if (!t.open[k]) flat.push(seg(0, 0, land, 0, yk));
-    }
-    // No flight leaves the top landing: its inner lane is closed.
-    if (k === t.levels.length - 1) flat.push(seg(land, 0, land, lane + 0.05, yk));
+    // The floor's landing: railed across its end and along its far side, open where the floor meets it.
+    flat.push(seg(0, 0, 0, w, yk), seg(0, w, land, w, yk));
+    if (!t.open[k]) flat.push(seg(0, 0, land, 0, yk));
+    // No flight leaves the top landing: its outer lane is closed.
+    if (k === last) flat.push(seg(land, w - lane - 0.05, land, w, yk));
   });
   rails.push(...railParts(flat));
-  const top = t.levels[t.levels.length - 1] + 1;
+  const top = t.levels[last] + 1;
   for (const l of [0.05, len - 0.05])
     for (const ww of [0.05, w - 0.05]) {
       const [px, pz] = at(l, ww);
@@ -200,18 +200,15 @@ function buildAddOns(l: AddOnLayout, skirting: boolean): AddOnMeshes {
     deck.push(placedBox(w - 0.1, 0.14, d - 0.1, (r.x0 + r.x1) / 2, l.deckY - 0.15, (r.z0 + r.z1) / 2));
   }
   for (const [x, z] of l.posts) trim.push(placedBox(0.11, l.deckY - 0.08, 0.11, x, (l.deckY - 0.08) / 2, z));
-  // Upper floors: a walkway at each door, on posts, with a beam along its edge.
+  // Upper floors: a walkway at each door, boards on a steel frame carried off the shells.
   for (const g of l.galleries) {
     const w = g.x1 - g.x0;
     const d = g.z1 - g.z0;
     const cx = (g.x0 + g.x1) / 2;
     const cz = (g.z0 + g.z1) / 2;
-    deck.push(placedBox(w, 0.08, d, cx, g.y - 0.04, cz), placedBox(w - 0.1, 0.14, d - 0.1, cx, g.y - 0.15, cz));
-    const alongX = g.side === 0 || g.side === 2;
-    const edge = g.side === 0 ? g.z1 : g.side === 2 ? g.z0 : g.side === 1 ? g.x1 : g.x0;
-    trim.push(alongX ? placedBox(w + 0.04, 0.18, 0.04, cx, g.y - 0.13, edge) : placedBox(0.04, 0.18, d + 0.04, edge, g.y - 0.13, cz));
+    deck.push(placedBox(w, 0.08, d, cx, g.y - 0.04, cz));
+    trim.push(placedBox(w, 0.14, d, cx, g.y - 0.15, cz));
   }
-  for (const [x, z, y0, y1] of l.columns) trim.push(placedBox(0.11, y1 - y0, 0.11, x, (y0 + y1) / 2, z));
   for (const s of l.spandrels) {
     const len = Math.hypot(s.x1 - s.x0, s.z1 - s.z0);
     const ry = -Math.atan2(s.z1 - s.z0, s.x1 - s.x0);
@@ -253,7 +250,7 @@ function buildAddOns(l: AddOnLayout, skirting: boolean): AddOnMeshes {
     const [fx, fz] = FRONT[st.side];
     flight(treads, stringers, st.x + fx * run, 0, st.z + fz * run, -fx, -fz, run, l.deckY, st.w, risers);
   }
-  for (const t of l.towers) towerParts(t, deck, trim, treads, stringers, railExtra);
+  for (const t of l.stairs) stairParts(t, deck, trim, treads, stringers, railExtra);
 
   const roofs: BufferGeometry[] = [];
   const RISE = 0.85;
@@ -312,6 +309,37 @@ function buildAddOns(l: AddOnLayout, skirting: boolean): AddOnMeshes {
 
 /** Deck boards, trim and rails are shared by decks, steps, shades and the upper-floor access. */
 const ANY = ['deck', 'steps', 'shade', 'access'] as const;
+
+const built = new WeakMap<AddOnLayout, { skirting: boolean; meshes: AddOnMeshes }>();
+/** The geometry of a layout, built once for as long as the layout lives. A scene with fixed layouts can call this ahead of mounting. */
+export function addOnMeshes(layout: AddOnLayout, skirting = false) {
+  let b = built.get(layout);
+  if (!b || b.skirting !== skirting) {
+    b = { skirting, meshes: buildAddOns(layout, skirting) };
+    built.set(layout, b);
+  }
+  return b.meshes;
+}
+
+/** The meshes of an add-on layout. Used by House, and on its own where a scene draws the shells itself (how it works). */
+export function AddOnParts({ layout, skirting = false, deck, trim, deckHex }: { layout: AddOnLayout; skirting?: boolean; deck: Material; trim: Material; deckHex?: string }) {
+  const meshes = useMemo(() => addOnMeshes(layout, skirting), [layout, skirting]);
+  // Frees the GPU's copy; the geometry itself stays with its layout and is sent again if it is shown again.
+  useLayoutEffect(() => () => Object.values(meshes).forEach((g) => g?.dispose()), [meshes]);
+  return (
+    <>
+      {/* `addon`: which pieces a hit on this mesh can belong to (model.ts, pieceAt). */}
+      {meshes.deck && <mesh geometry={meshes.deck} material={deck} userData={{ addon: ANY }} castShadow receiveShadow />}
+      {meshes.trim && <mesh geometry={meshes.trim} material={trim} userData={{ addon: ANY }} castShadow receiveShadow />}
+      {meshes.rails && <mesh geometry={meshes.rails} material={mat.steel} userData={{ addon: ANY }} castShadow />}
+      {meshes.steps && <mesh geometry={meshes.steps} material={[deck, trim]} userData={{ addon: ['steps', 'access'] }} castShadow receiveShadow />}
+      {meshes.roofs && <mesh geometry={meshes.roofs} material={trim} userData={{ addon: ['roof'] }} castShadow receiveShadow />}
+      {meshes.solar && <mesh geometry={meshes.solar} material={mat.solar} userData={{ addon: ['solar'] }} castShadow />}
+      {meshes.shadePanels && <mesh geometry={meshes.shadePanels} material={mat.polycarb} userData={{ addon: ['shade'] }} castShadow />}
+      {meshes.lattice && deckHex && <mesh geometry={meshes.lattice} material={latticeMat(deckHex)} userData={{ addon: ['deck'] }} castShadow receiveShadow />}
+    </>
+  );
+}
 
 const latticeMats = new Map<string, MeshStandardMaterial>();
 function latticeMat(hex: string) {
@@ -501,10 +529,7 @@ export function House({
   const pools = useMemo(() => shellPools(units), [units]);
   const layout = useMemo(() => layoutAddOns(units, new Set(addOns), deckSide, manual, base, plot), [units, addOns, deckSide, manual, base, plot]);
   const skirting = addOns.includes('spandrel');
-  const meshes = useMemo(() => buildAddOns(layout, skirting), [layout, skirting]);
   const adds = useRef<Group>(null);
-
-  useLayoutEffect(() => () => Object.values(meshes).forEach((g) => g?.dispose()), [meshes]);
 
   useFrame(() => {
     const g = adds.current;
@@ -522,16 +547,8 @@ export function House({
       {pools.map((p) => (
         <UnitsOf key={p.key} list={p.list} type={p.type} door={p.door} mats={mats} pose={pose} base={base} />
       ))}
-      {/* `addon`: which pieces a hit on this mesh can belong to (model.ts, pieceAt). */}
       <group ref={adds}>
-        {meshes.deck && <mesh geometry={meshes.deck} material={deck} userData={{ addon: ANY }} castShadow receiveShadow />}
-        {meshes.trim && <mesh geometry={meshes.trim} material={trim} userData={{ addon: ANY }} castShadow receiveShadow />}
-        {meshes.rails && <mesh geometry={meshes.rails} material={mat.steel} userData={{ addon: ANY }} castShadow />}
-        {meshes.steps && <mesh geometry={meshes.steps} material={[deck, trim]} userData={{ addon: ['steps', 'access'] }} castShadow receiveShadow />}
-        {meshes.roofs && <mesh geometry={meshes.roofs} material={trim} userData={{ addon: ['roof'] }} castShadow receiveShadow />}
-        {meshes.solar && <mesh geometry={meshes.solar} material={mat.solar} userData={{ addon: ['solar'] }} castShadow />}
-        {meshes.shadePanels && <mesh geometry={meshes.shadePanels} material={mat.polycarb} userData={{ addon: ['shade'] }} castShadow />}
-        {meshes.lattice && <mesh geometry={meshes.lattice} material={latticeMat(deckHex)} userData={{ addon: ['deck'] }} castShadow receiveShadow />}
+        <AddOnParts layout={layout} skirting={skirting} deck={deck} trim={trim} deckHex={deckHex} />
       </group>
     </group>
   );

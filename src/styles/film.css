@@ -22,9 +22,11 @@
   opacity: 0;
   transition: opacity 1.2s var(--ease);
 }
+
 .film__stage.is-ready {
   opacity: 1;
 }
+
 .film__stage canvas {
   display: block;
 }
@@ -44,6 +46,7 @@
   inset: 0;
   pointer-events: none;
 }
+
 .film.theme-dark .film__stage::after {
   background: linear-gradient(90deg, rgb(var(--scrim) / 0.82) 0%, rgb(var(--scrim) / 0.5) 25%, rgb(var(--scrim) / 0) 46%);
 }
@@ -68,6 +71,7 @@
   grid-template-rows: auto 1fr auto;
   pointer-events: none;
 }
+
 .film__hud a,
 .film__hud button {
   pointer-events: auto;
@@ -82,10 +86,12 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
+
 .film__index {
   color: var(--accent-ink);
   font-weight: 500;
 }
+
 .film__index::after {
   content: '';
   display: inline-block;
@@ -95,6 +101,7 @@
   vertical-align: middle;
   background: var(--line-strong);
 }
+
 .film__heading {
   font: inherit;
   color: var(--mute);
@@ -107,6 +114,7 @@
   align-content: center;
   width: min(31rem, 38vw);
 }
+
 .film__step {
   grid-area: 1 / 1;
   display: grid;
@@ -122,6 +130,7 @@
     clip-path 0.45s var(--ease),
     transform 0.6s var(--ease);
 }
+
 .film__step.is-active {
   visibility: visible;
   opacity: 1;
@@ -138,6 +147,7 @@
   filter: blur(14px);
   transform: scale(0.985);
 }
+
 [data-captions='blur'] .film__step.is-active {
   filter: blur(0);
   transform: none;
@@ -147,9 +157,11 @@
 [data-captions='wipe'] .film__step {
   clip-path: inset(0 100% 0 0);
 }
+
 [data-captions='wipe'] .film__step.is-past {
   clip-path: inset(0 0 0 100%);
 }
+
 [data-captions='wipe'] .film__step.is-active {
   clip-path: inset(0 0 0 0);
 }
@@ -163,6 +175,7 @@
     opacity 0.3s var(--ease),
     filter 0.3s var(--ease);
 }
+
 [data-captions='words'] .film__step.is-active .film__word {
   opacity: 1;
   filter: none;
@@ -175,9 +188,11 @@
 [data-captions='slide'] .film__step {
   transform: translateX(2.5rem);
 }
+
 [data-captions='slide'] .film__step.is-past {
   transform: translateX(-2.5rem);
 }
+
 [data-captions='slide'] .film__step.is-active {
   transform: none;
 }
@@ -187,6 +202,7 @@
   letter-spacing: 0.06em;
   transition: letter-spacing 0.5s var(--ease);
 }
+
 [data-captions='track'] .film__step.is-active .film__title {
   letter-spacing: -0.034em;
   transition: letter-spacing 1.1s var(--ease-out) 0.1s;
@@ -195,6 +211,7 @@
 .film__kicker {
   color: var(--accent-ink);
 }
+
 .film__title {
   font-size: clamp(2rem, 1.1rem + 2.7vw, 3.6rem);
   font-weight: 630;
@@ -203,11 +220,13 @@
   letter-spacing: -0.034em;
   text-wrap: balance;
 }
+
 .film__title[data-long] {
   font-size: clamp(1.55rem, 1rem + 1.6vw, 2.45rem);
   line-height: 1.04;
   letter-spacing: -0.026em;
 }
+
 .film__body {
   max-width: 27rem;
   color: var(--text-2);
@@ -215,6 +234,7 @@
   line-height: 1.5;
   text-wrap: pretty;
 }
+
 .film__note {
   max-width: 27rem;
   padding-top: 0.9rem;
@@ -222,6 +242,7 @@
   font-size: 0.95rem;
   color: var(--text-2);
 }
+
 .film__link {
   margin-top: 0.15rem;
 }
@@ -232,6 +253,7 @@
   gap: 0.4rem;
   max-width: 28rem;
 }
+
 .film__tag {
   display: inline-flex;
   align-items: center;
@@ -251,6 +273,7 @@
     border-color 0.3s var(--ease),
     background-color 0.3s var(--ease);
 }
+
 .film__tag::before {
   content: '';
   width: 0.4rem;
@@ -259,14 +282,17 @@
   border: 1px solid currentColor;
   transition: background-color 0.3s var(--ease);
 }
+
 .film__tag.is-on {
   color: var(--text);
   border-color: var(--text);
 }
+
 .film__tag.is-on::before {
   background: var(--accent);
   border-color: var(--accent);
 }
+
 button.film__tag:hover,
 button.film__tag:focus-visible {
   background: var(--text);
@@ -279,11 +305,13 @@ button.film__tag:focus-visible {
   align-items: flex-end;
   gap: 0.3rem;
 }
+
 .film__tick {
   position: relative;
   width: 1.6rem;
   height: 2.5rem;
 }
+
 .film__tick::after {
   content: '';
   position: absolute;
@@ -297,9 +325,11 @@ button.film__tag:focus-visible {
     background-color 0.3s var(--ease),
     transform 0.3s var(--ease);
 }
+
 .film__tick:hover::after {
   background: var(--text);
 }
+
 .film__tick.is-active::after {
   background: var(--accent);
   transform: scaleY(1.6);
@@ -320,13 +350,14 @@ button.film__tag:focus-visible {
   white-space: nowrap;
   color: var(--text);
 }
-.lbl > span {
+
+.lbl>span {
   position: absolute;
   display: block;
 }
 
 /* Dimension: centred on its point, sits on the dimension line. */
-.lbl--dim > span {
+.lbl--dim>span {
   transform: translate(-50%, -50%);
   padding: 0.3rem 0.45rem;
   border-radius: 4px;
@@ -337,7 +368,7 @@ button.film__tag:focus-visible {
 }
 
 /* Callout: a tick rising from the point, text above it. */
-.lbl--call > span {
+.lbl--call>span {
   bottom: 2.1rem;
   left: 0;
   transform: translateX(-50%);
@@ -346,6 +377,7 @@ button.film__tag:focus-visible {
   background: var(--text);
   color: var(--bg);
 }
+
 .lbl--call::before {
   content: '';
   position: absolute;
@@ -355,6 +387,7 @@ button.film__tag:focus-visible {
   height: 1.85rem;
   background: var(--text);
 }
+
 .lbl--call::after {
   content: '';
   position: absolute;
@@ -367,7 +400,7 @@ button.film__tag:focus-visible {
 }
 
 /* Name plate: larger, no leader. */
-.lbl--name > span {
+.lbl--name>span {
   transform: translate(-50%, -50%);
   display: grid;
   gap: 0.3rem;
@@ -377,7 +410,7 @@ button.film__tag:focus-visible {
 }
 
 /* Pulsing marker with a label to the right. */
-.lbl--pulse > span {
+.lbl--pulse>span {
   left: 1.1rem;
   top: -0.6rem;
   padding: 0.35rem 0.6rem;
@@ -385,6 +418,7 @@ button.film__tag:focus-visible {
   background: var(--text);
   color: var(--bg);
 }
+
 .lbl--pulse::before,
 .lbl--pulse::after {
   content: '';
@@ -396,29 +430,33 @@ button.film__tag:focus-visible {
   border-radius: 50%;
   background: var(--accent);
 }
+
 .lbl--pulse::after {
   background: none;
   border: 1px solid var(--accent);
   animation: lbl-pulse 2.2s var(--ease-out) infinite;
 }
-.lbl--pulse > span:empty {
+
+.lbl--pulse>span:empty {
   display: none;
 }
+
 @keyframes lbl-pulse {
   from {
     transform: scale(1);
     opacity: 0.9;
   }
+
   to {
     transform: scale(3.6);
     opacity: 0;
   }
 }
 
-/* ---------- Prelude: a title card with a window onto the film ---------- */
+/* ---------- Prelude: a title card over the film ---------- */
 
 /*
- * The film is already running under the card. It shows through a window
+ * The film is already running under the card. Studio: see "Mist" below. Window: it shows through a window
  * (--win-*: the window's insets from the edges of the screen), and scrolling
  * grows the window until the picture fills the screen: --pre is the scroll
  * through the card, --o the eased amount the window has opened. Once it is
@@ -434,6 +472,7 @@ button.film__tag:focus-visible {
   --win-b: clamp(1.75rem, 5.5svh, 3.25rem);
   --win-round: var(--radius);
 }
+
 /* The factory tour's title screen is ink from edge to edge: its window opens from nothing, at the point the camera looks at. */
 .film--factory.has-prelude .film__sticky {
   --win-t: 56svh;
@@ -441,29 +480,144 @@ button.film__tag:focus-visible {
   --win-l: 67vw;
   --win-r: 33vw;
 }
+
 .film--factory .film__prelude-cue {
   bottom: clamp(1.75rem, 5.5svh, 3.25rem);
 }
+
 .film__backdrop {
   position: absolute;
   inset: 0;
   background: #f2f0eb;
 }
+
 .film__backdrop--ink {
   background: #0a0b0d;
 }
-.has-prelude .film__stage {
-  clip-path: inset(
-    calc(var(--win-t) * (1 - var(--o))) calc(var(--win-r) * (1 - var(--o))) calc(var(--win-b) * (1 - var(--o))) calc(var(--win-l) * (1 - var(--o))) round
-      calc(var(--win-round) * (1 - var(--o)))
-  );
+
+/*
+ * A studio: the page's own colour, a pool of light where the subject
+ * stands and the faintest line where floor meets wall. The canvas over it
+ * is clear wherever the scene has drawn nothing, so this is what the
+ * subject is seen against until the scene brings its own sky and ground.
+ */
+.film__backdrop--studio {
+  --pool-x: 73%;
+  --pool-y: 64%;
+  --floor: 80.5%;
+  background:
+    radial-gradient(ellipse 44% 50% at var(--pool-x) var(--pool-y), #fbfaf7 0%, rgb(251 250 247 / 0.6) 38%, rgb(251 250 247 / 0) 72%),
+    linear-gradient(180deg, rgb(17 18 20 / 0) 0%, rgb(17 18 20 / 0) calc(var(--floor) - 0.4%), rgb(17 18 20 / 0.05) var(--floor), rgb(17 18 20 / 0.022) calc(var(--floor) + 5%), rgb(17 18 20 / 0.035) 100%),
+    #f2f0eb;
 }
+
+.has-prelude--window .film__stage {
+  clip-path: inset(calc(var(--win-t) * (1 - var(--o))) calc(var(--win-r) * (1 - var(--o))) calc(var(--win-b) * (1 - var(--o))) calc(var(--win-l) * (1 - var(--o))) round calc(var(--win-round) * (1 - var(--o))));
+}
+
 .has-prelude.is-open .film__stage {
   clip-path: none;
 }
+
 .has-prelude.is-open .film__backdrop,
+.has-prelude.is-open .film__mist,
 .has-prelude.is-open .film__prelude {
   display: none;
+}
+
+/*
+ * Mist, in the page colour, over a studio opening. At rest it lies low: a
+ * bank at the subject's feet and a little in the corners, never on the
+ * subject itself. As the page scrolls and the scene brings its world in, a
+ * veil comes up from the floor over the change (--rise: up to full a third
+ * of the way through, down to nothing by the end) and the bank thins away
+ * with it. Three layers, each drifting a little while the card is up.
+ * Transforms and opacity only; each layer has its own opacity (one on the
+ * three together would have them drawn into a surface first).
+ */
+.film__mist {
+  --mist: 242 240 235;
+  --rise: clamp(0, min(var(--p) * 2.7, (1 - var(--p)) * 2), 1);
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+  transform-origin: 50% 100%;
+  transition: transform 2.4s var(--ease-out);
+}
+
+/* It stands higher behind the loading screen and settles when that lifts. */
+.is-booting .film__mist {
+  transform: scaleY(1.9);
+}
+
+.film__mist i {
+  position: absolute;
+  inset: 0;
+  will-change: transform, opacity;
+}
+
+.film__mist i::before {
+  content: '';
+  position: absolute;
+  inset: -4%;
+}
+
+/* The bank at the feet. */
+.film__mist i:nth-child(1) {
+  opacity: clamp(0, (1 - var(--p)) * 2.2, 1);
+  transform: translate3d(0, calc(var(--rise) * -6svh), 0);
+}
+
+.film__mist i:nth-child(1)::before {
+  background:
+    radial-gradient(ellipse 34% 9% at 73% 96%, rgb(var(--mist) / 0.94), rgb(var(--mist) / 0) 72%),
+    radial-gradient(ellipse 22% 8% at 50% 100%, rgb(var(--mist) / 0.8), rgb(var(--mist) / 0) 72%),
+    radial-gradient(ellipse 16% 10% at 99% 93%, rgb(var(--mist) / 0.85), rgb(var(--mist) / 0) 72%),
+    linear-gradient(0deg, rgb(var(--mist) / 0.92) 0%, rgb(var(--mist) / 0.5) 4%, rgb(var(--mist) / 0) 9%);
+  animation: mist-a 17s ease-in-out infinite alternate;
+}
+
+/* The veil that comes up over the change. */
+.film__mist i:nth-child(2) {
+  opacity: var(--rise);
+  transform: translate3d(0, calc((1 - var(--rise)) * 30svh), 0);
+}
+
+.film__mist i:nth-child(2)::before {
+  background:
+    radial-gradient(ellipse 26% 12% at 24% 62%, rgb(var(--mist) / 0.4), rgb(var(--mist) / 0) 70%),
+    radial-gradient(ellipse 22% 11% at 90% 58%, rgb(var(--mist) / 0.36), rgb(var(--mist) / 0) 70%),
+    radial-gradient(ellipse 30% 10% at 52% 70%, rgb(var(--mist) / 0.34), rgb(var(--mist) / 0) 70%),
+    linear-gradient(0deg, rgb(var(--mist) / 0.92) 0%, rgb(var(--mist) / 0.72) 12%, rgb(var(--mist) / 0.4) 26%, rgb(var(--mist) / 0.14) 40%, rgb(var(--mist) / 0) 52%);
+  animation: mist-b 23s ease-in-out infinite alternate;
+}
+
+/* Drift in the corners. */
+.film__mist i:nth-child(3) {
+  opacity: clamp(0, 1 - var(--p) * 1.5, 1);
+  transform: translate3d(calc(var(--o) * 9vw), calc(var(--o) * -5svh), 0);
+}
+
+.film__mist i:nth-child(3)::before {
+  background:
+    radial-gradient(ellipse 18% 13% at 101% 64%, rgb(var(--mist) / 0.6), rgb(var(--mist) / 0) 70%),
+    radial-gradient(ellipse 24% 10% at 36% 101%, rgb(var(--mist) / 0.6), rgb(var(--mist) / 0) 72%),
+    radial-gradient(ellipse 15% 11% at 97% 10%, rgb(var(--mist) / 0.4), rgb(var(--mist) / 0) 70%);
+  animation: mist-a 29s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes mist-a {
+  to {
+    transform: translate3d(1.8%, -1.2%, 0);
+  }
+}
+
+@keyframes mist-b {
+  to {
+    transform: translate3d(-1.6%, 1.2%, 0);
+  }
 }
 
 .film__prelude {
@@ -474,14 +628,17 @@ button.film__tag:focus-visible {
   color: #111214;
   pointer-events: none;
 }
+
 .film__prelude--ink {
   color: #f2f0eb;
 }
+
 .film__prelude-inner {
   height: 100%;
   opacity: clamp(0, 1 - var(--pre, 0) * 2.8, 1);
   will-change: opacity;
 }
+
 .film__prelude-cue {
   position: absolute;
   left: var(--gutter);
@@ -495,6 +652,7 @@ button.film__tag:focus-visible {
   text-transform: uppercase;
   opacity: clamp(0, 1 - var(--pre, 0) * 6, 1);
 }
+
 .film__prelude-cue::before {
   content: '';
   width: 1px;
@@ -503,15 +661,18 @@ button.film__tag:focus-visible {
   transform-origin: top;
   animation: cue 2.4s var(--ease-out) infinite;
 }
+
 @keyframes cue {
   0% {
     transform: scaleY(0);
     opacity: 1;
   }
+
   60% {
     transform: scaleY(1);
     opacity: 1;
   }
+
   100% {
     transform: scaleY(1);
     opacity: 0;
@@ -530,6 +691,7 @@ button.film__tag:focus-visible {
   display: flex;
   flex-direction: column;
 }
+
 .prelude__top {
   flex: none;
   height: var(--win-t);
@@ -541,9 +703,11 @@ button.film__tag:focus-visible {
   transform: translateY(calc(var(--pre, 0) * -7svh));
   will-change: transform;
 }
+
 .prelude__kicker {
   color: var(--accent);
 }
+
 .prelude__line {
   font-size: clamp(2.6rem, min(7.6vw, 13.5svh), 9rem);
   font-weight: 640;
@@ -551,10 +715,12 @@ button.film__tag:focus-visible {
   line-height: 0.9;
   letter-spacing: -0.05em;
 }
+
 .prelude__line em {
   font-style: normal;
   color: var(--accent);
 }
+
 /* Each line rises out of its own mask when the loading screen lifts. */
 .prelude__ln {
   display: block;
@@ -563,23 +729,29 @@ button.film__tag:focus-visible {
   margin-bottom: -0.14em;
   overflow: hidden;
 }
-.prelude__ln > span {
+
+.prelude__ln>span {
   display: block;
   transition: transform 1.15s var(--ease-out);
 }
-.prelude__ln:nth-child(2) > span {
+
+.prelude__ln:nth-child(2)>span {
   transition-delay: 90ms;
 }
-.is-booting .prelude__ln > span,
-.film:not(.film--hero) .film__prelude:not(.is-seen) .prelude__ln > span {
+
+.is-booting .prelude__ln>span,
+.film:not(.film--hero) .film__prelude:not(.is-seen) .prelude__ln>span {
   transform: translateY(108%);
 }
+
 .film:not(.film--hero) .film__prelude:not(.is-seen) .prelude__kicker {
   opacity: 0;
 }
+
 .prelude__kicker {
   transition: opacity 0.8s var(--ease) 0.25s;
 }
+
 .prelude__rest {
   display: grid;
   gap: 1rem;
@@ -590,69 +762,132 @@ button.film__tag:focus-visible {
     opacity 0.9s var(--ease) 0.35s,
     transform 1.1s var(--ease-out) 0.35s;
 }
+
 .is-booting .prelude__rest {
   opacity: 0;
   transform: translateY(1rem);
 }
+
 .prelude__sub {
   max-width: 30rem;
   font-size: clamp(1.05rem, 0.95rem + 0.5vw, 1.4rem);
   line-height: 1.4;
   opacity: 0.74;
 }
-/* A caption on the picture in the window. */
-.prelude__tag {
-  position: absolute;
-  left: calc(var(--win-l) - var(--gutter) + 1rem);
-  top: calc(var(--win-t) + 1rem);
-  padding: 0.4rem 0.7rem;
-  border-radius: 999px;
-  background: #111214;
-  color: #f2f0eb;
+
+/* ---------- Hero ---------- *//* ---------- Hero ---------- */
+
+/* The opening card: the words stand in the mist on the left, set from the middle of the screen. */
+.film--hero .prelude {
+  justify-content: center;
+  padding-top: var(--hdr);
+}
+
+.film--hero .prelude__top {
+  height: auto;
+  justify-content: flex-start;
+  padding-bottom: 0;
+}
+
+.film--hero .prelude__line {
+  font-size: clamp(2.6rem, min(6.7vw, 13svh), 8rem);
+}
+
+.film--hero .prelude__rest {
+  max-width: 34rem;
+  gap: clamp(1.25rem, 3.4svh, 2.25rem);
+}
+
+.film--hero .film__prelude-cue {
+  bottom: clamp(1.75rem, 5.5svh, 3.25rem);
+}
+
+/* The two shells, drawn to one scale. */
+.prelude__shells {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem clamp(1.5rem, 3vw, 2.75rem);
+}
+
+.prelude__shells li {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.85rem;
+}
+
+.prelude__shell {
+  display: grid;
+  gap: 0.3rem;
+  padding-bottom: 0.2rem;
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: 0.7rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
-  transition: opacity 0.8s var(--ease) 0.6s;
-}
-.film__prelude--ink .prelude__tag {
-  background: #f2f0eb;
-  color: #111214;
-}
-.is-booting .prelude__tag {
-  opacity: 0;
+  color: var(--text-2);
 }
 
-/* ---------- Hero ---------- */
+.prelude__shell b {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.shell-glyph {
+  flex: none;
+  height: auto;
+  overflow: visible;
+  fill: none;
+  stroke: #111214;
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+.shell-glyph__top {
+  fill: rgb(17 18 20 / 0.03);
+}
+
+.shell-glyph__front {
+  fill: rgb(17 18 20 / 0.1);
+}
+
+.shell-glyph__end {
+  fill: rgb(17 18 20 / 0.18);
+}
 
 /* The hero's sky is plain enough to read on: no scrim. */
 .film--hero .film__stage::after {
   display: none;
 }
+
 .film--hero .film__steps {
   width: min(44rem, 52vw);
   align-content: start;
   padding-top: clamp(1rem, 6vh, 4.5rem);
 }
+
 .film--hero .film__step {
   gap: 1.25rem;
   align-content: start;
 }
+
 .film--hero .film__title {
   font-size: clamp(2.6rem, 1rem + 5.4vw, 6.4rem);
   line-height: 0.93;
   letter-spacing: -0.042em;
 }
+
 .film--hero .film__title[data-long] {
   max-width: 17ch;
   font-size: clamp(1.9rem, 1rem + 2.9vw, 3.7rem);
   line-height: 0.98;
 }
+
 .film--hero .film__body {
   font-size: clamp(1.08rem, 1rem + 0.45vw, 1.35rem);
   max-width: 31rem;
 }
+
 .film--hero .film__heading {
   color: var(--text-2);
 }
@@ -677,9 +912,11 @@ button.film__tag:focus-visible {
   opacity: 0;
   transition: opacity 0.4s var(--ease);
 }
+
 .counter.is-on {
   opacity: 1;
 }
+
 .counter__value {
   font-size: clamp(3rem, 2rem + 5vw, 7rem);
   font-weight: 600;
@@ -688,6 +925,7 @@ button.film__tag:focus-visible {
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
 }
+
 .counter__value small {
   font-family: var(--font-mono);
   font-size: 0.85rem;
@@ -697,16 +935,19 @@ button.film__tag:focus-visible {
   margin-left: 0.5rem;
   color: var(--mute);
 }
+
 .counter__meta {
   display: flex;
   gap: 1.25rem;
   color: var(--mute);
 }
+
 .counter__scale {
   display: flex;
   gap: 0.75rem;
   margin-top: 0.5rem;
 }
+
 .counter__scale span {
   font-family: var(--font-mono);
   font-size: 0.68rem;
@@ -719,6 +960,7 @@ button.film__tag:focus-visible {
     color 0.3s var(--ease),
     border-color 0.3s var(--ease);
 }
+
 .counter__scale span.is-on {
   color: var(--text);
   border-color: var(--accent);
@@ -737,6 +979,7 @@ button.film__tag:focus-visible {
   text-transform: uppercase;
   color: var(--text-2);
 }
+
 .film__stats b {
   font-weight: 500;
   color: var(--text);
@@ -752,10 +995,12 @@ button.film__tag:focus-visible {
   gap: 0.5rem;
   color: var(--mute);
 }
+
 .film__hint span {
   font-size: 1rem;
   color: var(--accent-ink);
 }
+
 @media (max-width: 860px) {
   .film__hint {
     top: calc(var(--hdr) + 2.6rem);
@@ -769,6 +1014,7 @@ button.film__tag:focus-visible {
   .film {
     height: calc(var(--film-len-c) * 100svh);
   }
+
   /* Captions stand at the foot of the stage here: its lower part fades to the page under them. */
   .film__stage::after,
   .film.theme-dark .film__stage::after {
@@ -776,113 +1022,173 @@ button.film__tag:focus-visible {
       linear-gradient(0deg, rgb(var(--scrim) / 0.96) 0%, rgb(var(--scrim) / 0.8) 30%, rgb(var(--scrim) / 0) 56%),
       linear-gradient(180deg, rgb(var(--scrim) / 0.7) 0%, rgb(var(--scrim) / 0) 18%);
   }
+
   /* A full-bleed outdoor picture is not faded: its captions stand on the picture's own foreground. */
   .film--factory .film__stage::after {
     background: none;
   }
+
   .film.has-prelude .film__sticky {
     --win-t: calc(var(--hdr) + 0.75rem);
     --win-l: var(--gutter);
     --win-r: var(--gutter);
     --win-b: 47svh;
   }
+
+  .film__backdrop--studio {
+    --pool-x: 50%;
+    --pool-y: 30%;
+    --floor: 43%;
+  }
+
+  .film__mist i:nth-child(1)::before {
+    background:
+      radial-gradient(ellipse 62% 5% at 50% 50%, rgb(var(--mist) / 0.94), rgb(var(--mist) / 0) 72%),
+      radial-gradient(ellipse 30% 5% at 2% 48%, rgb(var(--mist) / 0.8), rgb(var(--mist) / 0) 72%),
+      radial-gradient(ellipse 30% 5% at 98% 49%, rgb(var(--mist) / 0.8), rgb(var(--mist) / 0) 72%);
+  }
+
+  .film__mist i:nth-child(3)::before {
+    background:
+      radial-gradient(ellipse 30% 8% at 102% 34%, rgb(var(--mist) / 0.5), rgb(var(--mist) / 0) 70%),
+      radial-gradient(ellipse 28% 7% at -2% 40%, rgb(var(--mist) / 0.45), rgb(var(--mist) / 0) 70%);
+  }
+
+  .film--hero .prelude {
+    justify-content: flex-start;
+    padding-top: 0;
+  }
+
+  .film--hero .prelude__top {
+    padding-top: calc(100svh - var(--win-b) + 1.25rem);
+  }
+
+  .film--hero .prelude__rest {
+    gap: 0.9rem;
+  }
+
+  .film--hero .film__prelude-cue {
+    display: none;
+  }
+
   .film--factory.has-prelude .film__sticky {
     --win-t: 36svh;
     --win-b: 64svh;
     --win-l: 50vw;
     --win-r: 50vw;
   }
+
   .film--factory .prelude__top {
     padding-top: 0;
     height: 100%;
     justify-content: center;
   }
+
   .prelude__top {
     height: auto;
     justify-content: flex-start;
     padding-top: calc(100svh - var(--win-b) + 1.5rem);
     padding-bottom: 0;
   }
+
   .prelude__rest {
     max-width: none;
     padding-top: 1rem;
   }
-  .prelude__tag {
-    left: 0.75rem;
-  }
+
   .film__prelude-cue {
     bottom: 1.25rem;
   }
+
   .film--hero .film__stage::after {
     display: block;
     background: linear-gradient(0deg, rgb(var(--scrim) / 0.55) 0%, rgb(var(--scrim) / 0) 50%);
   }
+
   .film__hud {
     padding-bottom: 1.25rem;
   }
+
   .film__head {
     font-size: 0.66rem;
   }
+
   .film__index::after {
     width: 1rem;
     margin-left: 0.5rem;
   }
+
   .film__steps,
   .film--hero .film__steps {
     width: auto;
     max-width: 34rem;
     align-content: end;
   }
+
   .film__step {
     gap: 0.75rem;
     align-content: end;
   }
+
   .film__ticks {
     display: none;
   }
+
   .film__title {
     font-size: clamp(1.75rem, 7.4vw, 2.4rem);
   }
+
   .film__title[data-long] {
     font-size: clamp(1.35rem, 5.6vw, 1.8rem);
   }
+
   .film--hero .film__title {
     font-size: clamp(2.4rem, 11vw, 3.4rem);
   }
+
   .film--hero .film__title[data-long] {
     font-size: clamp(1.5rem, 6.4vw, 2.1rem);
   }
+
   .film__body,
   .film--hero .film__body {
     font-size: 1rem;
   }
+
   .film__note {
     font-size: 0.9rem;
     padding-top: 0.6rem;
   }
+
   .film__tags {
     gap: 0.3rem;
   }
+
   .film__tag {
     min-height: 1.75rem;
     padding: 0.2rem 0.6rem;
     font-size: 0.62rem;
   }
+
   .counter {
     top: calc(var(--hdr) + 2.6rem);
     bottom: auto;
     gap: 0.2rem;
   }
+
   .counter__value {
     font-size: 2.6rem;
   }
+
   .counter__scale {
     display: none;
   }
+
   .lbl {
     font-size: 0.6rem;
   }
-  .lbl--dim > span {
+
+  .lbl--dim>span {
     font-size: 0.64rem;
   }
 }
@@ -892,52 +1198,68 @@ button.film__tag:focus-visible {
 .no-js .film {
   height: auto;
 }
+
 .no-js .film__sticky {
   position: relative;
   height: auto;
 }
+
 .no-js .film__stage,
 .no-js .film__ticks,
 .no-js .counter,
 .no-js .film__prelude-cue {
   display: none;
 }
+
 .no-js .film__backdrop,
-.no-js .prelude__tag {
+.no-js .film__mist {
   display: none;
 }
+
+.no-js .film--hero .prelude {
+  padding-top: 0;
+}
+
 .no-js .film__prelude {
   position: relative;
   padding-top: calc(var(--hdr) + 3rem);
 }
+
 .no-js .film__prelude-inner {
   opacity: 1;
 }
+
 .no-js .prelude__top {
   height: auto;
   padding-top: 0;
   transform: none;
 }
-.no-js .prelude__ln > span {
+
+.no-js .prelude__ln>span {
   transform: none !important;
 }
+
 .no-js .prelude__kicker {
   opacity: 1 !important;
 }
+
 .no-js .prelude__rest {
   max-width: none;
 }
+
 .no-js .film__hud {
   position: static;
   display: block;
   padding-block: calc(var(--hdr) + 3rem) 5rem;
 }
+
 .no-js .film__steps {
   display: grid;
   gap: 3rem;
   width: auto;
   margin-top: 2rem;
 }
+
 .no-js .film__step {
   grid-area: auto;
   visibility: visible;
@@ -946,6 +1268,7 @@ button.film__tag:focus-visible {
   clip-path: none;
   transform: none;
 }
+
 .no-js .film__word {
   opacity: 1;
   filter: none;
@@ -955,17 +1278,24 @@ button.film__tag:focus-visible {
   .film__prelude-cue::before {
     animation: none;
   }
-  .prelude__ln > span,
+
+  .prelude__ln>span,
   .prelude__rest,
-  .prelude__tag {
+  .film__mist {
     transition: none;
   }
+
+  .film__mist i::before {
+    animation: none;
+  }
+
   .film__step,
   .film__stage,
   .film__word {
     transition-duration: 0.01ms !important;
     transition-delay: 0s !important;
   }
+
   .lbl--pulse::after {
     animation: none;
     transform: scale(2);
@@ -979,4 +1309,8 @@ button.film__tag:focus-visible {
 .is-still .film__word,
 .is-still .showcase__stage {
   transition: none !important;
+}
+
+.is-still .film__mist i::before {
+  animation: none;
 }

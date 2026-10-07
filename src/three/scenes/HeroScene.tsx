@@ -1,11 +1,11 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MeshBasicMaterial, type Group, type Mesh } from 'three';
+import { MeshBasicMaterial, ShadowMaterial, type Group, type Mesh } from 'three';
 import type { SceneProps } from '../../film/progress';
 import { clamp01, ease, lerp } from '../../film/timeline';
 import Stage, { aim, useLabel, type Rig } from '../Stage';
 import { LOOKS } from '../kit/looks';
-import { CampusSet, FarmSet, PodSet, SETS, WorkSet, type SetName } from '../kit/sets';
+import { CampusSet, FARM_TAG, FarmSet, PodSet, SETS, WorkSet, type SetName } from '../kit/sets';
 
 /**
  * Hero: the brief's four building types, each shot alone against a plain
@@ -13,9 +13,15 @@ import { CampusSet, FarmSet, PodSet, SETS, WorkSet, type SetName } from '../kit/
  * change of set while the light is retuned. The first building assembles on load, the others as
  * their set arrives.
  *
+ * The page opens on the first house alone: no land, no sky, the canvas
+ * clear to the page behind it, the house's shadow on a floor that is not
+ * there. Scrolling through the opening card opens a clearing in the land
+ * (atmosphere.ts) that spreads from under the house to the horizon, and
+ * brings the sky up behind it. At rest the land is not drawn at all.
+ *
  * Only the first set is built before the first frame. The other three are
  * built one at a time as soon as the picture is up, while it still stands
- * unmoving in the title card's window, and each is warmed (its light, its
+ * unmoving on the opening card, and each is warmed (its light, its
  * geometry and its textures sent to the GPU) so that scrolling into it
  * costs nothing. The first house is put together after that, so its
  * assembly is not interrupted by the work; a visitor who scrolls at once
@@ -39,6 +45,16 @@ const INTRO_WAIT = 4000;
 const AHEAD = 0.07;
 const COMPOSED = 1.55;
 const PULL = 0.5;
+/** The opening card's scroll (0–1) over which the land spreads out, and the sky comes up. */
+const LAND_IN: [number, number] = [0.05, 0.84];
+const SKY_IN: [number, number] = [0.3, 0.88];
+/** The clearing's radius in metres as it opens (0–1): slow round the house, fast to the horizon, about 450 m at the end. */
+const reach = (t: number) => 2.5 * (Math.exp(5.2 * t) - 1);
+/** While it is alone the house stands this much nearer, and this many metres higher in the frame, clear of the mist at its feet. */
+const NEAR = 0.9;
+const LIFT = 0.62;
+/** How dark the house's shadow lies on the bare floor. */
+const FLOOR_SHADOW = LOOKS[SETS.farm.look].shadow.opacity;
 
 const setAt = (p: number) => {
   let i = 0;
@@ -55,6 +71,27 @@ const idle = (fn: () => void, wait = 60) => {
   const id = window.setTimeout(fn, wait);
   return () => window.clearTimeout(id);
 };
+
+/**
+ * The floor of the opening: nothing but the house's shadow, fading out a few
+ * metres from it (the sun is low and the shadow would run on for fifty). It
+ * lies just under the land, which covers it as it spreads, and it is gone
+ * before the land has spread far.
+ */
+function shadowFloor(color: string, opacity: number) {
+  const m = new ShadowMaterial({ color, opacity, transparent: true });
+  m.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <fog_fragment>',
+      `#include <fog_fragment>
+#ifdef USE_FOG
+  gl_FragColor.a *= 1.0 - smoothstep( 3.0, 10.0, length( cameraPosition.xz + vAtmDir.xz ) );
+#endif`,
+    );
+  };
+  m.customProgramCacheKey = () => 'shadow-floor';
+  return m;
+}
 
 /** Full-screen colour in front of the camera, for the dissolve between sets. */
 function Veil({ getOpacity }: { getOpacity: () => number }) {
@@ -88,13 +125,18 @@ function Hero({ progress, place, reduced, rig }: SceneProps & { rig: Rig }) {
   const size = useThree((s) => s.size);
   const invalidate = useThree((s) => s.invalidate);
   const groups = useRef<(Group | null)[]>([]);
+  const land = useRef<Group>(null);
+  const floor = useRef<Mesh>(null);
+  const floorMat = useMemo(() => shadowFloor(LOOKS[SETS.farm.look].shadow.color, FLOOR_SHADOW), []);
+  useEffect(() => () => floorMat.dispose(), [floorMat]);
   const current = useRef(-1);
   /** Sets built so far, in order. */
   const [built, setBuilt] = useState(1);
   const warmed = useRef(1);
+  const landWarm = useRef(0);
   const aspect = size.width / size.height;
 
-  // The first house is put together in the title card's window, once the loading screen has lifted.
+  // The first house is put together on the opening card, once the loading screen has lifted.
   const booting = useRef(typeof document !== 'undefined' && document.documentElement.classList.contains('is-booting'));
   useEffect(() => {
     if (!booting.current) return;
@@ -128,10 +170,27 @@ function Hero({ progress, place, reduced, rig }: SceneProps & { rig: Rig }) {
     }
     const s = SETS[ORDER[i]];
     const u = ease.inOut(localU(p, i));
-    const pos = [0, 1, 2].map((k) => lerp(s.from.pos[k], s.to.pos[k], u));
-    const look = [0, 1, 2].map((k) => lerp(s.from.look[k], s.to.look[k], u));
+    // The opening: how far the land has spread (1: all of it) and how much sky there is. Only the first set has one.
+    const pre = i === 0 ? progress.pre : 1;
+    const t = clamp01((pre - LAND_IN[0]) / (LAND_IN[1] - LAND_IN[0]));
+    if (t < 1) {
+      const r = reach(t);
+      rig.clear[2] = r;
+      rig.clear[3] = 1.2 + r * 0.55;
+    } else rig.clear[3] = 0;
+    rig.sky = ease.inOut(clamp01((pre - SKY_IN[0]) / (SKY_IN[1] - SKY_IN[0])));
+    if (land.current) land.current.visible = t > 0;
+    // The bare floor's shadow goes as the ground comes: once the trees are there, their long shadows would fall across it too.
+    floorMat.opacity = FLOOR_SHADOW * (1 - clamp01((t - 0.02) / 0.12));
+    if (floor.current) floor.current.visible = floorMat.opacity > 0.003;
+    const alone = 1 - ease.inOut(pre);
+    const near = lerp(1, NEAR, alone);
+    const look = [0, 1, 2].map((k) => lerp(s.from.look[k], s.to.look[k], u) - (k === 1 ? LIFT * alone : 0));
+    const pos = [0, 1, 2].map((k) => look[k] + (lerp(s.from.pos[k], s.to.pos[k], u) - look[k]) * near);
     aim(camera, pos, look, aspect, COMPOSED, PULL);
     rig.lightTarget.set(look[0], 0, look[2]);
+    // The opening card names the house once it stands; the label goes as the card opens.
+    label('home', FARM_TAG[0], FARM_TAG[1], FARM_TAG[2], i === 0 ? clamp01(intro.t * 5 - 4) * clamp01(1 - progress.pre * 3.2) : 0);
     // A visitor who scrolls straight through: have the next set ready before its cut.
     const next = setAt(Math.min(1, p + AHEAD)) + 1;
     if (next > built) setBuilt(Math.min(ORDER.length, next));
@@ -154,6 +213,25 @@ function Hero({ progress, place, reduced, rig }: SceneProps & { rig: Rig }) {
         cancel = () => window.clearTimeout(id);
         return;
       }
+      if (landWarm.current < 2) {
+        // The first set's own land, not drawn while the house stands alone: shown off screen so it is on the GPU
+        // before the scroll asks for it. Twice, for its two programs: inside a clearing, and with none.
+        const pass = landWarm.current++;
+        rig.warm(() => {
+          const g = land.current;
+          const was = g?.visible ?? false;
+          const clear: [number, number] = [rig.clear[2], rig.clear[3]];
+          if (g) g.visible = true;
+          rig.clear[2] = 1000;
+          rig.clear[3] = pass ? 0 : 1;
+          return () => {
+            if (g) g.visible = was;
+            [rig.clear[2], rig.clear[3]] = clear;
+          };
+        });
+        cancel = idle(step);
+        return;
+      }
       if (warmed.current < built) {
         // Warm the most recently built set: its environment map, then its buffers and textures.
         const k = warmed.current++;
@@ -163,7 +241,13 @@ function Hero({ progress, place, reduced, rig }: SceneProps & { rig: Rig }) {
           const was = groups.current.map((g) => g?.visible ?? false);
           groups.current.forEach((g, j) => g && (g.visible = j === k));
           aim(camera, set.from.pos, set.from.look, aspect, COMPOSED, PULL);
-          return () => groups.current.forEach((g, j) => g && (g.visible = was[j]));
+          // The later sets are never seen through a clearing: warmed in the program they will be drawn with.
+          const clear = rig.clear[3];
+          rig.clear[3] = 0;
+          return () => {
+            groups.current.forEach((g, j) => g && (g.visible = was[j]));
+            rig.clear[3] = clear;
+          };
         });
         cancel = idle(step);
         return;
@@ -215,7 +299,10 @@ function Hero({ progress, place, reduced, rig }: SceneProps & { rig: Rig }) {
   return (
     <>
       <group ref={slot(0)}>
-        <FarmSet getA={getters.first} look={looks[0]} />
+        <FarmSet getA={getters.first} look={looks[0]} land={land} />
+        <mesh ref={floor} material={floorMat} rotation-x={-Math.PI / 2} position-y={-0.03} receiveShadow>
+          <planeGeometry args={[60, 60]} />
+        </mesh>
       </group>
       {built > 1 && (
         <group ref={slot(1)} visible={false}>

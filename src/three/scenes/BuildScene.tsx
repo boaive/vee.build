@@ -466,7 +466,7 @@ function Configurator({ tool, addOnTool, turn, selected, piece, orbit, onHover, 
     const on = new Set(state.addOns.filter((a) => deckDetails.includes(a)));
     // Only the piece in hand: the upper-floor access is already standing.
     const l = layoutAddOns(units, on, 'auto', extra, base);
-    return { ...l, galleries: [], columns: [], towers: [], rails: l.rails.filter((r) => Math.abs(r.y - l.deckY) < 0.01) };
+    return { ...l, galleries: [], stairs: [], rails: l.rails.filter((r) => Math.abs(r.y - l.deckY) < 0.01) };
   }, [addHover, units, state.addOns, base]);
 
   const onGroundMove = (e: ThreeEvent<PointerEvent>) => {

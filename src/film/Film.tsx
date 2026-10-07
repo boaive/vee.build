@@ -21,15 +21,19 @@ export interface FilmLabel {
 }
 
 /**
- * A title card before the film: a few words and a window onto the scene,
- * which is already running inside it. Scrolling grows the window until the
- * picture fills the screen, while the words drift away (film.css, Prelude).
+ * A title card before the film, which is already running under it. Either
+ * a window onto the scene that scrolling grows until the picture fills the
+ * screen, or a studio: the scene's subject alone on a lit backdrop with
+ * mist at its feet, where the scene itself brings its world in as the page
+ * scrolls and the mist rises over the change and clears. The words drift
+ * away as it opens (film.css, Prelude).
  */
 export interface Prelude {
   /** Scroll length in viewport heights. */
   length: number;
   content: ReactNode;
   tone?: 'paper' | 'ink';
+  opening?: 'window' | 'mist';
 }
 
 interface FilmProps {
@@ -315,7 +319,7 @@ export default function Film({
       <section
         id={id}
         ref={root}
-        className={`film film--${variant} theme-${stepTheme}${reduced ? ' is-still' : ''}${prelude ? ' has-prelude' : ''}${open ? ' is-open' : ''}`}
+        className={`film film--${variant} theme-${stepTheme}${reduced ? ' is-still' : ''}${prelude ? ` has-prelude has-prelude--${prelude.opening ?? 'window'}` : ''}${open ? ' is-open' : ''}`}
         data-theme={headerTheme}
         data-bare=""
         data-pre={preLen || undefined}
@@ -325,7 +329,7 @@ export default function Film({
         style={{ '--film-len': len, '--film-len-c': lenC } as CSSProperties}
       >
         <div className="film__sticky" ref={sticky}>
-          {prelude && <div className={`film__backdrop film__backdrop--${prelude.tone ?? 'paper'}`} aria-hidden="true" />}
+          {prelude && <div className={`film__backdrop film__backdrop--${prelude.opening === 'mist' ? 'studio' : (prelude.tone ?? 'paper')}`} aria-hidden="true" />}
           <div className={`film__stage${ready ? ' is-ready' : ''}`} aria-hidden="true">
             {mount && <Suspense fallback={null}>{scene}</Suspense>}
             <div className="film__labels">
@@ -344,6 +348,14 @@ export default function Film({
               ))}
             </div>
           </div>
+
+          {prelude?.opening === 'mist' && (
+            <div className="film__mist" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </div>
+          )}
 
           <div className="film__hud">
             <header className="film__head">

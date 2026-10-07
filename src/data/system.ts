@@ -64,8 +64,9 @@ export const footprints: Footprint[] = [
   { sqft: 300, recipe: 'A + B', slots: [A(0, 0), null, null, null, B(2, 0)] },
   { sqft: 400, recipe: '2 × A', slots: [A(0, 0), A(0, 1), null, null, null] },
   { sqft: 500, recipe: '2 × A + B', slots: [A(0, 0), A(0, 1), null, null, B(2, 1)] },
-  { sqft: 600, recipe: '3 × A', slots: [A(0, 0, 0, 1), A(1, 0), A(3, 0, 0, 1), null, null] },
-  { sqft: 700, recipe: '3 × A + B', slots: [A(0, 0, 0, 1), A(1, 0), A(3, 0, 0, 1), null, B(1, 1)] },
+  // From here the shells stand side by side, short end to the street: the row grows by a shell at a time into the 800.
+  { sqft: 600, recipe: '3 × A', slots: [A(0, 0, 0, 1), A(1, 0, 0, 1), A(2, 0, 0, 1), null, null] },
+  { sqft: 700, recipe: '3 × A + B', slots: [A(0, 0, 0, 1), A(1, 0, 0, 1), A(2, 0, 0, 1), null, B(3, 1)] },
   { sqft: 800, recipe: '4 × A', slots: [A(0, 0, 0, 1), A(1, 0, 0, 1), A(2, 0, 0, 1), A(3, 0, 0, 1), null] },
 ];
 

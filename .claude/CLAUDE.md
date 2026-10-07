@@ -38,6 +38,21 @@ source. Never resolve a conflict by inventing a third value.
   in one place, `doorFaces` in `src/build/model.ts`, and every scene draws
   the shell through `moduleGeometry(type, door)`. Never add a second door to
   a shell to make a row or a stack read better.
+- A building with an upper floor has one outer staircase, never two: a
+  dog-leg (one U-bend a floor) standing beside the building, against its
+  flank, not across its front (client, 2026-10-07). Where it stands and the
+  galleries that lead to it are decided in one place, `layoutAccess` in
+  `src/build/model.ts`, for the configurator and for every scene that shows
+  a stacked building ("How it works" included). Do not place stairs,
+  galleries or balconies by hand in a scene.
+- No door opens onto a drop. With the deck add-on on, every ground-floor
+  door has a deck outside it, along that side of its shell, and each
+  stretch of deck has one flight of steps, at a door (`layoutAddOns`). A
+  deck or steps where no door opens is a fault, not a style.
+- What is drawn on a building beyond its shells comes from the brief's
+  add-on list (deck, post, spandrel, handrail, steps, shades, sloped roof,
+  solar) or from that access rule. Nothing else: no canopies, slab roofs or
+  balconies of our own.
 
 ## Architecture
 
@@ -61,6 +76,16 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   to scenes: the sky (drawn on its own and put behind the scene), the shadow
   map (redrawn only when the light or a caster has moved, or after
   `rig.warm`), ambient occlusion, bloom and the grade (`kit/post.tsx`).
+- A scene can ask the stage for less than the whole world: `rig.sky`
+  (0-1, how much sky is behind the scene; at 0 it is not drawn) and
+  `rig.clear` (a clearing: land is drawn only out to a radius from a
+  point, fading into what is behind the canvas). Land materials take part
+  by being made through `clearing()` (`kit/atmosphere.ts`); a new material
+  for ground, grass, trees or anything else that belongs to the land has to
+  be, or it will stand there before the land does. The clearing's test is
+  compiled in only while one is open (a shader that can discard gives up
+  early depth rejection), so every land material has two programs: warm
+  both.
 - No drei, no GSAP, no smooth-scroll library. Add a dependency only if it
   materially improves the product; note why in `vee-build-notes.md`.
 
@@ -84,6 +109,17 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   installation, in evening light, takes the dark theme's light text). A
   dark stage keeps a vignette in its own tone. Small callouts placed from
   3D stay on their ink pills.
+  One exception, asked for by the client (2026-10-07): the hero's opening
+  card, where mist in the page colour lies at the house's feet and rises
+  over the moment the land and sky arrive (`.film__mist`, film.css). It is
+  DOM over the canvas, transforms and opacity only, each layer with its
+  own opacity; it never lies on the house at rest, and it is gone
+  (`display: none`) once the card has opened, so the film itself is never
+  under it. Do not use it anywhere else without asking.
+- The hero opens on the product alone (client, 2026-10-07): the house in a
+  studio, no land and no sky, which arrive as the page scrolls. The studio
+  is CSS behind the canvas (the canvas is clear wherever the scene has
+  drawn nothing). At rest the land is not drawn at all.
 - The factory tour is seen from above throughout, at the angle it opens on
   (client, 2026-10-07): the camera moves between stations, it does not come
   down to the ground. Lay the yard out for that view: the side of the line
@@ -106,8 +142,8 @@ Astro (static HTML per route) + React islands + React Three Fiber.
 ## Checking work
 
 - `?still` on any page settles every film at its step poses (also what
-  reduced motion gets), and shows "How are we different?" as its plain
-  list. `?go=<section-id>:<0-1>` jumps a film to a progress value on the
+  reduced motion gets), and shows "How are we different?" standing still,
+  nothing hidden. `?go=<section-id>:<0-1>` jumps a film to a progress value on the
   dev server (the value counts a title card's scroll too).
 - Routes: `/` (main page, the factory tour included), `/capsule/`,
   `/prefab/`, `/partnership/`, `404`. Do not move a section to a route of

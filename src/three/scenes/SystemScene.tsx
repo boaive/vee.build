@@ -1,21 +1,24 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import { BufferGeometry, Color, Float32BufferAttribute, type Group, type InstancedMesh } from 'three';
-import { doorFaces, type Unit } from '../../build/model';
-import type { Turn } from '../../data/build';
+import { STOREY, doorFaces, doorSpot, layoutAddOns, type AddOnLayout, type Unit, type WallFace } from '../../build/model';
+import type { AddOnId, ManualAddOn, Turn } from '../../data/build';
 import { footprints, stacks, type DoorFace, type Placement } from '../../data/system';
 import type { SceneProps } from '../../film/progress';
 import { SETTLE, START, STATE, locate } from '../../film/systemTimeline';
 import { ease, hold, lerp, sampleCamera, stagger, win, type CameraKey } from '../../film/timeline';
 import Stage, { aim, useLabel, type Rig } from '../Stage';
-import { UNIT_BOX, box, memo, mergeGroups, planCentre, pose, setInst } from '../kit/geometry';
+import { UNIT_BOX, memo, planCentre, pose, setInst } from '../kit/geometry';
+import { AddOnParts, addOnMeshes } from '../kit/house';
 import { instanced, mat, moduleMats } from '../kit/materials';
-import { hookCleatGeometry, moduleGeometry, railGeometry } from '../kit/parts';
+import { hookCleatGeometry, moduleGeometry } from '../kit/parts';
 
 /**
  * How it works: two shells are drawn, shown to carry a hook & cleat at each
  * corner, then duplicated into six footprints and stacked into three
  * building types. One pool of modules morphs through every configuration.
+ * What makes each stack a building (galleries, the one staircase, roofs,
+ * shades, rails) is laid out by the configurator's own rules.
  */
 
 type Pose = [number, number, number, number] | null;
@@ -47,6 +50,33 @@ function doorsOf(list: Placement[]): DoorFace[] {
   return units.map((u) => doors.get(u.id) ?? 'front');
 }
 
+/** Rails round the open roofs; everything else in a stack is placed by hand (`dressing`). */
+const RAILED: ReadonlySet<AddOnId> = new Set<AddOnId>(['handrail']);
+
+/**
+ * From the add-on list, for a stack: a sloped roof on each Shell A of the
+ * top floor, and a shade over every street-side door that has no gallery
+ * over it.
+ */
+function dressing(units: Unit[], doors: ReadonlyMap<number, DoorFace>, bare: AddOnLayout): ManualAddOn[] {
+  const top = Math.max(...units.map((u) => u.y));
+  const out: ManualAddOn[] = [];
+  for (const u of units) {
+    if (u.t === 'A' && u.y === top && top > 0) out.push({ k: 'roof', u: u.id });
+    const f = doors.get(u.id);
+    if (!f || f === 'none') continue;
+    const d = doorSpot(u, f as WallFace, 0);
+    if (d.side !== 0) continue;
+    const above = (u.y + 1) * STOREY + 0.12;
+    const covered = bare.galleries.some((g) => Math.abs(g.y - above) < 0.01 && Math.abs(g.z0 - d.z) < 0.01 && d.x > g.x0 && d.x < g.x1);
+    if (!covered) out.push({ k: 'shade', u: u.id, s: 0 });
+  }
+  return out;
+}
+
+/** The add-ons of each stack, and the plan centre they are drawn about. */
+const STACK_ADDS: { layout: AddOnLayout; at: [number, number] }[] = [];
+
 const CONFIGS: Config[] = (() => {
   const out: Config[] = [{ A: fill<Pose>([[...PAIR_A, 0]], A_POOL, null), B: fill<Pose>([[...PAIR_B, 0]], B_POOL, null), doorA: fill<DoorFace>([], A_POOL, 'front'), doorB: fill<DoorFace>([], B_POOL, 'front') }];
   for (const f of footprints) {
@@ -68,12 +98,11 @@ const CONFIGS: Config[] = (() => {
   for (const st of stacks) {
     const ground = st.modules.filter((m) => m.t === 'A' && m.y === 0);
     const [cx, cz] = planCentre(ground);
-    const doors = doorsOf(st.modules);
-    // A massing study has no galleries: an upper lobby module is reached from the floor it serves, not from outside.
-    const door = (p: Placement): DoorFace => {
-      const d = doors[st.modules.indexOf(p)];
-      return p.t === 'B' && p.y > 0 && d === 'front' ? 'none' : d;
-    };
+    const units: Unit[] = st.modules.map((p, i) => ({ id: i + 1, t: p.t, x: p.x, z: p.z, y: p.y, r: (p.r ?? 0) as Turn }));
+    const doors = doorFaces(units);
+    const door = (p: Placement): DoorFace => doors.get(st.modules.indexOf(p) + 1) ?? 'front';
+    const bare = layoutAddOns(units, RAILED, 0, [], 0);
+    STACK_ADDS.push({ layout: layoutAddOns(units, RAILED, 0, dressing(units, doors, bare), 0), at: [cx, cz] });
     const listA = st.modules.filter((m) => m.t === 'A');
     const listB = st.modules.filter((m) => m.t === 'B');
     out.push({
@@ -92,8 +121,12 @@ const FACES = {
   B: [...new Set(CONFIGS.flatMap((c) => c.doorB))],
 };
 
-/** One job per shell geometry this film uses, for building them during idle time before it mounts (film/prefetch.ts). */
-export const prepare: (() => void)[] = [...FACES.A.map((d) => () => void moduleGeometry('A', d)), ...FACES.B.map((d) => () => void moduleGeometry('B', d))];
+/** One job per shell geometry and per stack's add-ons, for building them during idle time before the film mounts (film/prefetch.ts). */
+export const prepare: (() => void)[] = [
+  ...FACES.A.map((d) => () => void moduleGeometry('A', d)),
+  ...FACES.B.map((d) => () => void moduleGeometry('B', d)),
+  ...STACK_ADDS.map((a) => () => void addOnMeshes(a.layout)),
+];
 
 const CAM: CameraKey[] = [
   { p: 0, look: [0.4, 1.3, -1.2], pos: [14.5, 8.4, 27] },
@@ -102,9 +135,12 @@ const CAM: CameraKey[] = [
   { p: 0.265, look: [-4.5, 2.75, -0.2], pos: [-6.3, 4.5, 6.2] },
   { p: 0.34, look: [0, 0.6, 0], pos: [17, 23, 25] },
   { p: 0.59, look: [0, 0.6, 0], pos: [20, 22, 23] },
-  { p: 0.7, look: [0.5, 2.6, 0], pos: [24, 15, 33] },
-  { p: 0.83, look: [1.5, 3.4, 0], pos: [27, 15, 37] },
-  { p: 1, look: [1.5, 7.2, 0], pos: [36, 18, 52] },
+  // The stacks are seen from the other front corner: their staircase stands against the flank on that side.
+  // On the way across, square on to the row, the camera stands back and high so the building keeps clear of the caption.
+  { p: 0.648, look: [-0.5, 1.6, 0], pos: [-3, 25, 40] },
+  { p: 0.7, look: [-1, 2.6, 0], pos: [-24.5, 15, 33] },
+  { p: 0.83, look: [0.5, 3.4, 0], pos: [-26.3, 15.6, 38.9] },
+  { p: 1, look: [0.5, 7.2, 0], pos: [-34, 18, 52] },
 ];
 
 /* ---------- Module pool ---------- */
@@ -322,79 +358,44 @@ function Grid() {
 
 /* ---------- Step 2.3: what makes each stack a building ---------- */
 
-function balconyGeometry() {
-  return memo('balcony', () => {
-    const rail = railGeometry('balcony-rail', [
-      [-1.25, 3],
-      [-1.25, 4.3],
-      [1.25, 4.3],
-      [1.25, 3],
-    ]).clone();
-    rail.translate(0, 0.07, 0);
-    return mergeGroups([[box(2.6, 0.14, 1.36, 0, 0, 3.65)], [rail]]);
-  });
-}
-const BALCONIES: [number, number][] = [1, 2, 3].flatMap((lvl) => [0, 1, 2, 3].map((bay) => [-4.5 + bay * 3, lvl * 3] as [number, number]));
+/** Boards on an open roof: [width, depth, x, y, z] about the stack's centre. */
+const TERRACES: [number, number, number, number, number][][] = [[[5.9, 5.8, 3, 3.03, 0]], [[11.8, 5.8, 0, 6.03, 0]], [[5.9, 5.8, 3, 12.03, 0]]];
+const STACK_STATES = [STATE.villa, STATE.apartment, STATE.highrise];
 
 function Extras({ progress }: Pick<SceneProps, 'progress'>) {
-  const villa = useRef<Group>(null);
-  const apartment = useRef<Group>(null);
-  const highrise = useRef<Group>(null);
-  const balconies = useRef<InstancedMesh>(null);
-  const terrace = railGeometry('terrace-6', [
-    [0, 2.9],
-    [5.9, 2.9],
-    [5.9, -2.9],
-    [0, -2.9],
-  ]);
-  const roofRail = railGeometry('terrace-12', [
-    [5.9, 2.9],
-    [-5.9, 2.9],
-    [-5.9, -2.9],
-    [5.9, -2.9],
-  ]);
+  const groups = useRef<(Group | null)[]>([]);
 
   useFrame(() => {
     const p = progress.value;
-    const show = (g: Group | null, v: number) => {
+    STACK_STATES.forEach((state, i) => {
+      const g = groups.current[i];
       if (!g) return;
+      // Each stack's add-ons come down as its last shell lands, and go as the next stack starts to move.
+      const v = state === STATE.highrise ? win(p, SETTLE[state] - 0.02, SETTLE[state], ease.out) : hold(p, SETTLE[state] - 0.005, START[state + 1], 0.025);
       g.visible = v > 0.001;
       g.position.y = (1 - v) * 2.5;
       g.scale.setScalar(Math.max(0.0001, Math.min(1, v * 3)));
-    };
-    show(villa.current, hold(p, SETTLE[STATE.villa] - 0.005, START[STATE.apartment], 0.025));
-    show(apartment.current, hold(p, SETTLE[STATE.apartment] - 0.005, START[STATE.highrise], 0.025));
-    const hr = win(p, SETTLE[STATE.highrise] - 0.035, SETTLE[STATE.highrise], ease.linear);
-    show(highrise.current, win(hr, 0.6, 1, ease.out));
-    const m = balconies.current;
-    if (m) {
-      BALCONIES.forEach(([x, y], i) => {
-        const t = ease.out(stagger(hr, i, BALCONIES.length, 0.8));
-        setInst(m, i, x, y + 0.02, -1.4 * (1 - t), 0, t <= 0 ? 0.0001 : 1);
-      });
-      m.instanceMatrix.needsUpdate = true;
-    }
+    });
   });
 
   return (
     <>
-      <group ref={villa}>
-        <mesh geometry={UNIT_BOX} material={mat.trim} scale={[7.4, 0.16, 6.9]} position={[-2.5, 6.1, 0]} castShadow receiveShadow />
-        <mesh geometry={terrace} material={mat.steel} position-y={3} castShadow />
-        <mesh geometry={UNIT_BOX} material={mat.deck} scale={[5.9, 0.05, 5.8]} position={[3, 3.03, 0]} receiveShadow />
-      </group>
-      <group ref={apartment}>
-        <mesh geometry={roofRail} material={mat.steel} position-y={6} castShadow />
-        <mesh geometry={UNIT_BOX} material={mat.deck} scale={[11.8, 0.05, 5.8]} position={[0, 6.03, 0]} receiveShadow />
-        <mesh geometry={UNIT_BOX} material={mat.trim} scale={[3.4, 0.14, 1.5]} position={[7.5, 2.7, 3.7]} castShadow />
-      </group>
-      <group ref={highrise}>
-        <mesh geometry={terrace} material={mat.steel} position-y={12} castShadow />
-        <mesh geometry={UNIT_BOX} material={mat.deck} scale={[5.9, 0.05, 5.8]} position={[3, 12.03, 0]} receiveShadow />
-        <mesh geometry={UNIT_BOX} material={mat.trim} scale={[7.4, 0.16, 6.9]} position={[-2.5, 15.1, 0]} castShadow receiveShadow />
-        <mesh geometry={UNIT_BOX} material={mat.trim} scale={[3.4, 0.14, 1.5]} position={[7.5, 2.7, 3.7]} castShadow />
-      </group>
-      <instancedMesh ref={balconies} args={[balconyGeometry(), [instanced(mat.concrete), instanced(mat.steel)], BALCONIES.length]} castShadow receiveShadow frustumCulled={false} />
+      {STACK_ADDS.map((a, i) => (
+        <group
+          key={i}
+          visible={false}
+          ref={(g) => {
+            groups.current[i] = g;
+          }}
+        >
+          <group position={[-a.at[0], 0, -a.at[1]]}>
+            <AddOnParts layout={a.layout} deck={mat.deck} trim={mat.trim} />
+          </group>
+          {TERRACES[i].map(([w, d, x, y, z], k) => (
+            <mesh key={k} geometry={UNIT_BOX} material={mat.deck} scale={[w, 0.05, d]} position={[x, y, z]} receiveShadow />
+          ))}
+        </group>
+      ))}
     </>
   );
 }

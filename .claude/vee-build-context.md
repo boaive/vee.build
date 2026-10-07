@@ -38,10 +38,10 @@ distribution partners.
 
 | # | Section | Question it answers | Form |
 | --- | --- | --- | --- |
-| 1 | Hero banner | What can be built? | A title card with a window onto the first set, then a pinned film: four sets (modular home, capsule pods, workforce housing, institutional campus), a cut between each |
+| 1 | Hero banner | What can be built? | An opening card (the headline and the two shells beside the house alone in a studio, mist at its feet; scrolling brings its land and sky in), then a pinned film: four sets (modular home, capsule pods, workforce housing, institutional campus), a cut between each |
 | 2 | How it works? | How does the system work / configure? | Pinned film: shells → footprints → stacking |
 | 3 | Building components | What are the components? | Pinned film: exploded home, 3 steps |
-| 4 | How are we different? | Why this approach? | Six points on ink: an index of the six words, one point set out at a time as the page scrolls (a plain list on narrow screens) |
+| 4 | How are we different? | Why this approach? | Six points on paper, all on show: a ledger of six cells (number, word, claim, detail), then the brief's three comparisons with "the others" struck through |
 | 5 | Catalogue | What can I choose? | Architectural index, document flow |
 | 6 | Factory tour | Can I see the real process? | A full-screen title ("See how we manufacture it."), then a pinned film seen from above throughout: 7 stations and dispatch |
 | 7 | Photo gallery | Is this real? | Documentary grid, document flow |

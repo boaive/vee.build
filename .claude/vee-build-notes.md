@@ -50,14 +50,16 @@ Tagged `CONFIRM:` in the data files.
 - **C4 Stacked configurations** (Villa, Apartment, High-Rise) are massing
   studies built from the two modules to the brief's description, not designs.
 - **C5 Capsule pod width/height** are not supplied; only lengths are labelled.
-- **C6 Upper-floor access.** In the configurator, and wherever the visitor's
-  build is shown, a shell on an upper floor gets a gallery outside its door
-  and an outer staircase up to it, placed by rule (I7). Nothing was supplied
-  for either. As drawn: gallery 1.5 m deep on posts; the staircase a dog-leg
-  in a 2.0 × 4.16 m footprint, flights 0.87 m wide, 187.5 mm risers and
-  270 mm goings above the first floor, the first flight longer to reach the
-  ground. Illustrative, with no structural or code basis; confirm before it
-  is presented as part of the product.
+- **C6 Upper-floor access.** In the configurator, in "How it works" 2.3 and
+  wherever the visitor's build is shown, a shell on an upper floor gets a
+  gallery outside its door and the building gets one outer staircase,
+  placed by rule (I13). Nothing was supplied for either. As drawn: gallery
+  1.5 m deep, boards on a steel frame carried off the shells, no posts; the
+  staircase a dog-leg in a 2.0 × 4.5 m plan on four posts, flights 0.87 m
+  wide, 187.5 mm risers and 250 mm goings, a landing 1.5 m deep at each
+  floor and a half landing 1.0 m deep at the turn, the first flight longer
+  to reach the ground. Illustrative, with no structural or code basis;
+  confirm before it is presented as part of the product.
 - **C7 Shell B openings.** No drawing of the 3 × 3 m shell was supplied. Its
   openings are ours: a window and the door on the front, a clerestory on the
   back and on one end.
@@ -283,7 +285,7 @@ the budget.
   within 0.35 of a grey level of what two settled frames differ by (the
   grain). Nothing exists only at rest or only in motion.
 - **Hero load.** The other three sets are now built and warmed as soon as
-  the loading screen lifts, while the picture in the title card's window
+  the loading screen lifts, while the picture on the opening card
   stands still, and the first house is put together after that (at most
   4 s later, or at once if the visitor scrolls). Before, the assembly ran
   behind the closed card and the warming ran during it.
@@ -291,6 +293,99 @@ the budget.
   draw the blueprint grid of "How it works", the configurator's plot grid
   and the joints of every `Paving`. "How it works" is now the dearest film
   (about 20 ms a frame at the footprints in the slow power state, as it was).
+
+### F5. Fourth pass: the cost of the second round of 2026-10-07 (I6, I8, I12-I15)
+
+Same machine and method as F4; "before" is the tree as it stood before
+this round (the opening card in mist included), served beside the working
+tree and visited in turn. GPU time of one moving frame, medians of 4
+alternating rounds, range in brackets.
+
+| Film, progress | Before | Now | Draw calls |
+| --- | --- | --- | --- |
+| How it works, 600 sq.ft. (0.48) | 20.22 [19.91-20.66] | 20.21 [18.96-21.51] | 46-54 → 32-40 |
+| How it works, 700 sq.ft. (0.53) | 21.04 [19.05-21.20] | 18.13 [17.38-20.77] | 46-54 → 32-40 |
+| How it works, villa (0.71) | 16.50 [16.23-16.83] | 16.52 [16.06-16.90] | 52-60 → 59-67 |
+| How it works, apartment (0.84) | 12.55 [12.15-12.95] | 11.51 [11.25-11.87] | 52-60 → 57-65 |
+| How it works, high-rise (0.995) | 7.57 [7.36-7.79] | 7.33 [6.89-7.36] | 54-62 → 59-67 |
+| Your house (0.14) | 8.06 [7.96-8.11] | 7.97 [7.50-7.98] | 64 → 72 |
+| Your house (0.86) | 7.31 [7.18-7.33] | 7.36 [7.31-7.37] | 64 → 72 |
+
+- **Nothing got slower.** The stacks carry more geometry than before
+  (galleries, a staircase, rails with balusters, roofs, shades) in five
+  more draw calls, and cost the same or less: the villa and the apartment
+  are framed from the other front corner, and the high-rise's twelve
+  instanced balconies are gone. The rows of 600 and 700 sq.ft. use fewer
+  door faces than the U did, so fewer instanced meshes are drawn.
+- "Your house" was first read as 1.1 ms slower. That was a different house:
+  the two servers are different origins, and the working tree's had the
+  High-Rise preset in its saved build from an earlier check. With the saved
+  builds cleared on both, the numbers above. **When comparing two servers,
+  clear `localStorage` on both first.**
+- **Frame pacing**, a steady 1500 px/s scroll: how it works 59 fps in both
+  (longest frame 66 ms now, 83 before); your house 51-54 fps over its 0.7 s
+  in both (longest 117 ms in both, the scene mounting); "How are we
+  different?" 60 fps, no frame over 20 ms.
+- **Moving against still**, five poses: the 700 sq.ft. row 0.09 of a grey
+  level at most over any twelfth of the picture; the villa 0.30, the
+  apartment 0.59, the high-rise 0.98, your house 0.32. The shift is in the
+  one region the building stands in and grows with the length of railing
+  in shot. A moving frame is 2x multisampled and a still one 4x (the one
+  difference the rule allows), and the rails' balusters are about a pixel
+  wide. Not separated from other causes by a test of its own.
+- **The layout rule** (`layoutAccess`) takes 2-6 ms for a preset, run
+  outside the browser. Each stack's add-on geometry in "How it works" is
+  built at idle before the film mounts (`prepare`), and kept with its
+  layout, so it is built once.
+- **Not acted on, still true:** "How it works" at the footprints is the
+  dearest film (about 20 ms a frame in the slow power state).
+- **Decks at the doors (I16)**, measured on its own afterwards against a
+  copy of the tree with only that rule put back: your house (the sample,
+  which gains a back porch) 7.75 → 7.92 and 7.13 → 7.21 ms, the
+  installation's handover 8.50 → 7.35 ms, 4 rounds each, the ranges of
+  before and after overlapping throughout (the machine changed power state
+  during the run). No difference that can be told from the spread; draw
+  calls the same.
+
+### F6. The studio opening of the hero (I18)
+
+Same machine and method. "Before" is the tree with the opening in mist over
+the full picture, served beside the working tree. GPU time of one moving
+frame, medians of 4 alternating rounds, range in brackets; the machine
+changed power state during the runs, which is the width of the ranges.
+
+| Hero, where in the opening card's scroll | Before | Now | Draw calls |
+| --- | --- | --- | --- |
+| At rest (0) | 11.48 [5.58-25.65] | 3.96 [3.78-4.01] | 108-116 → 41-49 |
+| A quarter through | 11.37 [5.50-11.48] | 11.29 [5.47-11.30] | same |
+| Half-way | 11.36 [6.12-11.50] | 12.29 [6.53-12.85] | same |
+| 0.7 | 11.37 [5.72-11.48] | 12.65 [6.97-13.09] | same |
+| The film itself, farm (0.08) | 11.19 [6.70-11.31] | 11.13 [5.70-11.24] | same |
+
+- **At rest the frame costs a third of what it did**: the land and the sky
+  are not drawn.
+- **Half-way and later in the opening's scroll a frame costs about 1 ms
+  more** (0.9-1.3). While the clearing is open the land's shaders can
+  discard a fragment, and a shader that can discard gives up part of early
+  depth rejection; the land (grass above all) is where the overdraw is.
+  It lasts for the opening's scroll and no longer.
+- **The film itself is unchanged**, but only because the test is compiled
+  in while a clearing is open and not otherwise. With it always in the
+  shader (the first version) the farm set read 12.48 against 11.16 with no
+  clearing open at all, and the opening 14-15 ms: found by this
+  measurement, and by having first timed the wrong scroll positions (the
+  film's travel is its length less the pinned screen less the card).
+- **Frame pacing**, 1500 px/s through the whole hero, three passes each:
+  no frame over 30 ms inside the opening in either build; the one long
+  frame is where the next film mounts (50-68 ms, 183 ms once on a first
+  pass of the new build, as seen on first passes before).
+- **Mist**, scrolled with it shown and hidden in turn inside one page,
+  eight rounds each: no frame over 20 ms in 640 either way.
+- **Moving against still**, four poses (at rest, 0.3, 0.6, the farm set):
+  the largest shift in tone over any twelfth of the picture 0.30 of a grey
+  level, against 0.22-0.26 between two settled frames (the mist drifts).
+- **Not measured**: what the browser spends compositing a canvas that is
+  mostly transparent over the page (the timer sees only the 3D).
 
 ## G. Decisions made during the build
 
@@ -414,14 +509,29 @@ screenshots and one forwarded message from the client (Trinath, 2026-10-06
    everywhere.** The second needs a darker green for text on paper and is a
    one-file change (`src/styles/tokens.css`), plus `mat.accent` and the
    configurator's highlight colours in 3D.
-6. **"How are we different?" made easier to take in; content unchanged.**
-   Every word is the brief's, as before. Form: the section is on ink, the
-   six words stand as an index down the left, one point at a time is set
-   out on the right (claim, detail, comparison, referenced bodies), and the
-   pinned section walks through the six as the page scrolls (about 2
-   screens of scroll). A word can be pointed at or clicked. Under 900 px
-   wide or 600 px high, without script, with reduced motion or `?still`,
-   it is a plain list with everything on show.
+6. **"How are we different?"**, built three times. The pinned index of
+   that morning (six words down the left, one point at a time) was
+   rejected in the evening ("not satisfied at all"), with a reference: a
+   comparison page with a row of large figures, a two-column table with the
+   alternative struck through, and six numbered cards. As it stands: on
+   paper, in the document's flow, everything on show. A large head; a
+   ledger of six cells divided by hairlines (number, word, claim, detail,
+   referenced bodies); then the three comparisons the brief draws, the
+   claim on the left and what it replaces on the right, struck through.
+   Each part comes in once as it is scrolled to (the head's lines rise out
+   of a mask, each cell's rule is drawn, the strike runs through); a point
+   and its comparison light up together under the pointer. Without script,
+   with reduced motion or `?still` nothing is hidden and nothing moves.
+   Content: every word is the brief's. The reference's figures (a faster
+   build in per cent, a weight ratio, a fire rating in hours) and its
+   headline are the earlier brand's and are not in the VEE.BUILD brief:
+   none of them is used. The three struck phrases are lifted from the
+   brief's own sentences ("No fragmented subcontractors." → "Fragmented
+   subcontractors"; "Others rely on lightweight metal or composite sheets."
+   → "Lightweight metal or composite sheets"; "Compared with brick-and-mortar
+   and structural bolt construction." → "Brick-and-mortar and structural
+   bolt construction"); the full sentences are no longer shown. **CONFIRM
+   if the client wants figures in this section: they need a source.**
 7. **Configurator.**
    - *Steps could not be added.* They were being placed but never drawn: the
      steps were merged into a geometry without material groups and given
@@ -439,25 +549,24 @@ screenshots and one forwarded message from the client (Trinath, 2026-10-06
      rest into hand placements first. A deck takes its steps with it. A
      shell is refused only when another shell depends on it: one resting on
      it, or the house splitting in two.
-   - *Upper floors.* Every upper shell has its one door, a gallery outside
-     it and an outer staircase up to it, added on their own and not
-     removable while the shell stands (C6). One staircase per wall line
-     that has upper doors, at whichever end is free, inside the plot if it
-     can be; where the plot has no room along the wall it stands beside
-     the corner and runs out from it. A door that opens onto a roof gets
-     its gallery along that roof's edge. Known limits: two wall lines with
-     upper doors side by side get a staircase each (the High-Rise preset's
-     lobby stack), and if both ends of a wall are built against there is a
-     gallery and no staircase.
+   - *Upper floors.* Every upper shell has its one door and a way to it,
+     added on their own and not removable while the shell stands (C6). The
+     rule was rewritten the same evening: I13.
    - The plan drawing marks each shell's door, the galleries of the floor
      shown and the staircases.
 8. **"Your house".** Two captions now (the third became the factory tour's
-   title, I9). The scroll walks the camera half-way round the house
-   between them; dragging turns it by hand (sideways on touch, so the page
-   still scrolls), and the hand's turn is let go as the page scrolls on.
-   The camera moves, not the house, so its shadow map is still drawn once.
-   The scroll stops short of looking into the key light, where the studio
-   floor glares; a hand can still turn it there.
+   title, I9). Dragging turns the house by hand (sideways on touch, so the
+   page still scrolls), and the hand's turn is let go as the page scrolls
+   on. The camera moves, not the house, so its shadow map is still drawn
+   once. The scroll's own turn was half-way round at first, which left the
+   house showing its back for the whole second caption ("rotates for
+   longer and leaves at backside position"). Now the camera goes from the
+   front corner round to square on the front, about 45 degrees, and the
+   film is 2.2 screens long instead of 2.8. It stays on the near side of
+   the front: past it the camera looks into the key light and the studio
+   floor glares (a hand can still turn it there). The framing is centred
+   on the whole build, staircase and decks included, and stands further
+   back, so a wide house seen square on keeps clear of the caption.
 9. **Factory tour: a full-screen title, then the whole tour from above.**
    The tour stays on the main page, after "Your house". (It was first
    moved to a page of its own, from a sentence read too literally; the
@@ -483,16 +592,159 @@ screenshots and one forwarded message from the client (Trinath, 2026-10-06
    through the gate. The visitor's build in the yard now shows its
    hand-placed add-ons, trim and foundation (they were dropped before).
    Unchanged: the order, the timings and all caption text.
-10. **Opening card (hero).** The card closed from top and bottom like a
-    shutter. Now the film is already running in a window on the card (the
-    house is put together in it once the loading screen lifts and the other
-    sets are warmed); scrolling grows the window until the picture fills
-    the screen while the words drift away. The headline rises out of a mask
-    line by line. The scene is no longer scaled while the card is up (it
-    was resampled 7% larger, soft). Text unchanged apart from the picture's
-    label, "Shell A · 6 m × 3 m × 3 m".
+10. **Opening card (hero).** Built three times on 2026-10-07; the third, as it stands, is I18. First: the card
+    closed from top and bottom like a shutter, and was replaced by a window
+    onto the running film that grew to fill the screen. The client found
+    that too plain ("instead of a box") and sent a reference picture: a
+    full picture of the house dissolving into the page through mist, the
+    headline fixed on the left, the shells called out. Second, as it
+    stands: the whole first set is on screen from the start and stands in
+    mist in the page colour on the left and at the foot (the lower half on
+    narrow screens), where the words are. The headline rises out of a mask
+    line by line when the loading screen lifts while the mist, thicker
+    behind that screen, draws back off the house. Scrolling draws the mist
+    off to the side and thins it, the words drift up and go, and the film's
+    first caption arrives on the clear picture. The house carries a label
+    placed from 3D, "Shell A · 6 m × 3 m × 3 m" (it is one Shell A), and
+    under the sentence the two shells are drawn to one scale as outline
+    boxes with their names and sizes from `src/data/system.ts`.
+    Not taken from the reference: its headline ("Endless possibilities",
+    against the copy rule; ours is unchanged), its buttons on the card (the
+    film's first caption has them one screen on) and its second leader to a
+    Shell B, which is not in this picture.
+    This is the one place where the page colour is laid over a picture, by
+    the client's own request, against I4; the rule in `.claude/CLAUDE.md`
+    names it as the exception.
+    Cost: the WebGL frame is the same frame (the camera and the set are
+    untouched; one label is projected). The mist is three DOM layers moved
+    by the compositor. Scrolling the card at 700 px/s, mist shown and
+    hidden in turn inside one page, ten rounds each: 1 frame over 20 ms in
+    799 with it, 1 in 798 without. A first version that put one opacity on
+    the three layers together dropped frames (23 in 456 against 8 in 472)
+    and was changed to one opacity per layer. The mist drifts slowly while
+    the card is up, which keeps the compositor (not the 3D) drawing at
+    rest; it stops under reduced motion and `?still`, and the layers are
+    removed once the card has opened.
 11. **Found on the way: the hero went blank** after scrolling far down the
     page and back up. The hero's scene stays mounted and reports "ready"
     once; its stage was hidden when it left the neighbourhood of the
     viewport and never shown again. Fixed in `Film.tsx`.
 
+12. **"How it works" 2.2: the 600 and 700 sq.ft. footprints** (client, the
+    same evening: "not looking good"). They were a U (two turned shells
+    with one across the back) and the U with a Shell B in its court. Now
+    three shells stand side by side, short end to the street, and the
+    700 adds the Shell B at the end of the row, flush with the front: the
+    row grows by a shell at a time into the 800, which is the ground floor
+    of every stack. Recipes and areas are unchanged.
+13. **One staircase, beside the building.** Two instructions the same
+    evening. First: "fewer turns, only one way, no building has two-side
+    steps"; a straight flight for each floor was built. Then, while that
+    was being checked: "always keep the steps placed side (more like
+    having a U bend) to the building, not taking much space". As it
+    stands, for the configurator and every scene that shows a stacked
+    building:
+    - A building has **one** outer staircase: a dog-leg in a 2.0 × 4.5 m
+      plan (C6), its long side against the building's flank, its landings
+      at the front corner where the gallery ends (or at the edge of an open
+      roof, where the door opens onto one).
+    - Each upper floor is walked on a 1.5 m grid. The open roof of the
+      floor below is already a floor; a gallery can hang just outside it.
+      The galleries built are the shortest that join every door of the
+      floor to the staircase, round corners and across set-backs if they
+      must. They are carried off the shells: no posts.
+    - Every place a landing can meet a floor is tried, turned every way.
+      The one that needs the least gallery wins; standing against the
+      flank is preferred to standing free; in front of a door, across a
+      deck or its steps, or outside the plot only if nothing else is left.
+    - The upper part of a **stair lobby** has no door of its own: Shell B
+      standing on Shell B beside the building is the brief's "stair lobby
+      module", the way up inside. (Before, each got a balcony and, in the
+      High-Rise preset, a second staircase.) This is the one case besides
+      a fully enclosed shell where a shell is drawn without a door.
+    - A layout with an upper floor asks for a plot one cell wider on each
+      side than its footprint, so the staircase has somewhere to stand.
+    Limits: a building whose tallest part can be reached from no floor
+    square that exists at every floor (a tower set back on all sides) gets
+    galleries and no staircase; doors cut off from the rest of their floor
+    keep a balcony of their own.
+14. **"How it works" 2.3: the stacks.** (a) *"Something randomly
+    floating"*: a canopy slab meant for the lobby door hung 3 m in front of
+    it, because the lobby is recessed. Gone. (b) *"The top is not in our
+    add-ons"*: the villa's roof was a flat slab of our own. It and the same
+    slab on the high-rise's penthouse are replaced by the brief's sloped
+    roof on each top Shell A, and shades stand over every street-side door
+    that has no gallery over it (the lobby's included, where the canopy
+    was). (c) *"Add steps"*: each stack now has the galleries and the one
+    staircase of I13, laid out by the same rule as the configurator, and
+    rails round its open roofs from the handrail add-on. The high-rise's
+    twelve separate balconies became those galleries (they are carried off
+    the shells, so the caption's "cantilevered balconies" still holds).
+    The three stacks are seen from the other front corner, where the
+    staircase stands; the camera crosses the front between the last
+    footprint and the villa, standing back as it passes square on. From
+    there the lobby's lower floors are behind the row; its top floor shows.
+15. **Add-ons only.** Following (b): nothing is drawn on a building beyond
+    its shells but the brief's add-ons and the access of I13
+    (`.claude/CLAUDE.md`, brand rules).
+16. **Decks and steps follow the doors** (client, late on 2026-10-07:
+    "check the staircase placement for Studio Max and Urban Suite, it is
+    not right"). The deck used to run along one side of the house, the
+    side most doors opened to, with one flight of steps there. That left
+    doors on other sides opening onto a 0.7 m drop (Studio Max's street
+    door), decks where no door opened (the same house's nook), and, where
+    a preset forced the deck's side, steps on a side with no door at all
+    (Urban Suite). Now, with the deck add-on on: a deck outside every
+    ground-floor door, along that side of its shell; one flight of steps
+    for each stretch of deck, at a door (the street side first, Shell A
+    before Shell B); and the deck-side control adds a deck along the side
+    asked for, on top of those. Consequences:
+    - *Studio Max* has a deck and steps at its street door (Shell B) and at
+      its end door (Shell A, whose front door position is built against by
+      Shell B): two short decks, two flights. Gathering both doors on one
+      side would need a rule that moves a free street-facing door to a
+      side; not done, and worth asking the client.
+    - *Urban Suite* is laid out as the catalogue has it, two shells side by
+      side with their short ends to the street (the preset had turned them
+      back to back for the old two-door shell), so both doors open onto one
+      street deck with one flight.
+    - *The Homestead and Duplex Prime* gain a back porch: their back shell
+      faces the garden and its door had nothing outside it. The Homestead
+      is the sample house, so this shows in "Your house", the factory yard
+      and the installation.
+    - Presets stand in the middle of their plot's depth, with a row to
+      spare behind as well as in front, so the back porch is inside it.
+    Limit: a shell the visitor sets against the plot's edge with its door
+    facing out gets a deck beyond the plot.
+17. **"How are we different?" and "Build your own" read as one section**
+    (same message): both were large black headings on the same paper. The
+    first now stands on the deeper paper tone (`--bg-2`) and ends on a
+    rule; the page returns to its own colour for "Build your own".
+18. **The hero opens on the house alone** (client, 2026-10-07, last
+    message of the day, his own idea, with the mist kept at his wish: "we
+    show that text, and the house alone; the background comes with the
+    animation while scrolling"; "keeping the mist adds an impression").
+    - *At rest:* the headline, the two shells and, beside them, the house
+      by itself on a studio backdrop: the page colour with a pool of light
+      and the faintest line where floor meets wall, the house's shadow on
+      a floor that is not there, mist lying low at its feet. No land, no
+      sky. It stands a little nearer and higher than in the film. It is
+      still put together on load, and still carries its label.
+    - *On scroll:* the land spreads out from under the house to the
+      horizon (slowly round the house, fast to the horizon), the sky comes
+      up behind it, and a veil of mist rises over the change and clears.
+      The camera eases back to the film's framing. Then the first caption.
+    - *How:* the stage's canvas is clear wherever the scene has drawn
+      nothing, so the studio is CSS behind it. The sky had a blend amount
+      already. The land keeps inside a clearing through the haze shader
+      every material shares (`kit/atmosphere.ts`), so it is properly behind
+      and in front of the house as it arrives; a fragment outside is
+      discarded before it is shaded. The mist is the DOM layers of I10,
+      rearranged.
+    - *Light:* the house keeps the sunset light throughout, so nothing
+      jumps when the world appears. It is lit from behind and reads warm
+      and a little dark against the pale studio.
+    - The bare floor's shadow is cut short a few metres from the house (the
+      sun is at 3 degrees: it would run for fifty) and goes as the ground
+      comes, because the trees' long shadows would fall across it first.
+    - Cost: F6.

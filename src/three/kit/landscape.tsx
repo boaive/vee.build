@@ -5,6 +5,7 @@
  * lines, and a rural fence. Everything is seeded and static: a scene looks
  * the same on every visit and costs nothing between frames.
  */
+import { clearing } from './atmosphere';
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import {
   BufferGeometry,
@@ -204,13 +205,15 @@ export function Ground({ palette, flat = 40, hills = 22, size = 3600, seed = 4, 
 
   const material = useMemo(() => {
     const s = grassSet();
-    return new MeshStandardMaterial({
-      vertexColors: true,
-      map: tile(s.map, 1.7),
-      normalMap: tile(s.normalMap, 1.7),
-      roughness: 0.96,
-      color: '#ffffff',
-    });
+    return clearing(
+      new MeshStandardMaterial({
+        vertexColors: true,
+        map: tile(s.map, 1.7),
+        normalMap: tile(s.normalMap, 1.7),
+        roughness: 0.96,
+        color: '#ffffff',
+      }),
+    );
   }, []);
 
   useLayoutEffect(() => () => geo.dispose(), [geo]);
@@ -354,7 +357,7 @@ function GrassBatch({ geo, material, items, flat, hills }: { geo: BufferGeometry
 }
 
 export function Grass({ palette, center, radius, count, exclude, height = 0.55, seed = 11, flat = 40, hills = 22, eye }: GrassProps) {
-  const material = useMemo(() => translucent(new MeshStandardMaterial({ vertexColors: true, side: DoubleSide, roughness: 0.88, metalness: 0 }), 0.9, 'grass'), []);
+  const material = useMemo(() => clearing(translucent(new MeshStandardMaterial({ vertexColors: true, side: DoubleSide, roughness: 0.88, metalness: 0 }), 0.9, 'grass')), []);
   // Callers write these props inline; the scatter is costly, so it follows their values, not their identity.
   const shape = JSON.stringify([center, radius, count, exclude, height, seed]);
 
@@ -426,7 +429,7 @@ export function Flowers({ palette, center, radius, count, exclude, seed = 23, fl
       }),
     [],
   );
-  const material = useMemo(() => new MeshStandardMaterial({ roughness: 0.7 }), []);
+  const material = useMemo(() => clearing(new MeshStandardMaterial({ roughness: 0.7 })), []);
   const shape = JSON.stringify([center, radius, count, exclude, seed]);
   const placed = useMemo(() => {
     const r = rng(seed);
@@ -633,17 +636,19 @@ export function translucent<M extends MeshStandardMaterial>(m: M, amount: number
 
 /** Leaves on transparent cards, letting light through. */
 function leafMaterial(color: string) {
-  return translucent(
-    new MeshStandardMaterial({
-      color,
-      map: leafCard(),
-      alphaTest: LEAF_CUT,
-      side: DoubleSide,
-      vertexColors: true,
-      roughness: 0.82,
-    }),
-    0.55,
-    'leaf',
+  return clearing(
+    translucent(
+      new MeshStandardMaterial({
+        color,
+        map: leafCard(),
+        alphaTest: LEAF_CUT,
+        side: DoubleSide,
+        vertexColors: true,
+        roughness: 0.82,
+      }),
+      0.55,
+      'leaf',
+    ),
   );
 }
 
@@ -712,7 +717,7 @@ export function Woodland({ spots, palette, flat = 40, hills = 22, eye }: { spots
   }, [spots, eye]);
   const mats = useMemo(() => {
     const b = barkSet();
-    const bark = new MeshStandardMaterial({ color: palette.trunk, map: tile(b.map, 0.7), normalMap: tile(b.normalMap, 0.7), roughness: 0.95 });
+    const bark = clearing(new MeshStandardMaterial({ color: palette.trunk, map: tile(b.map, 0.7), normalMap: tile(b.normalMap, 0.7), roughness: 0.95 }));
     return { bark, leaves: palette.leaves.map(leafMaterial) };
   }, [palette]);
   useLayoutEffect(
@@ -743,19 +748,23 @@ let leafMaskMaterial: MeshBasicMaterial | null = null;
  *
  * Its cut-off is a little stricter than the leaves' own, and its depth is
  * pushed back by a hair, so a leaf can never be missing where the mask says
- * there is one (that would punch a hole through to the sky).
+ * there is one (that would punch a hole through to the sky). For the same
+ * reason it keeps inside a clearing exactly as the leaves do, which is the
+ * only thing it uses the fog chunks for.
  */
 function leafMask() {
-  return (leafMaskMaterial ??= new MeshBasicMaterial({
-    map: leafCard(),
-    alphaTest: LEAF_CUT + 0.05,
-    side: DoubleSide,
-    colorWrite: false,
-    fog: false,
-    polygonOffset: true,
-    polygonOffsetFactor: 1,
-    polygonOffsetUnits: 2,
-  }));
+  return (leafMaskMaterial ??= clearing(
+    new MeshBasicMaterial({
+      map: leafCard(),
+      alphaTest: LEAF_CUT + 0.05,
+      side: DoubleSide,
+      colorWrite: false,
+      fog: false,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 2,
+    }),
+  ));
 }
 
 function TreeVariant({
@@ -826,7 +835,7 @@ function blobTree(seed: number) {
 export function TreeLine({ lines, palette, seed = 31, flat = 40, hills = 22, scale = 1 }: { lines: [number, number, number, number, number][]; palette: LandPalette; seed?: number; flat?: number; hills?: number; scale?: number }) {
   const ref = useRef<InstancedMesh>(null);
   const geo = blobTree(3);
-  const material = useMemo(() => new MeshStandardMaterial({ roughness: 1, color: '#ffffff' }), []);
+  const material = useMemo(() => clearing(new MeshStandardMaterial({ roughness: 1, color: '#ffffff' })), []);
   const spots = useMemo(() => {
     const r = rng(seed);
     const out: { x: number; z: number; s: number; c: Color }[] = [];
@@ -900,7 +909,7 @@ export function Fence({ pts, color = '#6b5a47', flat = 40, hills = 22 }: { pts: 
     return mergeGeometries(parts)!;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(pts), flat, hills]);
-  const material = useMemo(() => new MeshStandardMaterial({ color, roughness: 0.92 }), [color]);
+  const material = useMemo(() => clearing(new MeshStandardMaterial({ color, roughness: 0.92 })), [color]);
   useLayoutEffect(() => () => geo.dispose(), [geo]);
   useLayoutEffect(() => () => material.dispose(), [material]);
   return <mesh geometry={geo} material={material} castShadow receiveShadow />;

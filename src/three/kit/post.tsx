@@ -89,6 +89,8 @@ export const NEUTRAL_GRADE: Grade = {
 export interface Backdrop {
   texture: Texture;
   floor: number;
+  /** How much of it is there, 0–1 (1 when left out). Less than 1 lets the page behind the canvas through. */
+  amount?: number;
 }
 
 export interface PostOptions {
@@ -594,7 +596,7 @@ class Finish {
   /** What goes behind the scene in the passes that read it. */
   private behind(sky: Backdrop | null, fallback: Texture) {
     this.shared.tSky.value = sky?.texture ?? fallback;
-    this.shared.uSky.value = sky ? 1 : 0;
+    this.shared.uSky.value = sky ? (sky.amount ?? 1) : 0;
     this.shared.uSkyFloor.value = sky?.floor ?? 0;
   }
 

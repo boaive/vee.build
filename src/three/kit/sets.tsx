@@ -4,9 +4,11 @@
  * wood at blue hour, workforce housing on a site yard in the morning, the
  * institutional block on a paved forecourt by day. Reused on the sub-pages.
  */
-import { useLayoutEffect, useMemo } from 'react';
+import { useLayoutEffect, useMemo, type Ref } from 'react';
+import type { Group, Material } from 'three';
 import { deckFinishes, shellFinishes, trimFinishes } from '../../data/build';
 import type { CameraKey } from '../../film/timeline';
+import { clearing } from './atmosphere';
 import { Paving } from './env';
 import { CapsulePods, InstitutionalBlock, Pad, WorkforceBlock, padGeometry, type BuildingProps } from './buildings';
 import { merge } from './geometry';
@@ -74,6 +76,14 @@ function Lamp({ at, intensity, color = '#ffc98a', distance = 9 }: { at: [number,
   );
 }
 
+/** The path's stones and the backfill are land: copies of the kit's materials that keep inside a clearing (atmosphere.ts). */
+const landMats = new Map<string, Material>();
+function landMat(name: 'paving' | 'gravel') {
+  let m = landMats.get(name);
+  if (!m) landMats.set(name, (m = clearing(mat[name].clone())));
+  return m;
+}
+
 /** Flat stepping stones along a polyline, as one mesh. */
 function Stones({ pts, every = 0.85, size = 0.62 }: { pts: [number, number][]; every?: number; size?: number }) {
   const geo = useMemo(() => {
@@ -94,7 +104,7 @@ function Stones({ pts, every = 0.85, size = 0.62 }: { pts: [number, number][]; e
     return merge(stones);
   }, [pts, every, size]);
   useLayoutEffect(() => () => geo.dispose(), [geo]);
-  return <mesh geometry={geo} material={mat.paving} receiveShadow />;
+  return <mesh geometry={geo} material={landMat('paving')} receiveShadow />;
 }
 
 /** Gravel patches where footing pits were backfilled, as one mesh. */
@@ -111,7 +121,7 @@ function Pits({ at, size = 1.5 }: { at: [number, number][]; size?: number }) {
     [at, size],
   );
   useLayoutEffect(() => () => geo.dispose(), [geo]);
-  return <mesh geometry={geo} material={mat.gravel} receiveShadow />;
+  return <mesh geometry={geo} material={landMat('gravel')} receiveShadow />;
 }
 
 /* ------------------------------------------------------------------ */
@@ -177,6 +187,9 @@ const YAW_SIN = Math.sin(FARM_YAW);
 /** A point on the house's own plan, as it lies in the set. */
 const turned = (x: number, z: number): [number, number] => [x * YAW_COS + z * YAW_SIN, -x * YAW_SIN + z * YAW_COS];
 
+/** Where the opening card's label touches the house: the roof's edge over the window. */
+export const FARM_TAG: [number, number, number] = [turned(-1.5, HOME_FOOTPRINT.z1)[0], 3.45, turned(-1.5, HOME_FOOTPRINT.z1)[1]];
+
 /** Stepping stones from the foot of the steps, out and round to where the camera stands. */
 const FARM_PATH: [number, number][] = [
   turned(HOME_STEP_FOOT[0], HOME_STEP_FOOT[1] + 0.5),
@@ -198,33 +211,38 @@ const FARM_EXCLUDE: Rect[] = [
 /** Backfilled pits round the four footings. */
 const FARM_PITS: [number, number][] = [-1, 1].flatMap((sx) => [-1, 1].map((sz) => [sx * (HOME_FOOTPRINT.x1 - 0.28), sz * (HOME_FOOTPRINT.z1 - 0.28)] as [number, number]));
 
-export function FarmSet({ getA, look }: Omit<BuildingProps, 'x'>) {
+/** land: a ref to the group that holds everything but the house, for the scene to hide until it is wanted. */
+export function FarmSet({ getA, look, land }: Omit<BuildingProps, 'x'> & { land?: Ref<Group> }) {
   const palette = LAND.gold;
   return (
     <group>
-      <Landscape
-        palette={palette}
-        flat={FARM_FLAT}
-        hills={FARM_HILLS}
-        seed={4}
-        trees={FARM_WOOD}
-        lines={FARM_LINES}
-        fields={FARM_FIELDS}
-        grass={{ center: [5, 13], radius: [27, 17], count: 10000, exclude: FARM_EXCLUDE, height: 0.62, flowers: true }}
-        eye={EYE.farm}
-      />
-      <Fence
-        pts={[
-          [36, 20],
-          [44, -6],
-          [40, -34],
-        ]}
-        flat={FARM_FLAT}
-        hills={FARM_HILLS}
-      />
-      <Stones pts={FARM_PATH} />
+      <group ref={land}>
+        <Landscape
+          palette={palette}
+          flat={FARM_FLAT}
+          hills={FARM_HILLS}
+          seed={4}
+          trees={FARM_WOOD}
+          lines={FARM_LINES}
+          fields={FARM_FIELDS}
+          grass={{ center: [5, 13], radius: [27, 17], count: 10000, exclude: FARM_EXCLUDE, height: 0.62, flowers: true }}
+          eye={EYE.farm}
+        />
+        <Fence
+          pts={[
+            [36, 20],
+            [44, -6],
+            [40, -34],
+          ]}
+          flat={FARM_FLAT}
+          hills={FARM_HILLS}
+        />
+        <Stones pts={FARM_PATH} />
+        <group rotation-y={FARM_YAW}>
+          <Pits at={FARM_PITS} />
+        </group>
+      </group>
       <group rotation-y={FARM_YAW}>
-        <Pits at={FARM_PITS} />
         <ModelHome getA={getA} look={look} shellHex={HOME_FINISH.shell} deckHex={HOME_FINISH.deck} trimHex={HOME_FINISH.trim} />
         {/* A soft porch light: the door and its sidelights stay readable under it. */}
         <Lamp at={HOME_LAMP} intensity={(look.lamps ?? 0) * 0.9} />

@@ -1,13 +1,16 @@
 /**
  * Section 4. The six points and their wording come from the VEE.BUILD brief.
- * `versus` is the comparison the brief itself draws; nothing is added.
+ * `other` is what the brief itself sets a point against, in the brief's own
+ * words ("No fragmented subcontractors.", "Others rely on lightweight metal
+ * or composite sheets.", "Compared with brick-and-mortar and structural bolt
+ * construction."); the page shows it struck through. Nothing is added.
  */
 export interface Difference {
   id: string;
   word: string;
   claim: string;
   detail: string;
-  versus?: string;
+  other?: string;
   marks?: string[];
 }
 
@@ -17,14 +20,14 @@ export const differences: Difference[] = [
     word: 'End-to-end',
     claim: 'Foundation to finish under a single, unified workflow.',
     detail: 'We deliver everything, from the footing in the ground to the last coat of paint.',
-    versus: 'No fragmented subcontractors.',
+    other: 'Fragmented subcontractors',
   },
   {
     id: 'insulated',
     word: 'Insulated',
     claim: 'Solid concrete walls with thermal and acoustic insulation.',
     detail: 'Insulation panels are cast into the wall, not fixed on afterwards.',
-    versus: 'Others rely on lightweight metal or composite sheets.',
+    other: 'Lightweight metal or composite sheets',
   },
   {
     id: 'sustainable',
@@ -53,6 +56,6 @@ export const differences: Difference[] = [
     // CONFIRM: comparative cost claim (notes B5).
     claim: 'High-precision manufacturing keeps the cost down.',
     detail: 'It costs significantly less than traditional brick-and-mortar or structural bolt methods.',
-    versus: 'Compared with brick-and-mortar and structural bolt construction.',
+    other: 'Brick-and-mortar and structural bolt construction',
   },
 ];

@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'rea
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { SceneProps } from '../film/progress';
-import { ATMOS, patchAtmosphere } from './kit/atmosphere';
+import { ATMOS, patchAtmosphere, setClearing } from './kit/atmosphere';
 import { SkyDome } from './kit/env';
 import { memo } from './kit/geometry';
 import { LOOKS, type Look, type LookName } from './kit/looks';
@@ -73,6 +73,14 @@ export interface Rig {
   warm: (arrange: () => () => void) => void;
   /** True while the finish is still compiling shaders: nothing has been drawn yet. */
   holding: boolean;
+  /**
+   * A clearing in the land (atmosphere.ts): centre x, centre z, radius and
+   * the width of its soft edge, in metres. Width 0: none, all the land is
+   * drawn. Set by the scene, written before each draw.
+   */
+  clear: [number, number, number, number];
+  /** How much of the sky is behind the scene, 0–1. Below 1 the page shows through it; at 0 it is not drawn at all. */
+  sky: number;
 }
 
 interface StageProps extends SceneProps, StageOptions {
@@ -187,7 +195,7 @@ function hazeOf(l: Look): Haze {
  * page (see atmosphere.ts), and several stages can be mounted at once. Each
  * stage writes its own values just before it draws.
  */
-function writeHaze(h: Haze) {
+function writeHaze(h: Haze, clear: Rig['clear']) {
   const put = (t: { x: number; y: number; z: number; w: number }, v: V4) => {
     t.x = v[0];
     t.y = v[1];
@@ -197,6 +205,8 @@ function writeHaze(h: Haze) {
   put(ATMOS.sun, h.sun);
   put(ATMOS.toward, h.toward);
   put(ATMOS.away, h.away);
+  put(ATMOS.clear, clear);
+  setClearing(clear[3] > 0);
 }
 
 function Setup({
@@ -321,9 +331,9 @@ function Setup({
 
   /* Mood: everything a look controls, applied in place. */
   useLayoutEffect(() => {
-    rig.sync = () => writeHaze(haze.current);
+    rig.sync = () => writeHaze(haze.current, rig.clear);
     rig.begin = () => {
-      writeHaze(haze.current);
+      writeHaze(haze.current, rig.clear);
       // World matrices are brought up to date here, once, and not again inside the render (see below).
       scene.updateMatrixWorld();
       /*
@@ -336,7 +346,7 @@ function Setup({
       gl.shadowMap.needsUpdate = rig.shadowDirty || sig !== casters.current;
       casters.current = sig;
       rig.shadowDirty = false;
-      if (!backdrop?.on) return null;
+      if (!backdrop?.on || rig.sky <= 0.002) return null;
       const { mesh, only, target, px } = backdrop;
       gl.getDrawingBufferSize(px);
       const w = Math.max(2, Math.ceil(px.x * SKY_SCALE));
@@ -350,7 +360,7 @@ function Setup({
       gl.setRenderTarget(target);
       gl.render(only, camera);
       gl.setRenderTarget(was);
-      return { texture: target.texture, floor: (row + 0.5) / h };
+      return { texture: target.texture, floor: (row + 0.5) / h, amount: rig.sky };
     };
     rig.compile = () => {
       if (!backdrop) return Promise.resolve();
@@ -391,7 +401,7 @@ function Setup({
       scene.environment = envFor(l);
       const h = hazeOf(l);
       haze.current = h;
-      writeHaze(h);
+      writeHaze(h, rig.clear);
       gl.toneMappingExposure = exposure ?? l.exposure;
       scene.environmentIntensity = envIntensity ?? l.env;
       if (l.fog) {
@@ -573,6 +583,8 @@ export default function Stage(props: StageProps) {
       warm: () => {},
       holding: !!finish,
       shadowDirty: true,
+      clear: [0, 0, 0, 0],
+      sky: 1,
     }),
     // The finish only decides the first value of `holding`.
     // eslint-disable-next-line react-hooks/exhaustive-deps

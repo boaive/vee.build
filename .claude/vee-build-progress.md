@@ -1,6 +1,6 @@
 # VEE.BUILD — progress
 
-Last updated: 2026-10-07, evening (the client's instructions of that day, notes I: one door per shell, plain-text captions, the factory tour seen from above, the configurator, the opening card; cost measured, notes F4)
+Last updated: 2026-10-07, evening (the client's instructions of that day, notes I: one door per shell, plain-text captions, the factory tour seen from above, the configurator, the opening card in mist; then the second round that evening, notes I12-I15: the 600 and 700 footprints, one staircase beside the building, the stacks' add-ons, "Your house" ending on its front, "How are we different?" as a ledger; then the hero opening on the house alone in a studio, notes I18; cost measured, notes F4, F5, F6 and I10)
 
 ## Status
 
@@ -23,15 +23,16 @@ Last updated: 2026-10-07, evening (the client's instructions of that day, notes 
 ## What exists
 
 - **Routes:** `/`, `/capsule/`, `/prefab/`, `/partnership/`, `404`.
-- **Main page, 14 sections, in this order:** `overview` (a title card with
-  a window onto the first set, then the hero film: modular home, capsule
-  pods, workforce housing, institutional campus), `how-it-works` (film,
+- **Main page, 14 sections, in this order:** `overview` (an opening card: the headline and the
+  two shells beside the house alone in a studio, mist at its feet; scrolling
+  spreads its land out from under it and brings the sky up; then the hero film: modular home, capsule pods, workforce
+  housing, institutional campus), `how-it-works` (film,
   6 steps + footprint counter), `components` (film, 4 steps + interactive
-  add-on tags), `difference` (six points on ink: an index of the six
-  words, one point shown at a time as the page scrolls; a plain list on
-  narrow screens), `configure` (the configurator,
-  `src/components/build/Configurator.tsx`), `your-house` (film, 2 steps,
-  can be turned by hand), `factory` (a full-screen title, "See how we
+  add-on tags), `difference` (six points on a deeper tone of the
+  paper, all on show: a ledger of six cells, then the brief's three comparisons with the
+  alternative struck through; each part comes in once as it is scrolled to), `configure` (the configurator,
+  `src/components/build/Configurator.tsx`), `your-house` (film, 2 steps, the
+  camera going from the front corner to square on; can be turned by hand), `factory` (a full-screen title, "See how we
   manufacture it.", then the film: 7 stations and dispatch, seen from
   above throughout), `delivery`, `site`, `installation` (film),
   `build-yours`, `catalogue` (5 models, SVG isometric + plan), `gallery`,
@@ -45,8 +46,12 @@ Last updated: 2026-10-07, evening (the client's instructions of that day, notes 
 - **The configurator:** shells on a 3 m grid with stacking; add-ons laid
   out by rule or placed by hand (`layoutAddOns`); every piece of the
   layout is listed with the box it fills (`pieces`), which is how a click
-  finds it and how it is selected and removed; upper floors get a gallery
-  and an outer staircase on their own (`layoutAccess`, notes C6, I7).
+  finds it and how it is selected and removed; with the deck add-on every
+  ground-floor door has a deck outside it and each stretch of deck a
+  flight of steps (notes I16); upper floors get galleries
+  and the building one outer staircase beside it, on their own
+  (`layoutAccess`, notes C6, I13). "How it works" lays its three stacks
+  out with the same rule (`AddOnParts` in `kit/house.tsx`).
 - **3D:** `src/three/Stage.tsx` (the one Canvas: lights, the sky drawn
   behind the scene, shadow-map bookkeeping, open ground drawn last),
   `kit/` (materials, geometry, parts, buildings, house, modelhome,
@@ -54,7 +59,7 @@ Last updated: 2026-10-07, evening (the client's instructions of that day, notes 
   and `post.tsx`, the finish), `scenes/` (Hero, System, Components,
   Reveal, Factory, Install, Build, Showcase).
 - **Animation:** `src/film/` — `Film.tsx` (sticky shell, damped scroll
-  progress, captions, DOM labels, the title card and its window),
+  progress, captions, DOM labels, the title card: a window or mist),
   `progress.ts`, `prefetch.ts` (scene code fetched at idle; a scene may
   export `prepare`, small jobs run at idle before it mounts),
   `timeline.ts`, `systemTimeline.ts`, `componentsTimeline.ts`.
@@ -72,6 +77,10 @@ Last updated: 2026-10-07, evening (the client's instructions of that day, notes 
 - `?go=<section-id>:<0–1>` (dev server only): jump a film to a progress.
   The value counts a title card's scroll as well (the hero and the factory
   tour each start with one screen of it; `data-pre` on the section).
+- To time or capture inside a title card with a script that takes a film
+  progress: a film's travel is its height less the pinned screen less the
+  card, so the card's scroll q (0-1) is progress (q - 1) × card ÷ travel
+  (the hero: (q - 1) / 3.4). Getting this wrong times the wrong frames.
 - `?q=1` shows the one emergency resolution step (moving frames at three
   quarters of the canvas); `?q=0` rules it out. Normally nothing triggers it.
 - `?noboot` skips the boot screen.
@@ -157,6 +166,24 @@ builds; the longest single frame is 50 ms in the hero, 52 ms in "How it
 works" (it was 70), 67 ms in "Your house", 17-33 ms in the factory and
 17 ms in the installation.
 
+Fifth, the hero's studio opening (notes F6): at rest a frame is 4.0 ms
+where it was 11.5 (the land and sky are not drawn); half-way and later in
+the opening's scroll it is about 1 ms more than it was (12.3-12.7 against
+11.4), for that scroll only; the film itself is unchanged (11.1 against
+11.2).
+
+Fourth round, 2026-10-07 late evening (notes F5): the second set of
+changes that day, the tree before them against the tree after.
+
+| Film | Before | Now |
+| --- | --- | --- |
+| How it works, 600 / 700 sq.ft. | 20.2 / 21.0 ms | 20.2 / 18.1 ms |
+| How it works, villa / apartment / high-rise | 16.5 / 12.6 / 7.6 ms | 16.5 / 11.5 / 7.3 ms |
+| Your house, two poses | 8.1 / 7.3 ms | 8.0 / 7.4 ms |
+
+"How are we different?" has no 3D: it scrolls at 60 fps with no frame over
+20 ms.
+
 Resolution is no longer reduced while scrolling, and a moving picture has
 the same occlusion, sky and shadows as a still one (notes F3). A steady
 hero scroll holds 59 fps in both builds in the fast power state (the
@@ -180,9 +207,10 @@ a time; the others unmount. Frameloop is on demand.
 ## Not yet verified
 
 - Real phones and tablets (only emulated viewports were checked).
-- Safari and Firefox. Two things added on 2026-10-07 lean on newer CSS:
-  the title card's window is a `clip-path: inset(... round ...)` driven by
-  `calc()` on a custom property, and "How are we different?" lays its
+- Safari and Firefox. Things added on 2026-10-07 that lean on newer CSS:
+  the factory title's window is a `clip-path: inset(... round ...)` driven
+  by `calc()` on a custom property, the hero's mist moves and thins by
+  `calc()` on the same property, and "How are we different?" lays its
   list out with `display: contents`.
 - Frame rate on GPUs slower than Intel Arc integrated, and on real phones.
   There is no adaptive resolution any more, only one emergency step below
@@ -205,6 +233,12 @@ a time; the others unmount. Frameloop is on demand.
   on a bare wall, a shell stacked on a roof). Not exercised: touch, very
   large builds, every combination of rotated shells.
 - Tablet widths (820) for the sections changed on 2026-10-07.
+- The staircase rule on anything but the presets: it was run on all eight
+  and looked at on five; odd shapes (L and U plans, towers, set-backs) only
+  by reasoning.
+- The moving-against-still shift in the stacks of "How it works" (up to one
+  grey level where the rails are) is put down to 2x against 4x
+  multisampling on thin balusters, without a test that isolates it.
 
 ## Waiting for an answer
 
@@ -224,7 +258,9 @@ a time; the others unmount. Frameloop is on demand.
 2. Three.js chunks are 264 kB gzip because R3F registers the whole namespace.
    A hand-picked `extend()` catalogue would cut it; not done.
 7. Entering each film still stalls once (one frame of 50-70 ms on the test
-   laptop) while its scene mounts (new WebGL context, geometry, environment
+   laptop on the afternoon of 2026-10-07; 200-270 ms that evening in every
+   film, touched or not, with the GPU timings unchanged, so most likely
+   the machine's CPU state) while its scene mounts (new WebGL context, geometry, environment
    map). "How it works" now builds its shell geometries at idle before it
    mounts; mounting the whole next film during idle time would remove the
    rest; not done.
@@ -235,16 +271,28 @@ a time; the others unmount. Frameloop is on demand.
    canvas, on a fade to the page colour: the one place left where text is
    laid over a picture with a wash under it, against both the mobile rule
    and the plain-text rule in `.claude/CLAUDE.md`. Needs its own layout
-   (canvas on top, caption below, as the title card already does).
+   (canvas on top, caption below, as the opening card already does).
+16. The opening card has no button of its own: "Build your own" and "How it
+   works" arrive with the film's first caption, one screen on.
 10. The 3D look rule in `.claude/CLAUDE.md` was rewritten on 2026-10-07 to
    describe the look as built (photographic finish) and is marked CONFIRM:
    it replaced the original "maquette, no bloom" rule and no decision
    between the two is on record.
-11. Configurator: two wall lines with upper doors side by side each get a
-   staircase (the High-Rise preset's lobby stack beside its row); a wall
-   built against at both ends gets galleries and no staircase; a staircase
-   that cannot fit inside the plot stands outside it, through the plot's
-   low wall.
+18. The hero's opening (notes I18, F6): frames in the second half of its
+   scroll cost about 1 ms more than the film's own, while the land's
+   shaders can discard. A new land material that is not made through
+   `clearing()` would stand in the studio before the land arrives.
+17. Decks at the doors (notes I16): Studio Max has two short decks and two
+   flights of steps, one at each of its doors, which are on different
+   sides; a door the visitor points at the plot's edge gets a deck beyond
+   the plot.
+11. Upper-floor access (notes I13): a building whose tallest part is set
+   back on every side gets galleries and no staircase; a door cut off from
+   the rest of its floor keeps a balcony nobody can reach; where the plot
+   has no room beside the building the staircase stands free in front of
+   it, and outside the plot only if nothing else is left. In the
+   configurator's first view the staircase is on the far flank, partly
+   behind the building, until the view is turned.
 12. "How it works": a shell's door changes face in mid-move between two
    footprints, as a cut.
 13. While the header passes over a film it has no backing; where the top of

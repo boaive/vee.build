@@ -4,7 +4,7 @@
  */
 import type { KeyboardEvent } from 'react';
 import type { AddOnId, DeckSide, ManualAddOn, Plot } from '../../data/build';
-import { CELL, FRONT, PLINTH, STOREY, cells, doorFaces, doorSpot, layoutAddOns, span, towerRect, type Unit } from '../../build/model';
+import { CELL, FRONT, PLINTH, STOREY, cells, doorFaces, doorSpot, layoutAddOns, span, stairRect, type Unit } from '../../build/model';
 
 interface Props {
   units: readonly Unit[];
@@ -64,10 +64,10 @@ export default function BuildPlan({ units, addOns, deckSide, manual, plot, floor
       {galleries.map((r, i) => (
         <rect key={`g${i}`} className="plan__deck" x={r.x0} y={r.z0} width={r.x1 - r.x0} height={r.z1 - r.z0} />
       ))}
-      {layout.towers.map((t, i) => {
+      {layout.stairs.map((t, i) => {
         // The outer staircase, on every floor's plan up to the one it reaches.
         if (floor > t.levels.length) return null;
-        const r = towerRect(t);
+        const r = stairRect(t);
         return <rect key={`s${i}`} className="plan__stair" x={r.x0} y={r.z0} width={r.x1 - r.x0} height={r.z1 - r.z0} />;
       })}
       {terrace.map(([x, z]) => (

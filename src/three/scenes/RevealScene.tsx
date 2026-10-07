@@ -10,8 +10,9 @@ import { House } from '../kit/house';
 
 /**
  * "Your house": the visitor's build alone on a plinth in a dark studio. The
- * scroll walks the camera once round it, coming to rest on a different side
- * for each caption, and the visitor can take hold of it and turn it by hand.
+ * scroll walks the camera from its front corner round to its front, so it
+ * arrives and leaves showing its doors; the visitor can take hold of it and
+ * turn it right round by hand.
  * A turn made by hand is added to the scroll's and let go as the page
  * scrolls on, so each caption still arrives on its own view.
  *
@@ -21,12 +22,17 @@ import { House } from '../kit/house';
 
 const plinthMat = new MeshStandardMaterial({ color: '#17191c', roughness: 0.32, metalness: 0.1 });
 
-/** Camera azimuth by progress: one view for each caption (narrative.ts, revealSteps), half a turn between them. It stops short of looking into the key light, where the studio floor glares. */
+/**
+ * Camera azimuth by progress (0 looks square at the street front): one view
+ * for each caption (narrative.ts, revealSteps). It stays on the near side of
+ * the front: past it the camera looks into the key light and the studio
+ * floor glares.
+ */
 const AZ = [
-  [0, 1.05],
-  [0.14, 0.78],
-  [0.86, -2.3],
-  [1, -2.42],
+  [0, 1.12],
+  [0.14, 0.92],
+  [0.86, 0.16],
+  [1, 0.06],
 ] as const;
 
 function Reveal({ progress, rig, reduced }: SceneProps & { rig: Rig }) {
@@ -34,13 +40,19 @@ function Reveal({ progress, rig, reduced }: SceneProps & { rig: Rig }) {
   const view = useMemo(() => shown(state), [state]);
   const fit = useMemo(() => {
     const e = extent(view.units, view.base);
-    // The plinth and the framing take in what stands outside the shells too: decks, steps, the outer staircase.
-    let r = e.r;
+    // The plinth and the framing take in what stands outside the shells too (decks, steps, the outer staircase), and are centred on the whole of it.
+    let x0 = e.cx - e.w / 2;
+    let x1 = e.cx + e.w / 2;
+    let z0 = e.cz - e.d / 2;
+    let z1 = e.cz + e.d / 2;
     for (const p of layoutAddOns(view.units, new Set(view.addOns), view.deckSide, view.manual, view.base, view.plot).pieces) {
-      const [x0, , z0, x1, , z1] = p.box;
-      for (const x of [x0, x1]) for (const z of [z0, z1]) r = Math.max(r, Math.hypot(x - e.cx, z - e.cz));
+      x0 = Math.min(x0, p.box[0]);
+      x1 = Math.max(x1, p.box[3]);
+      z0 = Math.min(z0, p.box[2]);
+      z1 = Math.max(z1, p.box[5]);
     }
-    return { ...e, r, reach: e.reach * Math.max(1, Math.min(1.35, r / Math.max(e.r, 1) / 1.4)) };
+    const r = Math.hypot(x1 - x0, z1 - z0) / 2;
+    return { ...e, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, r, reach: e.reach * Math.max(1, Math.min(1.5, r / Math.max(e.r, 1) / 1.25)) };
   }, [view]);
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
@@ -99,7 +111,8 @@ function Reveal({ progress, rig, reduced }: SceneProps & { rig: Rig }) {
     const p = ease.inOut(raw);
     const az = track(raw, AZ) + hand.az;
     const el = lerp(0.34, 0.2, p) + hand.el;
-    const dist = fit.reach * lerp(3.3, 2.75, p);
+    // Square on, a wide house is at its widest: it stays far enough back to keep clear of the caption.
+    const dist = fit.reach * lerp(3.45, 3.25, p);
     const look = [0, fit.h * 0.42, 0];
     aim(camera, [Math.sin(az) * Math.cos(el) * dist, look[1] + Math.sin(el) * dist, Math.cos(az) * Math.cos(el) * dist], look, size.width / size.height, 1.5, 0.75);
     rig.lightTarget.set(0, 0, 0);
