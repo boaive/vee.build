@@ -7,7 +7,7 @@ import { SETTLE, START, STATE, locate } from '../../film/systemTimeline';
 import { ease, hold, lerp, sampleCamera, stagger, win, type CameraKey } from '../../film/timeline';
 import Stage, { aim, useLabel, type Rig } from '../Stage';
 import { UNIT_BOX, box, memo, mergeGroups, planCentre, pose, setInst } from '../kit/geometry';
-import { mat, moduleMats } from '../kit/materials';
+import { instanced, mat, moduleMats } from '../kit/materials';
 import { hookCleatGeometry, moduleGeometry, railGeometry } from '../kit/parts';
 
 /**
@@ -118,7 +118,7 @@ function Pool({ type, progress }: { type: 'A' | 'B'; progress: SceneProps['progr
     m.instanceMatrix.needsUpdate = true;
   });
 
-  return <instancedMesh ref={ref} args={[moduleGeometry(type), moduleMats(), n]} castShadow receiveShadow frustumCulled={false} />;
+  return <instancedMesh ref={ref} args={[moduleGeometry(type), instanced(moduleMats()), n]} castShadow receiveShadow frustumCulled={false} />;
 }
 
 /* ---------- Step 2.1: frames, dimensions, hook & cleat ---------- */
@@ -158,7 +158,7 @@ function Frames({ progress }: Pick<SceneProps, 'progress'>) {
     });
     m.instanceMatrix.needsUpdate = true;
   });
-  return <instancedMesh ref={ref} args={[UNIT_BOX, mat.steel, EDGES.length]} frustumCulled={false} />;
+  return <instancedMesh ref={ref} args={[UNIT_BOX, instanced(mat.steel), EDGES.length]} frustumCulled={false} />;
 }
 
 /** Dimension lines: [x, y, z, axis, length, label id]. */
@@ -203,7 +203,7 @@ function Dimensions({ progress, label }: Pick<SceneProps, 'progress'> & { label:
     SHELLS.forEach((s) => label(`name-${s.id}`, s.at[0], 3.9, Z0, hold(p, 0.02, 0.13, 0.02)));
     m.instanceMatrix.needsUpdate = true;
   });
-  return <instancedMesh ref={ref} args={[UNIT_BOX, mat.accent, DIMS.length * 3]} frustumCulled={false} />;
+  return <instancedMesh ref={ref} args={[UNIT_BOX, instanced(mat.accent), DIMS.length * 3]} frustumCulled={false} />;
 }
 
 const CORNERS = SHELLS.flatMap((s) => {
@@ -330,7 +330,7 @@ function Extras({ progress }: Pick<SceneProps, 'progress'>) {
         <mesh geometry={UNIT_BOX} material={mat.trim} scale={[7.4, 0.16, 6.9]} position={[-2.5, 15.1, 0]} castShadow receiveShadow />
         <mesh geometry={UNIT_BOX} material={mat.trim} scale={[3.4, 0.14, 1.5]} position={[7.5, 2.7, 3.7]} castShadow />
       </group>
-      <instancedMesh ref={balconies} args={[balconyGeometry(), [mat.concrete, mat.steel], BALCONIES.length]} castShadow receiveShadow frustumCulled={false} />
+      <instancedMesh ref={balconies} args={[balconyGeometry(), [instanced(mat.concrete), instanced(mat.steel)], BALCONIES.length]} castShadow receiveShadow frustumCulled={false} />
     </>
   );
 }

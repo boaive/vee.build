@@ -52,6 +52,10 @@ Astro (static HTML per route) + React islands + React Three Fiber.
 - All dimensions in scenes are metres. Module A = 6 × 3 × 3, Module B = 3 × 3 × 3.
 - Only one `<Canvas>` is mounted near the viewport at a time; off-screen
   canvases unmount (context released). Frameloop is `demand`.
+- What is drawn besides the scene belongs to the stage and the finish, not
+  to scenes: the sky (drawn on its own and put behind the scene), the shadow
+  map (redrawn only when the light or a caster has moved, or after
+  `rig.warm`), ambient occlusion, bloom and the grade (`kit/post.tsx`).
 - No drei, no GSAP, no smooth-scroll library. Add a dependency only if it
   materially improves the product; note why in `vee-build-notes.md`.
 
@@ -62,8 +66,17 @@ Astro (static HTML per route) + React islands + React Three Fiber.
 - Palette: warm concrete paper, charcoal ink, one vermilion accent used for
   measurement and interaction only. Formwork green exists only inside the
   factory scene.
-- Maquette look for 3D: matte monochrome blocks, soft shadow on the page
-  colour, no bloom, no glow, no particles.
+- 3D look, as built: every stage goes through one photographic finish (sun
+  shadows, ambient occlusion, bloom on the sun and lit glass, filmic tone
+  mapping, a light grade). Studio stages stand on the page colour with a
+  soft shadow; outdoor stages have a procedural sky and haze. No particles.
+  CONFIRM: this replaced the original rule ("maquette look: matte monochrome
+  blocks, no bloom, no glow"); no decision between the two is on record in
+  these files.
+- A moving picture and a still picture are the same picture (client
+  instruction, 2026-10-07). No resolution drop while scrolling and no effect
+  that exists only at rest; speed comes from removing work that does not
+  show. Compare a frame captured while scrolling with the settled one.
 - Mobile is designed, not shrunk: canvas on top, caption below, never text
   over canvas. No horizontal page scroll.
 - Respect `prefers-reduced-motion`: films snap between settled poses.
@@ -75,6 +88,11 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   value on the dev server.
 - After changing copy or data, run `npm run check` and `npm run build`, then
   search `src/`, `public/` and `dist/` for the legacy brand name.
+- `?noboot` skips the boot screen. `?q=1` shows the one emergency
+  resolution step, `?q=0` rules it out.
+- Frame timing and 3D screenshots: a headless Edge on the same GPU (the
+  app's browser pane does not draw frames while hidden). Details in
+  `vee-build-progress.md`, QA aids.
 - `node scripts/og-image.mjs` regenerates `public/og.png`.
 - Scripted multi-line edits: write a script file and run it. Inline shell
   heredocs containing an apostrophe fail in this environment.

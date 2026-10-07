@@ -83,9 +83,11 @@ Tagged `CONFIRM:` in the data files.
   data as the 3D scenes. Five WebGL viewers would cost a context each for no
   gain in understanding.
 - **Pinned films use native `position: sticky`.** No scroll hijacking.
-- **Hero:** the brief's four banners are four maquettes on one site line;
-  scrolling trucks the camera from one to the next while each assembles from
-  modules lowered into place. One proposition, not four adverts.
+- **Hero:** the brief's four banners are four sets in one pinned film
+  (modular home, capsule pods, workforce housing, institutional campus),
+  each with its own landscape and light and a cut between them; the
+  buildings arrive as the visitor scrolls. One proposition, not four
+  adverts. (First built as four maquettes on one site line.)
 
 ### F2. Performance pass (2026-10-06)
 
@@ -100,18 +102,11 @@ and blocked the main thread for 4-5 s before the first picture.
   scene with 2x MSAA, a seven-level bloom pyramid starting at a quarter of
   the canvas, and one final pass (tone map, colour space, grade, grain).
   Bloom weights were fitted numerically to the old bloom (about 3% error).
-- **Still picture versus moving picture.** While frames are being asked for
-  the picture is "moving": no ambient occlusion, lighter multisampling. About
-  130 ms after the last frame it "settles": redrawn once at 4x MSAA, GTAO
-  computed once, both eased in over about 0.3 s. A still frame is therefore
-  the same picture as before; AO is absent only while things move. In the
-  configurator this shows as AO easing back in after each interaction.
-  Decided for speed; say if AO must be present during motion.
-- **Adaptive resolution.** If moving frames average slower than about 46 fps
-  for two windows in a row, moving frames drop to 0.8, 0.64, then 0.5 of the
-  canvas resolution (one level for the whole page, never back up during a
-  visit). The still picture is always full resolution. `?q=0..3` pins the
-  level for QA.
+- **Still picture versus moving picture, adaptive resolution.** As built on
+  the first day, a moving frame had no ambient occlusion and dropped to 0.8,
+  0.64 or 0.5 of the canvas when frames ran slow; both came back when the
+  page stopped. The client saw exactly that ("quality drops while scrolling
+  and comes back when it stops") and rejected it. Both are gone: see F3.
 - **Hero sets.** Only the first set is built before the first frame. The
   other three are built and warmed (environment map, buffers, textures,
   shaders) once the boot screen has lifted, normally behind the title card.
@@ -135,10 +130,70 @@ and blocked the main thread for 4-5 s before the first picture.
   to overwrite the earlier one's haze.
 - **Boot screen** no longer waits 14 s when the page is reloaded part-way
   down (the hero is off screen there and never draws a first frame).
-- Not done, possible next steps: mount the next film during idle time so the
-  remaining 100-180 ms stall on entering each film goes too; bake the sky to
-  a texture (about 1 ms a frame); FXAA instead of MSAA on moving frames
-  (about 2 ms a frame).
+- Not done, possible next step: mount the next film during idle time so the
+  remaining stall on entering each film (one frame of 50-180 ms) goes too.
+
+### F3. Performance pass, second day (2026-10-07)
+
+Client instruction: no visible change in quality between scrolling and
+standing still, and a steady frame rate. So nothing below trades quality
+for speed; each item removes work that did not show.
+
+What a moving picture and a still picture now differ by: edges are drawn
+with 2x multisampling while moving and 4x once still (cross-faded in over
+0.28 s). Measured on the hero, the two differ by under half a grey level in
+tone everywhere; grass blades, the thinnest things in shot, change by a few
+levels pixel by pixel. Everything else is the same picture.
+
+- **Ambient occlusion on every frame, at half resolution**, instead of only
+  in the still picture at full resolution. With it only in the still, tree
+  crowns went about a tenth darker and grass a twentieth each time scrolling
+  stopped, and lighter again when it started: a large part of what the
+  client saw. Half-size occlusion is within 0.7 of a grey level (mean) of the
+  full-size result, less than the picture's own grain. It costs 0.75-1.0 ms
+  of GPU and 0.4-0.9 ms of CPU a frame. It darkens the scene and no longer
+  the sky behind an edge. The pass is fetched with the first stage rather
+  than at the first pause.
+- **A still picture drawn straight after a pre-warm had the wrong shadows.**
+  Warming the hero's later sets draws them into the shadow map; the still
+  picture that followed reused that map, so the first picture after load
+  showed the farm with no shadows of its own (pale tree crowns, no long
+  shadows), and the real ones arrived with the first scrolled frame. The
+  stage now redraws the map whenever it has been used for something else.
+  **This changes the hero as it first appears**: it opens with the shadows
+  it always had while scrolling. If the unshadowed look was preferred, that
+  is a lighting decision (sun height, which trees cast) to take on purpose.
+- **Adaptive resolution removed.** One emergency step remains (three
+  quarters of the canvas, below about 20 fps sustained for 2.5 s) so a
+  device that cannot draw the page at all is not left with a slideshow.
+  `?q=0` rules it out, `?q=1` shows it.
+- **Sky drawn at half size behind the scene**, not inside the multisampled
+  scene pass: about 1.1-1.4 ms a frame. The finished picture differs from a
+  full-size sky by a twentieth of a grey level around the sun and nothing
+  measurable elsewhere. Rows under the horizon where the sky is one flat
+  colour are not drawn at all.
+- **The multisampled depth buffer is no longer resolved** after every frame
+  (three's default; nobody read it): 1.2-3.2 ms a frame on Direct3D.
+- **Shadow map kept while nothing that casts has moved** and the light has
+  not stepped (the key light now follows the action in steps of an eighth
+  of the shadowed area, a whole number of shadow texels). About 1 ms and a
+  third of the draw calls on those frames. In the hero something is being
+  lowered into place for about two thirds of a steady scroll, so it applies
+  to the rest.
+- **Leaf cards get a depth-only pass first**, so only the nearest leaf at
+  each pixel is lit instead of every card that happened to be drawn before
+  it: about a third of the leaf shading, same picture.
+- **Instanced meshes get their own copies of shared materials**
+  (`instanced()` in `materials.ts`). A material used by both an instanced
+  and a plain mesh made three re-derive its shader on every switch.
+- **Bloom in 8 passes instead of 13** (one composite of all levels, weights
+  fitted to the previous glow within 1% at the core), refreshed on alternate
+  frames.
+
+Left alone on purpose, because the picture would change: Lambert instead of
+Standard shading on ground and foliage, a smaller-format colour buffer,
+FXAA instead of multisampling, baking the sky to a texture, updating
+shadows of moving parts at half rate.
 
 ## G. Decisions made during the build
 

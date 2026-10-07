@@ -12,7 +12,7 @@ import { Paving } from '../kit/env';
 import { UNIT_BOX, box, cyl, memo, merge, mergeGroups, setInst } from '../kit/geometry';
 import { House } from '../kit/house';
 import { MobileCrane, TRUCK, Truck } from '../kit/machines';
-import { mat, moduleMats } from '../kit/materials';
+import { instanced, mat, moduleMats } from '../kit/materials';
 import { jackBaseGeometry, jackScrewGeometry, moduleGeometry } from '../kit/parts';
 
 /**
@@ -185,7 +185,7 @@ function Yard({ progress }: Prog) {
       <mesh geometry={warehouse(36, 22, 9)} material={shedMats} position={[-34, 0, -30]} castShadow receiveShadow />
       <mesh geometry={memo('shed-stock', () => merge([0, 1, 2, 3].map((i) => box(5.6, 0.25 + i * 0.2, 2.4, -40 + i * 7, 0.15 + i * 0.1, -30))))} material={mat.panel} castShadow receiveShadow />
       <mesh geometry={batching()} material={plantMats} position={[42, 0, -28]} castShadow receiveShadow />
-      <instancedMesh ref={stock} args={[moduleGeometry('A'), stockMats, 6]} castShadow receiveShadow frustumCulled={false} />
+      <instancedMesh ref={stock} args={[moduleGeometry('A'), instanced(stockMats), 6]} castShadow receiveShadow frustumCulled={false} />
       {/* A second unit already in formwork, for a sense of the line. */}
       <group position-x={-13}>
         <Boards getOut={() => 0} getDrop={() => 0} />
@@ -253,8 +253,8 @@ function Piers({ at, getT }: { at: [number, number]; getT: () => number }) {
   });
   return (
     <>
-      <instancedMesh ref={bases} args={[jackBaseGeometry(), mat.steel, 4]} castShadow frustumCulled={false} />
-      <instancedMesh ref={screws} args={[jackScrewGeometry(), mat.steel, 4]} castShadow frustumCulled={false} />
+      <instancedMesh ref={bases} args={[jackBaseGeometry(), instanced(mat.steel), 4]} castShadow frustumCulled={false} />
+      <instancedMesh ref={screws} args={[jackScrewGeometry(), instanced(mat.steel), 4]} castShadow frustumCulled={false} />
     </>
   );
 }
@@ -287,7 +287,7 @@ function Insulation({ progress }: Prog) {
     });
     m.instanceMatrix.needsUpdate = true;
   });
-  return <instancedMesh ref={ref} args={[UNIT_BOX, mat.panel, INSULATION.length]} castShadow receiveShadow frustumCulled={false} />;
+  return <instancedMesh ref={ref} args={[UNIT_BOX, instanced(mat.panel), INSULATION.length]} castShadow receiveShadow frustumCulled={false} />;
 }
 
 /** Bright green formwork boards (brief). `getOut` 1→0 as they close in, `getDrop` 0→1 as they fall away. */
@@ -322,8 +322,8 @@ function Boards({ getOut, getDrop }: { getOut: () => number; getDrop: () => numb
   });
   return (
     <>
-      <instancedMesh ref={ref} args={[UNIT_BOX, mat.formwork, BOARDS.length]} castShadow receiveShadow frustumCulled={false} />
-      <instancedMesh ref={walers} args={[UNIT_BOX, mat.steel, 8]} castShadow frustumCulled={false} />
+      <instancedMesh ref={ref} args={[UNIT_BOX, instanced(mat.formwork), BOARDS.length]} castShadow receiveShadow frustumCulled={false} />
+      <instancedMesh ref={walers} args={[UNIT_BOX, instanced(mat.steel), 8]} castShadow frustumCulled={false} />
     </>
   );
 }

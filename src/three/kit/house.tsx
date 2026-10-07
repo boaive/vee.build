@@ -22,7 +22,7 @@ import { DEFAULT_FOUNDATION, FOUNDATION_HEIGHTS, trimFinishes, type AddOnId, typ
 import { CELL, JACK, baseOf, foundationLayout, layoutAddOns, placeOf, type AddOnLayout, type Seg, type Unit } from '../../build/model';
 import { UNIT_BOX, merge } from './geometry';
 import type { Look } from './looks';
-import { deckMat, mat, moduleMats, trimMat } from './materials';
+import { deckMat, instanced, mat, moduleMats, trimMat } from './materials';
 import { FOUNDATION, footingGeometry, footingReach, jackBaseGeometry, jackNutGeometry, jackScrewGeometry, moduleGeometry, plinthGeometry, slopedRoofGeometry, stairGeometry } from './parts';
 import { latticeCard, tile } from './pbr';
 import { boxUV } from './textures';
@@ -268,7 +268,7 @@ function Instances({ geo, material, spots, y = 0 }: { geo: BufferGeometry; mater
     m.instanceMatrix.needsUpdate = true;
   }, [spots, y]);
   if (!spots.length) return null;
-  return <instancedMesh key={spots.length} ref={ref} args={[geo, material, spots.length]} castShadow receiveShadow frustumCulled={false} />;
+  return <instancedMesh key={spots.length} ref={ref} args={[geo, instanced(material), spots.length]} castShadow receiveShadow frustumCulled={false} />;
 }
 
 /** Footings, L plinths and jacks under the ground floor (client's model, notes H1–H2). */
@@ -348,7 +348,7 @@ function UnitsOf({ list, type, mats, pose, base }: { list: Unit[]; type: ShellTy
   });
 
   if (!list.length) return null;
-  return <instancedMesh key={list.length} ref={ref} args={[moduleGeometry(type), mats, list.length]} userData={{ type }} castShadow receiveShadow frustumCulled={false} />;
+  return <instancedMesh key={list.length} ref={ref} args={[moduleGeometry(type), instanced(mats), list.length]} userData={{ type }} castShadow receiveShadow frustumCulled={false} />;
 }
 
 export function House({

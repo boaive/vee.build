@@ -13,6 +13,7 @@ import {
   Float32BufferAttribute,
   IcosahedronGeometry,
   Matrix4,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   Object3D,
   PlaneGeometry,
@@ -185,7 +186,8 @@ export function Ground({ palette, flat = 40, hills = 22, size = 3600, seed = 4, 
 
   useLayoutEffect(() => () => geo.dispose(), [geo]);
   useLayoutEffect(() => () => material.dispose(), [material]);
-  return <mesh geometry={geo} material={material} receiveShadow />;
+  // Drawn after everything that stands on it (and before the sky): the ground under the grass and the house is never shaded.
+  return <mesh geometry={geo} material={material} receiveShadow renderOrder={4} />;
 }
 
 /* ------------------------------------------------------------------ */
@@ -606,7 +608,7 @@ function leafMaterial(color: string) {
     new MeshStandardMaterial({
       color,
       map: leafCard(),
-      alphaTest: 0.42,
+      alphaTest: LEAF_CUT,
       side: DoubleSide,
       vertexColors: true,
       roughness: 0.82,
@@ -700,6 +702,33 @@ export function Woodland({ spots, palette, flat = 40, hills = 22, eye }: { spots
   );
 }
 
+const LEAF_CUT = 0.42;
+
+let leafMaskMaterial: MeshBasicMaterial | null = null;
+/**
+ * Depth only, for the same leaf cards, drawn before anything else. A crown
+ * is hundreds of overlapping cards in no particular order, and each one that
+ * happened to be drawn before the cards in front of it was lit in full and
+ * then covered. With the nearest leaf's depth already in place, only that
+ * leaf is lit: the same picture, about a third of the shading.
+ *
+ * Its cut-off is a little stricter than the leaves' own, and its depth is
+ * pushed back by a hair, so a leaf can never be missing where the mask says
+ * there is one (that would punch a hole through to the sky).
+ */
+function leafMask() {
+  return (leafMaskMaterial ??= new MeshBasicMaterial({
+    map: leafCard(),
+    alphaTest: LEAF_CUT + 0.05,
+    side: DoubleSide,
+    colorWrite: false,
+    fog: false,
+    polygonOffset: true,
+    polygonOffsetFactor: 1,
+    polygonOffsetUnits: 2,
+  }));
+}
+
 function TreeVariant({
   variant,
   level,
@@ -719,6 +748,7 @@ function TreeVariant({
 }) {
   const wood = useRef<InstancedMesh>(null);
   const crown = useRef<InstancedMesh>(null);
+  const mask = useRef<InstancedMesh>(null);
   const parts = treeParts(variant, level);
   useLayoutEffect(() => {
     list.forEach((t, i) => {
@@ -731,10 +761,13 @@ function TreeVariant({
     });
     if (wood.current) wood.current.instanceMatrix.needsUpdate = true;
     if (crown.current) crown.current.instanceMatrix.needsUpdate = true;
+    // The mask stands exactly where the leaves do: one set of instance matrices for both.
+    if (mask.current && crown.current) mask.current.instanceMatrix = crown.current.instanceMatrix;
   }, [list, flat, hills]);
   return (
     <>
       <instancedMesh ref={wood} args={[parts.wood, bark, list.length]} castShadow receiveShadow frustumCulled={false} />
+      <instancedMesh ref={mask} args={[parts.leaves, leafMask(), list.length]} renderOrder={-1} frustumCulled={false} />
       <instancedMesh ref={crown} args={[parts.leaves, leaves, list.length]} castShadow receiveShadow frustumCulled={false} />
     </>
   );

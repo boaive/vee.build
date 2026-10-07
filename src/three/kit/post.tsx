@@ -1,21 +1,34 @@
 /**
- * The photographic finish: multisampled HDR render, bloom on the sun and lit
- * glass, filmic tone mapping, then a display-space grade (split toning,
- * vignette, faint lens fringing, grain that doubles as dither so gradients
- * in the sky never band), with ambient occlusion once the picture is still.
+ * The photographic finish: multisampled HDR render, ambient occlusion, bloom
+ * on the sun and lit glass, filmic tone mapping, then a display-space grade
+ * (split toning, vignette, faint lens fringing, grain that doubles as dither
+ * so gradients in the sky never band).
  *
- * Built to be cheap while the picture moves:
+ * Built to be cheap while the picture moves, without the picture changing
+ * when it stops:
  *
- * - A moving frame is the scene with light multisampling, a small bloom
- *   pyramid at quarter resolution, and ONE full-screen pass that does tone
- *   mapping, colour space, grade and grain together.
- * - If the device cannot hold the frame rate, moving frames drop to a lower
- *   internal resolution (`quality`). The final pass always runs at full
- *   resolution, so the grain and the edges of the frame stay crisp.
- * - When nothing has asked for a frame for a moment, the picture settles:
- *   it is redrawn once at full resolution with 4x multisampling, ambient
- *   occlusion is computed once, and both ease in. A still picture then costs
- *   nothing, exactly as before.
+ * - A moving frame is the scene at full resolution with 2x multisampling,
+ *   ambient occlusion, the bloom (a few small passes from quarter resolution
+ *   down, refreshed every other frame: a glow that wide does not show one
+ *   frame of lag), and ONE full-screen pass that does tone mapping, colour
+ *   space, grade and grain.
+ * - The sky is not in the scene's target: the stage draws it on its own
+ *   (rig.begin), at half size, and the final pass puts it behind the scene.
+ *   Half the frame is sky, it has no edges to anti-alias and nothing in it
+ *   as fine as a pixel.
+ * - Ambient occlusion is worked out on every frame, at half the canvas's
+ *   resolution. It used to exist only in the still picture, at full
+ *   resolution, and tree crowns went a tenth darker (grass a twentieth) each
+ *   time the page stopped scrolling. At half size it is within a grey level
+ *   of the full-size result, and a moving picture and a still one now have
+ *   the same.
+ * - When nothing has asked for a frame for a moment, the picture settles: it
+ *   is redrawn once with 4x multisampling and cross-faded in. Only edges
+ *   change. A still picture then costs nothing.
+ * - Resolution is never traded for speed on a machine that can draw at all.
+ *   Only below about 20 frames a second, sustained, do moving frames step
+ *   down once to three quarters of the canvas (`quality`). `?q=1` shows
+ *   that step for QA; `?q=0` rules it out.
  *
  * Mounted by Stage when a scene asks for it; it takes over R3F's render
  * (useFrame priority 1), so it still only draws on demand. Frames that R3F
@@ -27,8 +40,11 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
   BufferGeometry,
   Float32BufferAttribute,
+  GLSL3,
   HalfFloatType,
   Mesh,
+  type Material,
+  type Object3D,
   OrthographicCamera,
   RawShaderMaterial,
   Vector2,
@@ -65,8 +81,18 @@ export const NEUTRAL_GRADE: Grade = {
   aberration: 0.0016,
 };
 
+/**
+ * A sky to put behind the scene: its picture, and the lowest row (0–1 from
+ * the bottom) that was drawn. Below that row the sky is one flat colour, so
+ * the row stands in for everything under it.
+ */
+export interface Backdrop {
+  texture: Texture;
+  floor: number;
+}
+
 export interface PostOptions {
-  /** Ambient occlusion, eased in when the picture is still. */
+  /** Ambient occlusion. */
   ao?: boolean;
   /** AO radius in metres. */
   aoRadius?: number;
@@ -80,10 +106,14 @@ export interface PostOptions {
 /* Shared quality level                                                */
 /* ------------------------------------------------------------------ */
 
-/** Internal resolution of a moving frame, as a fraction of the canvas. */
-const SCALES = [1, 0.8, 0.64, 0.5];
-/** Multisampling of a moving frame per level; the still picture is always 4x. */
-const MOVING_SAMPLES = [2, 2, 2, 0];
+/**
+ * Internal resolution of a moving frame, as a fraction of the canvas. Level 0
+ * is the picture as designed and is what every capable device stays on; level
+ * 1 exists only so a device that cannot reach 20 fps is not left unusable.
+ */
+const SCALES = [1, 0.75];
+/** Multisampling of a moving frame; the still picture is always 4x. */
+const MOVING_SAMPLES = 2;
 const STILL_SAMPLES = 4;
 
 /**
@@ -93,7 +123,7 @@ const STILL_SAMPLES = 4;
  */
 export const quality = {
   level: 0,
-  /** Fixed by `?q=<0-3>` (QA): the monitor leaves it alone. */
+  /** Fixed by `?q=<0-1>` (QA): the monitor leaves it alone. */
   locked: false,
 };
 
@@ -105,14 +135,16 @@ if (typeof window !== 'undefined') {
   }
 }
 
-/** Slower than this on average and moving frames give up resolution (about 46 fps). */
-const SLOW_MS = 21.5;
-const WINDOW = 14;
+/** Slower than this on average (20 fps) and the device is not coping at full resolution. */
+const SLOW_MS = 50;
+const WINDOW = 16;
+/** Slow windows in a row before stepping down: about two and a half seconds of sustained struggle. */
+const STRIKES = 3;
 
 /**
- * Watches the gaps between consecutive moving frames. Two slow windows in a
- * row step the level down; a stall (shader compile, a set being built) voids
- * the window instead of counting against the device.
+ * Watches the gaps between consecutive moving frames. Three slow windows in
+ * a row step the level down; a stall (shader compile, a set being built)
+ * voids the window instead of counting against the device.
  */
 class Monitor {
   private last = 0;
@@ -137,7 +169,7 @@ class Monitor {
       return;
     }
     // Not consecutive (the picture had stopped), or a stall: start the window again.
-    if (gap > 90) {
+    if (gap > 160) {
       this.n = 0;
       this.sum = 0;
       return;
@@ -151,7 +183,7 @@ class Monitor {
       this.strikes = 0;
       return;
     }
-    if (++this.strikes < 2) return;
+    if (++this.strikes < STRIKES) return;
     this.strikes = 0;
     quality.level++;
     this.hold(16);
@@ -184,11 +216,16 @@ const raw = (fragmentShader: string, uniforms: Record<string, { value: unknown }
 const BRIGHT = /* glsl */ `
 precision highp float;
 uniform sampler2D tMap;
+uniform sampler2D tSky;
+uniform float uSky;
+uniform float uSkyFloor;
 uniform vec2 uTexel;
 uniform float uThreshold;
 varying vec2 vUv;
 vec3 bright( vec2 uv ) {
-  vec3 c = max( texture2D( tMap, uv ).rgb, 0.0 );
+  vec4 s = texture2D( tMap, uv );
+  // The sky is not in the scene's picture; the sun is in the sky.
+  vec3 c = max( s.rgb + ( 1.0 - s.a ) * uSky * texture2D( tSky, vec2( uv.x, max( uv.y, uSkyFloor ) ) ).rgb, 0.0 );
   float l = dot( c, vec3( 0.2126729, 0.7151522, 0.0721750 ) );
   return c * smoothstep( uThreshold, uThreshold + 0.01, l );
 }
@@ -198,7 +235,7 @@ void main() {
   gl_FragColor = vec4( s * 0.25, 1.0 );
 }`;
 
-/** Dual-filter blur, down: five taps for a wide, stable kernel. */
+/** Dual-filter blur, down: five overlapping taps, so a moving highlight glides from texel to texel. */
 const DOWN = /* glsl */ `
 precision highp float;
 uniform sampler2D tMap;
@@ -213,32 +250,77 @@ void main() {
   gl_FragColor = vec4( s * 0.125, 1.0 );
 }`;
 
-/** Dual-filter blur, up: the wider level blurred again and added to this one. */
-const UP = /* glsl */ `
+/** How many levels the glow is built from: a quarter of the canvas, then halves. */
+const BLOOM_LEVELS = 7;
+
+/**
+ * What the glow is made of: [level, tent width in that level's texels,
+ * weight]. Width 0 reads the level as it is. Fitted by least squares, over
+ * three of the hero's sets, to the glow this pipeline had as a chain of
+ * upsampling passes (bright core within 1%, the rest within a few percent),
+ * itself fitted to three's UnrealBloomPass at radius 0.55: the look is that
+ * pass's.
+ */
+const BLOOM_TERMS: [number, number, number][] = [
+  [0, 0, 0.255],
+  [1, 0, 0.147],
+  [1, 0.75, 0.19],
+  [2, 0, 0.142],
+  [2, 0.75, 0.135],
+  [3, 0, 0.165],
+  [3, 0.75, 0.157],
+  [4, 0, 0.207],
+  [4, 0.75, 0.175],
+  [5, 0, 0.201],
+  [5, 0.75, 0.112],
+  [6, 0, 0.243],
+  [6, 0.75, 0.318],
+  [6, 1.5, 0.025],
+];
+const BLOOM_WEIGHTS = BLOOM_TERMS.map((t) => t[2]);
+/** The built-in gain of the bloom pass this replaces. */
+const BLOOM_GAIN = 3;
+
+/**
+ * The glow: a weighted sum of the levels, each read through a tent so its
+ * texels do not show, composed in one pass. (As a chain of passes that
+ * upsampled level by level this was six passes, and on integrated graphics
+ * the passes cost more than the blurring.) GLSL ES 3.00, for textureSize and
+ * samplers as arguments.
+ */
+const GLOW_VERT = /* glsl */ `
 precision highp float;
-uniform sampler2D tLow;
-uniform sampler2D tBase;
-uniform vec2 uTexel;
-uniform float uLow;
-uniform float uBase;
-varying vec2 vUv;
+in vec3 position;
+in vec2 uv;
+out vec2 vUv;
 void main() {
-  vec2 h = uTexel * 0.5;
-  vec3 s = texture2D( tLow, vUv + vec2( -2.0 * h.x, 0.0 ) ).rgb;
-  s += texture2D( tLow, vUv + vec2( -h.x, h.y ) ).rgb * 2.0;
-  s += texture2D( tLow, vUv + vec2( 0.0, 2.0 * h.y ) ).rgb;
-  s += texture2D( tLow, vUv + vec2( h.x, h.y ) ).rgb * 2.0;
-  s += texture2D( tLow, vUv + vec2( 2.0 * h.x, 0.0 ) ).rgb;
-  s += texture2D( tLow, vUv + vec2( h.x, -h.y ) ).rgb * 2.0;
-  s += texture2D( tLow, vUv + vec2( 0.0, -2.0 * h.y ) ).rgb;
-  s += texture2D( tLow, vUv + vec2( -h.x, -h.y ) ).rgb * 2.0;
-  gl_FragColor = vec4( texture2D( tBase, vUv ).rgb * uBase + s * ( uLow / 12.0 ), 1.0 );
+  vUv = uv;
+  gl_Position = vec4( position.xy, 0.0, 1.0 );
+}`;
+const GLOW = /* glsl */ `
+precision highp float;
+precision highp sampler2D;
+${Array.from({ length: BLOOM_LEVELS }, (_, k) => `uniform sampler2D tL${k};`).join('\n')}
+uniform float uWeights[ ${BLOOM_TERMS.length} ];
+in vec2 vUv;
+out vec4 outColor;
+vec3 tent( sampler2D level, float spread ) {
+  vec2 d = spread / vec2( textureSize( level, 0 ) );
+  return 0.25 * ( textureLod( level, vUv + vec2( -d.x, -d.y ), 0.0 ).rgb + textureLod( level, vUv + vec2( d.x, -d.y ), 0.0 ).rgb
+                + textureLod( level, vUv + vec2( -d.x, d.y ), 0.0 ).rgb + textureLod( level, vUv + vec2( d.x, d.y ), 0.0 ).rgb );
+}
+void main() {
+  vec3 s = vec3( 0.0 );
+${BLOOM_TERMS.map(([level, spread], i) =>
+  spread > 0 ? `  s += uWeights[ ${i} ] * tent( tL${level}, ${spread.toFixed(2)} );` : `  s += uWeights[ ${i} ] * textureLod( tL${level}, vUv, 0.0 ).rgb;`,
+).join('\n')}
+  outColor = vec4( s, 1.0 );
 }`;
 
 /**
- * Everything between the HDR picture and the screen, in one pass. With
- * SETTLE it also cross-fades from the moving picture to the full-resolution
- * one and multiplies the ambient occlusion in.
+ * Everything between the HDR picture and the screen, in one pass: ambient
+ * occlusion, the sky behind the scene, bloom, tone mapping, grade. With
+ * SETTLE it also cross-fades from the moving picture to the still one.
  */
 const FINAL = /* glsl */ `
 precision highp float;
@@ -254,11 +336,14 @@ uniform vec3 uHighlights;
 uniform float uGrain;
 uniform float uAberration;
 uniform float uSeed;
+uniform sampler2D tSky;
+uniform float uSky;
+uniform float uSkyFloor;
+uniform sampler2D tAO;
+uniform float uAO;
 #if SETTLE == 1
 uniform sampler2D tSharp;
-uniform sampler2D tAO;
 uniform float uSharp;
-uniform float uAO;
 #endif
 varying vec2 vUv;
 
@@ -271,13 +356,17 @@ float hash( vec2 p ) {
   return fract( ( p3.x + p3.y ) * p3.z );
 }
 
+// The scene, occluded, over the sky. The scene's picture is premultiplied and its alpha is its
+// coverage, so an edge anti-aliased against nothing comes out anti-aliased against the sky; and
+// the occlusion, which is coarser than the picture, darkens the scene and never the sky beside it.
 vec4 picture( vec2 uv ) {
   vec4 a = texture2D( tScene, uv );
   #if SETTLE == 1
-    vec4 b = texture2D( tSharp, uv );
-    b.rgb *= mix( 1.0, texture2D( tAO, uv ).r, uAO );
-    a = mix( a, b, uSharp );
+    a = mix( a, texture2D( tSharp, uv ), uSharp );
   #endif
+  a.rgb *= mix( 1.0, texture2D( tAO, uv ).r, uAO );
+  a.rgb += ( 1.0 - a.a ) * uSky * texture2D( tSky, vec2( uv.x, max( uv.y, uSkyFloor ) ) ).rgb;
+  a.a = max( a.a, uSky );
   return a;
 }
 
@@ -309,23 +398,23 @@ void main() {
   gl_FragColor = vec4( clamp( col, 0.0, 1.0 ), base.a );
 }`;
 
-/**
- * Weight of each bloom level, tightest first (each level is half the size of
- * the one before, starting at a quarter of the canvas). Fitted by least
- * squares to the glow of three's UnrealBloomPass (radius 0.55), which this
- * replaces: sampled along lines through the sun and the porch lamp of the
- * hero, the two agree to about 3%. BLOOM_GAIN is that pass's built-in gain.
- */
-const BLOOM_WEIGHTS = [0.26, 0.365, 0.306, 0.357, 0.392, 0.326, 0.466];
-const BLOOM_GAIN = 3;
-
 const SETTLE_AFTER = 130;
 const SETTLE_FADE = 280;
-const AO_FADE = 320;
+/** Ambient occlusion is worked out at this fraction of the canvas (each way). */
+const AO_SCALE = 0.5;
 
 /* ------------------------------------------------------------------ */
 /* The pipeline                                                        */
 /* ------------------------------------------------------------------ */
+
+/**
+ * A multisampled HDR target for the scene. Only its colour is ever read:
+ * left at the defaults, three also resolves the multisampled DEPTH buffer
+ * after every frame, which on Direct3D is a slow copy (2-3 ms here on
+ * integrated graphics) of something nobody looks at.
+ */
+const sceneTarget = (samples: number) =>
+  new WebGLRenderTarget(2, 2, { type: HalfFloatType, samples, resolveDepthBuffer: false, resolveStencilBuffer: false, storeMultisampledDepthBuffer: false });
 
 interface FinishOptions {
   ao: boolean;
@@ -333,8 +422,11 @@ interface FinishOptions {
   aoIntensity: number;
   bloom: number;
   bloomThreshold: number;
-  /** Called before the scene is drawn outside R3F's loop (the settle). */
-  before: () => void;
+  /**
+   * Called before the scene is drawn, for a frame R3F asked for and for the settle (outside R3F's loop) alike.
+   * Returns the sky to put behind the scene, or null when there is none (a studio on the page's own colour).
+   */
+  before: () => Backdrop | null;
 }
 
 class Finish {
@@ -343,25 +435,29 @@ class Finish {
   private motionLevel = -1;
   /** Full resolution, 4x multisampled: the still picture. Made the first time the picture settles. */
   private rest: WebGLRenderTarget | null = null;
+  /** Bright parts at a quarter of the canvas, then halved level by level; and the glow composed from them. */
   private down: WebGLRenderTarget[] = [];
-  private up: WebGLRenderTarget[] = [];
+  private glowTarget: WebGLRenderTarget | null = null;
   private readonly quad = new Mesh(triangle);
   private readonly mBright: RawShaderMaterial;
   private readonly mDown: RawShaderMaterial;
-  private readonly mUp: RawShaderMaterial;
+  private readonly mGlow: RawShaderMaterial;
   private readonly mFinal: RawShaderMaterial;
   private readonly mSettle: RawShaderMaterial;
   private readonly shared: Record<string, { value: unknown }>;
   private gtao: GTAOPass | null = null;
-  private gtaoLoading = false;
+  /** Resolves once the occlusion pass is here, with its materials (for precompiling); empty without occlusion. */
+  readonly occlusion: Promise<Material[]>;
+  private readonly hidden: Object3D[] = [];
   private w = 2;
   private h = 2;
   private applied: Grade | null = null;
   private timer = 0;
   private lastMoving = 0;
+  private glow: Texture | null = null;
+  private tick = 0;
   private raf = 0;
   private settledAt = 0;
-  private aoAt = 0;
   private disposed = false;
   readonly monitor = new Monitor();
   /** False until the scene's shaders are compiled; nothing is drawn before. */
@@ -376,7 +472,7 @@ class Finish {
     private readonly opts: FinishOptions,
   ) {
     this.quad.frustumCulled = false;
-    this.motion = new WebGLRenderTarget(2, 2, { type: HalfFloatType, samples: MOVING_SAMPLES[quality.level] });
+    this.motion = sceneTarget(MOVING_SAMPLES);
     this.shared = {
       tScene: { value: null },
       tBloom: { value: null },
@@ -391,19 +487,54 @@ class Finish {
       uAberration: { value: 0.002 },
       uSeed: { value: 0 },
       toneMappingExposure: { value: 1 },
+      tSky: { value: null },
+      uSky: { value: 0 },
+      uSkyFloor: { value: 0 },
+      tAO: { value: null },
+      uAO: { value: 0 },
     };
-    this.mBright = raw(BRIGHT, { tMap: { value: null }, uTexel: { value: new Vector2() }, uThreshold: { value: opts.bloomThreshold } });
+    this.mBright = raw(BRIGHT, {
+      tMap: { value: null },
+      tSky: this.shared.tSky,
+      uSky: this.shared.uSky,
+      uSkyFloor: this.shared.uSkyFloor,
+      uTexel: { value: new Vector2() },
+      uThreshold: { value: opts.bloomThreshold },
+    });
     this.mDown = raw(DOWN, { tMap: { value: null }, uTexel: { value: new Vector2() } });
-    this.mUp = raw(UP, { tLow: { value: null }, tBase: { value: null }, uTexel: { value: new Vector2() }, uLow: { value: 1 }, uBase: { value: 1 } });
+    const levels: Record<string, { value: unknown }> = { uWeights: { value: BLOOM_WEIGHTS } };
+    for (let k = 0; k < BLOOM_LEVELS; k++) levels[`tL${k}`] = { value: null };
+    this.mGlow = new RawShaderMaterial({ glslVersion: GLSL3, vertexShader: GLOW_VERT, fragmentShader: GLOW, uniforms: levels, depthTest: false, depthWrite: false });
     this.mFinal = raw(FINAL, this.shared, { SETTLE: 0 });
-    this.mSettle = raw(FINAL, { ...this.shared, tSharp: { value: null }, tAO: { value: null }, uSharp: { value: 0 }, uAO: { value: 0 } }, { SETTLE: 1 });
+    this.mSettle = raw(FINAL, { ...this.shared, tSharp: { value: null }, uSharp: { value: 0 } }, { SETTLE: 1 });
     this.mFinal.toneMapped = false;
     this.mSettle.toneMapped = false;
+    // Three's GTAO pass, fetched alongside the first shaders: every frame uses it, the first included.
+    this.occlusion = opts.ao
+      ? import('three/examples/jsm/postprocessing/GTAOPass.js').then(
+          ({ GTAOPass: Pass }) => {
+            if (this.disposed) return [];
+            const p = new Pass(scene, camera, ...this.occlusionSize());
+            // Off: the pass only fills its own targets; the final pass does the compositing.
+            p.output = Pass.OUTPUT.Off;
+            p.updateGtaoMaterial({ radius: opts.aoRadius, distanceExponent: 1.6, thickness: 1.2, scale: 1, samples: 12, distanceFallOff: 1 });
+            // The denoise radius is in the pass's own pixels: 6 on a full-size picture.
+            p.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6 * AO_SCALE, rings: 2, samples: 12 });
+            this.gtao = p;
+            return [p.gtaoMaterial, p.pdMaterial];
+          },
+          () => [],
+        )
+      : Promise.resolve([]);
+  }
+
+  private occlusionSize(): [number, number] {
+    return [Math.max(2, Math.ceil(this.w * AO_SCALE)), Math.max(2, Math.ceil(this.h * AO_SCALE))];
   }
 
   /** Every material this pipeline draws with, for precompiling. */
   materials() {
-    return [this.mBright, this.mDown, this.mUp, this.mFinal, this.mSettle];
+    return [this.mBright, this.mDown, this.mGlow, this.mFinal, this.mSettle];
   }
 
   setSize(w: number, h: number) {
@@ -413,23 +544,19 @@ class Finish {
     this.rest?.setSize(w, h);
     this.sizeMotion();
     (this.shared.uRes.value as Vector2).set(w, h);
-    this.down.forEach((t) => t.dispose());
-    this.up.forEach((t) => t.dispose());
-    this.down = [];
-    this.up = [];
+    this.glow = null;
     if (this.opts.bloom > 0) {
       let pw = Math.max(2, Math.ceil(w / 4));
       let ph = Math.max(2, Math.ceil(h / 4));
-      const make = () => new WebGLRenderTarget(pw, ph, { type: HalfFloatType, depthBuffer: false });
-      for (let i = 0; i < BLOOM_WEIGHTS.length; i++) {
-        this.down.push(make());
-        if (Math.min(pw, ph) < 8) break;
-        pw = Math.max(2, Math.ceil(pw / 2));
-        ph = Math.max(2, Math.ceil(ph / 2));
+      const small = { type: HalfFloatType, depthBuffer: false } as const;
+      (this.glowTarget ??= new WebGLRenderTarget(pw, ph, small)).setSize(pw, ph);
+      for (let k = 0; k < BLOOM_LEVELS; k++) {
+        (this.down[k] ??= new WebGLRenderTarget(pw, ph, small)).setSize(pw, ph);
+        pw = Math.max(1, Math.ceil(pw / 2));
+        ph = Math.max(1, Math.ceil(ph / 2));
       }
-      for (let i = 0; i < this.down.length - 1; i++) this.up.push(new WebGLRenderTarget(this.down[i].width, this.down[i].height, { type: HalfFloatType, depthBuffer: false }));
     }
-    this.gtao?.setSize(w, h);
+    this.gtao?.setSize(...this.occlusionSize());
     this.monitor.hold();
     this.cancelSettle();
   }
@@ -438,13 +565,8 @@ class Finish {
     const level = quality.level;
     const s = SCALES[level];
     this.motionLevel = level;
-    const m = this.motion;
-    if (m.samples !== MOVING_SAMPLES[level]) {
-      // The sample count is fixed when the target is created on the GPU: release it and it is rebuilt.
-      m.dispose();
-      m.samples = MOVING_SAMPLES[level];
-    }
-    m.setSize(Math.max(2, Math.round(this.w * s)), Math.max(2, Math.round(this.h * s)));
+    this.motion.setSize(Math.max(2, Math.round(this.w * s)), Math.max(2, Math.round(this.h * s)));
+    this.glow = null;
   }
 
   private pass(material: RawShaderMaterial, target: WebGLRenderTarget | null) {
@@ -469,35 +591,31 @@ class Finish {
     u.uAberration.value = g.aberration;
   }
 
-  /** The bloom pyramid for `source`; returns the texture the final pass adds. */
+  /** What goes behind the scene in the passes that read it. */
+  private behind(sky: Backdrop | null, fallback: Texture) {
+    this.shared.tSky.value = sky?.texture ?? fallback;
+    this.shared.uSky.value = sky ? 1 : 0;
+    this.shared.uSkyFloor.value = sky?.floor ?? 0;
+  }
+
+  /** The glow of `source`: the texture the final pass adds. */
   private bloomOf(source: WebGLRenderTarget): Texture | null {
-    const n = this.down.length;
-    if (!n) return null;
+    const { down, glowTarget } = this;
+    if (!glowTarget || down.length < BLOOM_LEVELS) return null;
     const b = this.mBright.uniforms;
     b.tMap.value = source.texture;
     (b.uTexel.value as Vector2).set(1 / source.width, 1 / source.height);
-    this.pass(this.mBright, this.down[0]);
+    this.pass(this.mBright, down[0]);
     const d = this.mDown.uniforms;
-    for (let i = 1; i < n; i++) {
-      d.tMap.value = this.down[i - 1].texture;
-      (d.uTexel.value as Vector2).set(1 / this.down[i - 1].width, 1 / this.down[i - 1].height);
-      this.pass(this.mDown, this.down[i]);
+    for (let k = 1; k < BLOOM_LEVELS; k++) {
+      d.tMap.value = down[k - 1].texture;
+      (d.uTexel.value as Vector2).set(1 / down[k - 1].width, 1 / down[k - 1].height);
+      this.pass(this.mDown, down[k]);
     }
-    const u = this.mUp.uniforms;
-    let low: WebGLRenderTarget = this.down[n - 1];
-    // A small canvas has fewer levels: the widest one carries the weight of those it lacks.
-    let widest = 0;
-    for (let i = n - 1; i < BLOOM_WEIGHTS.length; i++) widest += BLOOM_WEIGHTS[i];
-    for (let i = n - 2; i >= 0; i--) {
-      u.tLow.value = low.texture;
-      u.tBase.value = this.down[i].texture;
-      (u.uTexel.value as Vector2).set(1 / low.width, 1 / low.height);
-      u.uLow.value = i === n - 2 ? widest : 1;
-      u.uBase.value = BLOOM_WEIGHTS[i];
-      this.pass(this.mUp, this.up[i]);
-      low = this.up[i];
-    }
-    return n > 1 ? this.up[0].texture : this.down[0].texture;
+    const g = this.mGlow.uniforms;
+    for (let k = 0; k < BLOOM_LEVELS; k++) g[`tL${k}`].value = down[k].texture;
+    this.pass(this.mGlow, glowTarget);
+    return glowTarget.texture;
   }
 
   /** A frame R3F asked for: the scene has changed. */
@@ -510,10 +628,15 @@ class Finish {
     }
     const gl = this.gl;
     const target = this.motion;
+    const sky = this.opts.before();
     gl.setRenderTarget(target);
     gl.render(this.scene, this.camera);
     this.shared.tScene.value = target.texture;
-    const glow = this.bloomOf(target);
+    this.behind(sky, target.texture);
+    this.occlude(target.texture);
+    // The glow is several pixels wide at its tightest: refreshed on alternate frames, reused in between.
+    if (!this.glow || this.tick++ % 2 === 0) this.glow = this.bloomOf(target);
+    const glow = this.glow;
     this.shared.tBloom.value = glow ?? target.texture;
     this.shared.uBloom.value = glow ? this.opts.bloom * BLOOM_GAIN : 0;
     this.grade(g);
@@ -531,10 +654,9 @@ class Finish {
     this.timer = 0;
     this.raf = 0;
     this.settledAt = 0;
-    this.aoAt = 0;
   }
 
-  /** Nothing has moved for a moment: the full-quality picture, then ambient occlusion. */
+  /** Nothing has moved for a moment: the same picture with finer edges, cross-faded in. */
   private settle = () => {
     this.timer = 0;
     if (this.disposed || !this.ready || !this.shared.tScene.value) return;
@@ -544,68 +666,88 @@ class Finish {
       return;
     }
     const gl = this.gl;
-    this.opts.before();
-    const rest = (this.rest ??= new WebGLRenderTarget(this.w, this.h, { type: HalfFloatType, samples: STILL_SAMPLES }));
-    // Same scene, same light: only the picture is redrawn, not the shadow map.
+    const sky = this.opts.before();
+    let rest = this.rest;
+    if (!rest) {
+      rest = this.rest = sceneTarget(STILL_SAMPLES);
+      rest.setSize(this.w, this.h);
+    }
+    // Same scene, same light: the shadow map is only redrawn if `before` asked for it (shadowMap.needsUpdate).
     const auto = gl.shadowMap.autoUpdate;
     gl.shadowMap.autoUpdate = false;
     gl.setRenderTarget(rest);
     gl.render(this.scene, this.camera);
     gl.shadowMap.autoUpdate = auto;
+    // The same sky and the same occlusion as the last moving frame had. Both are drawn again
+    // rather than trusted to still be that frame's: it is a millisecond, once.
+    this.behind(sky, rest.texture);
+    this.occlude(rest.texture);
     const u = this.mSettle.uniforms;
     u.tSharp.value = rest.texture;
-    u.tAO.value = rest.texture;
-    u.uAO.value = 0;
+    u.uSharp.value = 0;
     this.settledAt = performance.now();
     this.stats.settles++;
-    if (this.opts.ao) this.occlude();
     this.raf = requestAnimationFrame(this.fade);
   };
 
-  /** Ambient occlusion for the still picture. The pass is fetched on first use. */
-  private occlude() {
-    if (!this.gtao) {
-      if (this.gtaoLoading) return;
-      this.gtaoLoading = true;
-      void import('three/examples/jsm/postprocessing/GTAOPass.js').then(({ GTAOPass: Pass }) => {
-        if (this.disposed) return;
-        const p = new Pass(this.scene, this.camera, this.w, this.h);
-        p.output = Pass.OUTPUT.Off;
-        p.updateGtaoMaterial({ radius: this.opts.aoRadius, distanceExponent: 1.6, thickness: 1.2, scale: 1, samples: 12, distanceFallOff: 1 });
-        p.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 12 });
-        this.gtao = p;
-        // Still at rest: bring the occlusion in now.
-        if (this.settledAt && !this.aoAt) {
-          this.opts.before();
-          this.occlude();
-          if (!this.raf) this.raf = requestAnimationFrame(this.fade);
-        }
-      });
+  /**
+   * Ambient occlusion for the scene as it stands, into the pass's own targets.
+   * The pass draws the scene once more (normals and depth), at its own size.
+   */
+  private occlude(fallback: Texture) {
+    const g = this.gtao;
+    const u = this.shared;
+    if (!g) {
+      u.tAO.value = fallback;
+      u.uAO.value = 0;
       return;
     }
     const gl = this.gl;
+    // Not part of the depth picture: overlays that ignore depth (a cut's card would flatten
+    // everything behind it), and depth-only helpers, which repeat what is already there.
+    const hidden = this.hidden;
+    this.scene.traverseVisible((o) => {
+      const m = (o as Mesh).material as Material | Material[] | undefined;
+      const first = Array.isArray(m) ? m[0] : m;
+      if (first && (first.depthTest === false || first.colorWrite === false)) {
+        o.visible = false;
+        hidden.push(o);
+      }
+    });
     const auto = gl.shadowMap.autoUpdate;
     gl.shadowMap.autoUpdate = false;
-    // OUTPUT.Off: the pass only fills its own targets; the final pass composites.
-    this.gtao.render(gl, this.motion, this.motion, 0, false);
+    g.render(gl, this.motion, this.motion, 0, false);
     gl.shadowMap.autoUpdate = auto;
-    this.mSettle.uniforms.tAO.value = this.gtao.pdRenderTarget.texture;
-    this.aoAt = performance.now();
+    for (const o of hidden) o.visible = true;
+    hidden.length = 0;
+    u.tAO.value = g.pdRenderTarget.texture;
+    u.uAO.value = this.opts.aoIntensity;
+  }
+
+  /**
+   * Draws the occlusion pass's view of the scene (normals) once into `target`,
+   * so the shaders it needs for what is showing now are compiled. For rig.warm.
+   */
+  warmOcclusion(target: WebGLRenderTarget) {
+    const g = this.gtao;
+    if (!g || this.disposed) return;
+    const { gl, scene } = this;
+    const was = gl.getRenderTarget();
+    scene.overrideMaterial = g.normalMaterial;
+    gl.setRenderTarget(target);
+    gl.render(scene, this.camera);
+    scene.overrideMaterial = null;
+    gl.setRenderTarget(was);
   }
 
   private fade = (now: number) => {
     this.raf = 0;
     if (this.disposed || !this.settledAt) return;
-    const ease = (t: number) => t * t * (3 - 2 * t);
-    const sharp = Math.min(1, (now - this.settledAt) / SETTLE_FADE);
-    const ao = this.aoAt ? Math.min(1, (now - this.aoAt) / AO_FADE) : 0;
-    const u = this.mSettle.uniforms;
-    u.uSharp.value = ease(Math.max(0, sharp));
-    u.uAO.value = ease(Math.max(0, ao)) * this.opts.aoIntensity;
+    const t = Math.min(1, Math.max(0, (now - this.settledAt) / SETTLE_FADE));
+    this.mSettle.uniforms.uSharp.value = t * t * (3 - 2 * t);
     this.shared.uSeed.value = ((this.shared.uSeed.value as number) + 17.13) % 1000;
     this.pass(this.mSettle, null);
-    // If the occlusion pass is still loading, it restarts this loop when it arrives.
-    if (sharp < 1 || (this.aoAt && ao < 1)) this.raf = requestAnimationFrame(this.fade);
+    if (t < 1) this.raf = requestAnimationFrame(this.fade);
   };
 
   dispose() {
@@ -614,7 +756,7 @@ class Finish {
     this.rest?.dispose();
     this.motion.dispose();
     this.down.forEach((t) => t.dispose());
-    this.up.forEach((t) => t.dispose());
+    this.glowTarget?.dispose();
     this.materials().forEach((m) => m.dispose());
     this.gtao?.dispose();
   }
@@ -630,7 +772,17 @@ export default function Post({
   getGrade,
   onReady,
   before,
-}: PostOptions & { getGrade?: () => Grade | undefined; onReady?: () => void; before?: () => void }) {
+  compile,
+  onWarmer,
+}: PostOptions & {
+  getGrade?: () => Grade | undefined;
+  onReady?: () => void;
+  before?: () => Backdrop | null;
+  /** Compiles whatever `before` draws; the first frame waits for it too. */
+  compile?: () => Promise<unknown>;
+  /** Receives a function that draws this finish's own view of the scene into a target (for rig.warm), or null when it goes. */
+  onWarmer?: (draw: ((target: WebGLRenderTarget) => void) | null) => void;
+}) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
@@ -641,9 +793,13 @@ export default function Post({
   ready.current = onReady;
   const prepare = useRef(before);
   prepare.current = before;
+  const also = useRef(compile);
+  also.current = compile;
+  const warmer = useRef(onWarmer);
+  warmer.current = onWarmer;
 
   const finish = useMemo(() => {
-    const f = new Finish(gl, scene, camera, { ao, aoRadius, aoIntensity, bloom, bloomThreshold, before: () => prepare.current?.() });
+    const f = new Finish(gl, scene, camera, { ao, aoRadius, aoIntensity, bloom, bloomThreshold, before: () => prepare.current?.() ?? null });
     if (import.meta.env.DEV) (gl.domElement as unknown as { __veePost?: unknown }).__veePost = { finish: f, quality, SCALES, BLOOM_WEIGHTS };
     return f;
   }, [gl, scene, camera, ao, aoRadius, aoIntensity, bloom, bloomThreshold]);
@@ -673,8 +829,23 @@ export default function Post({
       return q;
     });
     gl.setRenderTarget(finish.motion);
-    const jobs = [gl.compileAsync(scene, camera), ...passes.map((q) => gl.compileAsync(q, flat))];
+    const jobs: Promise<unknown>[] = [gl.compileAsync(scene, camera), ...passes.map((q) => gl.compileAsync(q, flat))];
     gl.setRenderTarget(null);
+    if (also.current) jobs.push(also.current());
+    jobs.push(
+      finish.occlusion.then((materials) => {
+        if (!alive || !materials.length) return;
+        const was = gl.getRenderTarget();
+        gl.setRenderTarget(finish.motion);
+        const compiled = materials.map((m) => {
+          const q = new Mesh(triangle, m);
+          q.frustumCulled = false;
+          return gl.compileAsync(q, flat);
+        });
+        gl.setRenderTarget(was);
+        return Promise.all(compiled);
+      }),
+    );
     Promise.all(jobs).then(go, go);
     // Never hold the picture back for long if the driver does not report.
     const cap = window.setTimeout(go, 6000);
@@ -685,6 +856,11 @@ export default function Post({
   }, [finish, gl, scene, camera, invalidate]);
 
   useEffect(() => () => finish.dispose(), [finish]);
+
+  useEffect(() => {
+    warmer.current?.((target) => finish.warmOcclusion(target));
+    return () => warmer.current?.(null);
+  }, [finish]);
 
   useFrame(() => {
     finish.renderMoving(grade ?? getGrade?.() ?? NEUTRAL_GRADE);

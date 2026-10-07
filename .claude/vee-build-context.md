@@ -38,7 +38,7 @@ distribution partners.
 
 | # | Section | Question it answers | Form |
 | --- | --- | --- | --- |
-| 1 | Hero banner | What can be built? | Pinned film, camera trucks past four maquettes |
+| 1 | Hero banner | What can be built? | Pinned film: four sets (modular home, capsule pods, workforce housing, institutional campus), a cut between each |
 | 2 | How it works? | How does the system work / configure? | Pinned film: shells → footprints → stacking |
 | 3 | Building components | What are the components? | Pinned film: exploded home, 3 steps |
 | 4 | How are we different? | Why this approach? | Typographic argument, document flow |
@@ -46,6 +46,11 @@ distribution partners.
 | 6 | Factory tour | Can I see the real process? | Pinned film, 7 stations |
 | 7 | Photo gallery | Is this real? | Documentary grid, document flow |
 | 8 | Contact | How do I start? | Enquiry form |
+
+The page has grown beyond these eight: `configure` (the configurator),
+`your-house`, `delivery`, `site`, `installation` and `build-yours` now sit
+between them. The current list, in order, is in `vee-build-progress.md`,
+"What exists".
 
 ## Terminology from the brief (use exactly)
 

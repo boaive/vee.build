@@ -5,8 +5,9 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import type { SceneProps } from '../film/progress';
 import { ATMOS, patchAtmosphere } from './kit/atmosphere';
 import { SkyDome } from './kit/env';
+import { memo } from './kit/geometry';
 import { LOOKS, type Look, type LookName } from './kit/looks';
-import Post, { NEUTRAL_GRADE, type PostOptions } from './kit/post';
+import Post, { NEUTRAL_GRADE, type Backdrop, type PostOptions } from './kit/post';
 import { createPhysicalSky, horizonHaze, paintPhysicalSky } from './kit/sky';
 import { groundGrain } from './kit/textures';
 
@@ -51,6 +52,18 @@ export interface Rig {
   /** Write this stage's values into the uniforms every stage shares, before it draws. */
   sync: () => void;
   /**
+   * Called by the finish just before it draws the scene, moving or still:
+   * brings matrices and the shadow map up to date and draws the sky.
+   * Returns the sky to put behind the scene, if there is one.
+   */
+  begin: () => Backdrop | null;
+  /** Compile what `begin` draws, ahead of the first frame. */
+  compile: () => Promise<unknown>;
+  /** Set by the finish: draws its own view of the scene (for ambient occlusion) into a target, so a warm covers that too. */
+  alsoWarm: ((target: THREE.WebGLRenderTarget) => void) | null;
+  /** The key light moved: redraw the shadow map on the next frame whatever the casters did. */
+  shadowDirty: boolean;
+  /**
    * Send what is about to come into shot to the GPU ahead of time. `arrange`
    * shows it (and may move the camera) and returns the undo; the scene is
    * drawn once into a tiny off-screen target, so buffers, textures and
@@ -67,6 +80,83 @@ interface StageProps extends SceneProps, StageOptions {
 }
 
 const _sun = new THREE.Vector3();
+
+const _ndc = new THREE.Vector3();
+/**
+ * The sky is drawn at this fraction of the canvas (each way). There is
+ * nothing in it finer than that: a gradient, soft cloud, and a sun whose
+ * edge the bloom rounds off. Measured against a full-size sky, the finished
+ * picture differs by a twentieth of a grey level around the sun and by
+ * nothing measurable elsewhere; its grain alone is twenty times that.
+ */
+const SKY_SCALE = 0.5;
+
+/**
+ * Sine of the elevation under which the sky is one flat colour. The sky's
+ * shader blends to its ground colour between the horizon and -0.12 (sky.ts)
+ * and is exactly that colour below; this sits a little under that.
+ */
+const SKY_FLAT = -0.125;
+
+/**
+ * The lowest part of the frame in which the sky still varies, 0 (bottom) to
+ * 1 (top). Every row under it is the sky's flat ground colour from edge to
+ * edge, so those rows are not drawn: the lowest drawn row stands in for
+ * them, and the picture is the same. Checked at both edges and the middle:
+ * along a row the line of sight is lowest in the middle and highest at an
+ * edge.
+ */
+function skyFloor(camera: THREE.Camera) {
+  let floor = 1;
+  for (const x of [-1, 0, 1]) {
+    const up = (y: number) => _ndc.set(x, y, 0.5).unproject(camera).sub(camera.position).normalize().y;
+    if (up(-1) >= SKY_FLAT) return 0;
+    if (up(1) < SKY_FLAT) continue;
+    let lo = -1;
+    let hi = 1;
+    for (let i = 0; i < 12; i++) {
+      const mid = (lo + hi) / 2;
+      if (up(mid) < SKY_FLAT) lo = mid;
+      else hi = mid;
+    }
+    floor = Math.min(floor, lo * 0.5 + 0.5);
+  }
+  return floor;
+}
+
+/**
+ * A number that changes when anything casting a shadow moves, appears or
+ * goes: every visible caster's world matrix and, for instanced ones, every
+ * instance's matrix. Two frames with the same number have the same shadow
+ * map, so the map (4096 px square: about a millisecond to clear and redraw,
+ * and a third of the frame's draw calls) is kept instead of redrawn. A few
+ * thousand additions a frame.
+ */
+function castersSignature(scene: THREE.Scene) {
+  let a = 0;
+  let b = 0;
+  let n = 0;
+  const add = (v: number) => {
+    n++;
+    a += v * ((n % 61) + 1);
+    b += v * v + n;
+  };
+  scene.traverseVisible((o) => {
+    const m = o as THREE.InstancedMesh;
+    if (!m.castShadow || !m.isMesh) return;
+    add(m.id);
+    add(m.geometry.id);
+    const e = m.matrixWorld.elements;
+    for (let i = 0; i < 16; i++) add(e[i]);
+    if (m.isInstancedMesh) {
+      const arr = m.instanceMatrix.array;
+      const end = m.count * 16;
+      add(end);
+      for (let i = 0; i < end; i++) add(arr[i]);
+    }
+  });
+  return a * 1.000001 + b;
+}
 
 type V4 = [number, number, number, number];
 interface Haze {
@@ -125,7 +215,8 @@ function Setup({
   exposure,
   localClipping = false,
   rig,
-}: StageProps & { rig: Rig }) {
+  finished,
+}: StageProps & { rig: Rig; finished: boolean }) {
   const { gl, scene, camera, size, invalidate, advance, get } = useThree();
   const light = useRef<THREE.DirectionalLight>(null);
   const hemi = useRef<THREE.HemisphereLight>(null);
@@ -135,6 +226,25 @@ function Setup({
   const sunDir = useRef(new THREE.Vector3());
   const initial = useRef(rig.look).current;
   const sky = useMemo(() => createPhysicalSky((initial.sky ?? LOOKS.day.sky)!, initial.sun.dir), [initial]);
+  /*
+   * With a finish the sky is not drawn into the scene at all. It is drawn on
+   * its own, into a small plain target (SKY_SCALE), and the finish puts it
+   * behind the scene in its final pass. Inside the scene it was shaded at
+   * full size into a multisampled target, for about a fifth of the frame's
+   * time; here the same shader runs on a quarter of the pixels. It is the
+   * same sky whether the picture is moving or still.
+   */
+  const backdrop = useMemo(() => {
+    if (!finished) return null;
+    const mesh = new THREE.Mesh(memo('sky-sphere', () => new THREE.SphereGeometry(1, 48, 24)), sky);
+    mesh.scale.setScalar(500);
+    mesh.frustumCulled = false;
+    const only = new THREE.Scene();
+    only.add(mesh);
+    const target = new THREE.WebGLRenderTarget(2, 2, { type: THREE.HalfFloatType, depthBuffer: false });
+    target.scissorTest = true;
+    return { mesh, only, target, px: new THREE.Vector2(), on: !!initial.sky };
+  }, [sky, initial, finished]);
   const landMat = useMemo(() => {
     // Its texture is drawn on the main thread: only for the stages that show open ground.
     const map = ground === 'land' ? groundGrain() : null;
@@ -191,6 +301,10 @@ function Setup({
   useLayoutEffect(() => {
     gl.toneMapping = THREE.ACESFilmicToneMapping;
     gl.localClippingEnabled = localClipping;
+    // With a finish, rig.begin runs before every draw of the scene: it updates the world
+    // matrices and decides whether the shadow map has to be redrawn.
+    gl.shadowMap.autoUpdate = !finished;
+    scene.matrixWorldAutoUpdate = !finished;
     // Reading back each shader's link log makes the page wait for the compiler. Development only.
     gl.debug.checkShaderErrors = import.meta.env.DEV;
     const held = envs.current;
@@ -203,11 +317,50 @@ function Setup({
       held.warm?.dispose();
       held.warm = null;
     };
-  }, [gl, scene, localClipping]);
+  }, [gl, scene, localClipping, finished]);
 
   /* Mood: everything a look controls, applied in place. */
   useLayoutEffect(() => {
     rig.sync = () => writeHaze(haze.current);
+    rig.begin = () => {
+      writeHaze(haze.current);
+      // World matrices are brought up to date here, once, and not again inside the render (see below).
+      scene.updateMatrixWorld();
+      /*
+       * The shadow map is redrawn when the light has moved, when a caster has,
+       * or when something else was drawn into it (rig.warm shows a set that is
+       * not in shot). For a still picture too: one drawn straight after a warm
+       * would otherwise be lit through the other set's shadows.
+       */
+      const sig = castersSignature(scene);
+      gl.shadowMap.needsUpdate = rig.shadowDirty || sig !== casters.current;
+      casters.current = sig;
+      rig.shadowDirty = false;
+      if (!backdrop?.on) return null;
+      const { mesh, only, target, px } = backdrop;
+      gl.getDrawingBufferSize(px);
+      const w = Math.max(2, Math.ceil(px.x * SKY_SCALE));
+      const h = Math.max(2, Math.ceil(px.y * SKY_SCALE));
+      if (target.width !== w || target.height !== h) target.setSize(w, h);
+      // Only the rows where the sky is more than its flat ground colour.
+      const row = Math.min(h - 2, Math.max(0, Math.floor(skyFloor(camera) * h) - 1));
+      target.scissor.set(0, row, w, h - row);
+      mesh.position.copy(camera.position);
+      const was = gl.getRenderTarget();
+      gl.setRenderTarget(target);
+      gl.render(only, camera);
+      gl.setRenderTarget(was);
+      return { texture: target.texture, floor: (row + 0.5) / h };
+    };
+    rig.compile = () => {
+      if (!backdrop) return Promise.resolve();
+      // Into its own target, so the shader is built for what it will be drawn into.
+      const was = gl.getRenderTarget();
+      gl.setRenderTarget(backdrop.target);
+      const job = gl.compileAsync(backdrop.only, camera);
+      gl.setRenderTarget(was);
+      return job;
+    };
     rig.prepare = (l: Look) => void envFor(l);
     rig.warm = (arrange) => {
       const store = envs.current;
@@ -217,12 +370,18 @@ function Setup({
       const rot = camera.quaternion.clone();
       const undo = arrange();
       camera.updateMatrixWorld();
+      scene.updateMatrixWorld();
       rig.sync();
       const before = gl.getRenderTarget();
+      // With its shadows, so the depth shaders and the casters' buffers are warmed too.
+      gl.shadowMap.needsUpdate = true;
       gl.setRenderTarget(target);
       gl.render(scene, camera);
+      rig.alsoWarm?.(target);
       gl.setRenderTarget(before);
+      rig.shadowDirty = true;
       undo();
+      scene.updateMatrixWorld();
       camera.position.copy(pos);
       camera.quaternion.copy(rot);
       camera.updateMatrixWorld();
@@ -254,11 +413,14 @@ function Setup({
         light.current.intensity = sunIntensity ?? l.sun.intensity;
       }
       sunDir.current.set(...l.sun.dir).normalize().multiplyScalar(80);
+      rig.shadowDirty = true;
       if (fill.current) {
         fill.current.color.set(l.fill.color);
         fill.current.intensity = l.fill.intensity;
         fill.current.position.set(...l.fill.dir).normalize().multiplyScalar(40);
       }
+      // With a finish the sky goes behind the scene in the final pass (rig.begin); otherwise the dome draws it.
+      if (backdrop) backdrop.on = !!l.sky;
       if (dome.current) dome.current.visible = !!l.sky;
       if (l.sky) paintPhysicalSky(sky, l.sky, l.sun.dir);
       landMat.color.set(l.land ?? '#7e7e52');
@@ -268,15 +430,15 @@ function Setup({
       invalidate();
     };
     rig.setLook(rig.look);
-  }, [rig, gl, scene, sky, floorMat, shadowMat, landMat, exposure, envIntensity, sunIntensity, shadowOpacity, fogRange, invalidate]);
+  }, [rig, gl, scene, camera, sky, backdrop, floorMat, shadowMat, landMat, exposure, envIntensity, sunIntensity, shadowOpacity, fogRange, invalidate]);
 
   /* Dev only: a handle on this stage for QA and frame timing (window.__vee, canvas.__vee). */
   useEffect(() => {
     if (!import.meta.env.DEV) return;
-    const probe = { rig, LOOKS, invalidate, advance, get, gl, scene, camera, progress };
+    const probe = { rig, LOOKS, invalidate, advance, get, gl, scene, camera, progress, backdrop, sky };
     (window as unknown as { __vee?: unknown }).__vee = probe;
     (gl.domElement as unknown as { __vee?: unknown }).__vee = probe;
-  }, [rig, invalidate, advance, get, gl, scene, camera, progress]);
+  }, [rig, invalidate, advance, get, gl, scene, camera, progress, backdrop, sky]);
 
   /* Scenes pull frames through this. */
   useEffect(() => {
@@ -302,18 +464,31 @@ function Setup({
     return () => cam.clearViewOffset();
   }, [camera, size, fx, fy, invalidate]);
 
-  /* Key light follows the action; snapped to shadow texels so edges stay still. */
+  /*
+   * Key light follows the action in steps of an eighth of the shadowed
+   * area. A step is a whole number of shadow texels, so edges stay still,
+   * and between steps the light does not move at all: a camera that drifts
+   * a few centimetres no longer forces the shadow map to be redrawn.
+   */
   const mapSize = compact ? 2048 : 4096;
+  const lit = useRef({ x: NaN, z: NaN, sx: NaN, sy: NaN, sz: NaN });
+  const casters = useRef(NaN);
   useFrame(() => {
     rig.sync();
     const l = light.current;
     if (l) {
-      const texel = (shadowExtent * 2) / mapSize;
-      const tx = Math.round(rig.lightTarget.x / texel) * texel;
-      const tz = Math.round(rig.lightTarget.z / texel) * texel;
-      l.target.position.set(tx, 0, tz);
-      l.position.set(tx + sunDir.current.x, sunDir.current.y, tz + sunDir.current.z);
-      l.target.updateMatrixWorld();
+      const step = shadowExtent / 8;
+      const tx = Math.round(rig.lightTarget.x / step) * step;
+      const tz = Math.round(rig.lightTarget.z / step) * step;
+      const s = sunDir.current;
+      const was = lit.current;
+      if (tx !== was.x || tz !== was.z || s.x !== was.sx || s.y !== was.sy || s.z !== was.sz) {
+        lit.current = { x: tx, z: tz, sx: s.x, sy: s.y, sz: s.z };
+        l.target.position.set(tx, 0, tz);
+        l.position.set(tx + s.x, s.y, tz + s.z);
+        l.target.updateMatrixWorld();
+        rig.shadowDirty = true;
+      }
     }
     // The first frames can land before layout is known; draw a few, then report.
     if (!rig.holding && frames.current < 4) {
@@ -322,6 +497,8 @@ function Setup({
       if (frames.current === 3) onReady();
     }
   });
+
+  useLayoutEffect(() => () => backdrop?.target.dispose(), [backdrop]);
 
   useLayoutEffect(
     () => () => {
@@ -335,7 +512,7 @@ function Setup({
 
   return (
     <>
-      <SkyDome material={sky} domeRef={dome} />
+      {!finished && <SkyDome material={sky} domeRef={dome} />}
       <hemisphereLight ref={hemi} />
       <directionalLight
         ref={light}
@@ -379,7 +556,19 @@ export default function Stage(props: StageProps) {
   const { active, compact, children, look = 'studioLight', post = DEFAULT_POST, postCompact = DEFAULT_POST_COMPACT } = props;
   const finish = compact ? postCompact : post;
   const rig = useMemo<Rig>(
-    () => ({ lightTarget: new THREE.Vector3(), look: LOOKS[look], setLook: () => {}, prepare: () => {}, sync: () => {}, warm: () => {}, holding: !!finish }),
+    () => ({
+      lightTarget: new THREE.Vector3(),
+      look: LOOKS[look],
+      setLook: () => {},
+      prepare: () => {},
+      sync: () => {},
+      begin: () => null,
+      compile: () => Promise.resolve(),
+      alsoWarm: null,
+      warm: () => {},
+      holding: !!finish,
+      shadowDirty: true,
+    }),
     // The finish only decides the first value of `holding`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [look],
@@ -401,13 +590,17 @@ export default function Stage(props: StageProps) {
       resize={{ scroll: false, offsetSize: true }}
       style={{ position: 'absolute', inset: 0 }}
     >
-      <Setup {...props} rig={rig} />
+      <Setup {...props} rig={rig} finished={!!finish} />
       {children(rig)}
       {finish && (
         <Post
           {...finish}
           getGrade={() => rig.look.grade ?? NEUTRAL_GRADE}
-          before={() => rig.sync()}
+          before={() => rig.begin()}
+          compile={() => rig.compile()}
+          onWarmer={(draw) => {
+            rig.alsoWarm = draw;
+          }}
           onReady={() => {
             rig.holding = false;
           }}

@@ -165,6 +165,29 @@ export const mat = {
 
 export type MatName = keyof typeof mat;
 
+const instancedOf = new WeakMap<Material, Material>();
+const instancedSets = new WeakMap<Material[], Material[]>();
+
+/**
+ * The same material, for an InstancedMesh. three keeps one compiled shader
+ * per material and has to look it up again whenever consecutive draws differ
+ * in instancing: a material shared by an instanced mesh and a plain one cost
+ * that lookup on every draw of every frame. Instanced meshes take this copy
+ * instead; it shares the original's textures and is made once.
+ */
+export function instanced<M extends Material>(m: M): M;
+export function instanced(m: Material[]): Material[];
+export function instanced(m: Material | Material[]): Material | Material[] {
+  if (Array.isArray(m)) {
+    let set = instancedSets.get(m);
+    if (!set) instancedSets.set(m, (set = m.map((one) => instanced(one))));
+    return set;
+  }
+  let copy = instancedOf.get(m);
+  if (!copy) instancedOf.set(m, (copy = m.clone()));
+  return copy;
+}
+
 const cache = new Map<string, MeshStandardMaterial>();
 function cached(key: string, make: () => MeshStandardMaterial) {
   let m = cache.get(key);

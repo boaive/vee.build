@@ -10,7 +10,7 @@ import type { ModuleType, Placement } from '../../data/system';
 import { clamp01, ease, stagger, win } from '../../film/timeline';
 import { UNIT_BOX, box, memo, merge, planCentre, pose, setInst } from './geometry';
 import type { Look } from './looks';
-import { mat, moduleMats } from './materials';
+import { instanced, mat, moduleMats } from './materials';
 import { moduleGeometry, podGeometry, railGeometry, stairGeometry, wallPanel36Geometry } from './parts';
 
 export type Label = (id: string, x: number, y: number, z: number, opacity: number) => void;
@@ -66,7 +66,7 @@ export function DropModules({ type, list, centre, base = 0, getT, materials, fir
     m.instanceMatrix.needsUpdate = true;
   });
 
-  return <instancedMesh ref={ref} args={[moduleGeometry(type), materials, list.length]} castShadow receiveShadow frustumCulled={false} />;
+  return <instancedMesh ref={ref} args={[moduleGeometry(type), instanced(materials), list.length]} castShadow receiveShadow frustumCulled={false} />;
 }
 
 /** A flat slab with rounded corners, lying on the ground with its underside at y = 0. Cached: clone before changing it. */
@@ -454,7 +454,7 @@ export function InstitutionalBlock({ x = 0, getA, label, getShow, look }: Buildi
         <mesh geometry={columns} material={mat.concrete} castShadow receiveShadow />
         <mesh geometry={UNIT_BOX} material={mat.trim} scale={[INST_W - 3, FLOOR * 3 - 0.4, INST_D - 3]} position-y={(FLOOR * 3) / 2} />
       </group>
-      <instancedMesh ref={panels} args={[wallPanel36Geometry(), panelMats, INST_PANELS.length]} castShadow receiveShadow frustumCulled={false} />
+      <instancedMesh ref={panels} args={[wallPanel36Geometry(), instanced(panelMats), INST_PANELS.length]} castShadow receiveShadow frustumCulled={false} />
       <mesh geometry={UNIT_BOX} material={mat.concrete} scale={[7, 0.2, 2.6]} position={[-PANEL, GROUND + 3.3, INST_D / 2 + 1.4]} castShadow />
     </group>
   );
