@@ -11,13 +11,16 @@ import {
   type ReactNode,
 } from 'react';
 import type { FilmStep } from '../data/narrative';
+import { holdPage } from './hold';
 import { FilmContext, createProgress, type PlaceLabel, type SceneProps } from './progress';
 import { clamp01 } from './timeline';
 
 export interface FilmLabel {
   id: string;
   text: string;
-  kind?: 'dim' | 'call' | 'pulse' | 'name';
+  /** A small line over the text (kind: the menu's short name for a line of buildings). */
+  sub?: string;
+  kind?: 'dim' | 'call' | 'pulse' | 'name' | 'kind' | 'box';
 }
 
 /**
@@ -54,18 +57,53 @@ interface FilmProps {
   labels?: FilmLabel[];
   /** Mount the canvas straight away instead of waiting for proximity. */
   eager?: boolean;
+  /** How many screens below the viewport this film may be mounted ahead of time (REACH unless given). */
+  reach?: number;
   /** Extra DOM pinned with the stage (HUD, counters). */
   children?: ReactNode;
   /** Extra DOM rendered inside a step's caption, keyed by step id. */
   stepExtras?: Record<string, ReactNode>;
+  /** A step's title drawn by its section instead of set as text (words that follow the picture), keyed by step id. */
+  stepTitles?: Record<string, ReactNode>;
   /** How captions change: each section has its own. Captions never travel with the scroll. */
   captions?: 'fade' | 'blur' | 'wipe' | 'words' | 'slide' | 'track';
   prelude?: Prelude;
   /** Called once the scene has drawn its first frames. */
   onReady?: () => void;
+  /**
+   * A film that plays by itself instead of following the scroll (client,
+   * 2026-10-10, for the truck's drive: "a short loading animation"). When a
+   * visitor scrolls down onto it, the page is held (film/hold.ts) and the
+   * film runs from 0 to 1 in `seconds`; then the page is let go. Once.
+   * Before that it shows its first frame, and so it does if it is reached
+   * any other way (a link, the scrollbar): it only ever holds a scroll the
+   * visitor is making. With reduced motion it never holds, and shows its
+   * step's settled pose.
+   */
+  play?: { seconds: number };
 }
 
 const DAMPING = 6.5;
+/**
+ * A film's scene is mounted when the film is within a screen of the
+ * viewport, which is while the page is scrolling towards it: geometry, a
+ * WebGL context, the environment map and the shaders were all made in the
+ * middle of that scroll, and it stuttered once on the way into every film
+ * (developer, 2026-10-10: "while scrolling to your build I can feel a
+ * little lag"). So a film that is within REACH screens below the viewport
+ * is mounted ahead of time, in the first moment the page has stood still
+ * for QUIET_MS and nothing is being pointed at or typed; a film farther off
+ * waits a little longer (STAGGER_MS a screen), so two are not mounted in
+ * one breath. A visitor who never stops gets it the old way.
+ *
+ * Only below, and no farther: a mounted stage holds 300 to 500 MB of GPU
+ * memory (its shadow map, the finish's targets, its textures). Reaching
+ * three screens both ways had five canvases mounted at the foot of the
+ * configurator and a GPU process of 2.6 GB where it had been 1.6 (notes F9).
+ */
+const REACH = 1.75;
+const QUIET_MS = 280;
+const STAGGER_MS = 260;
 
 function stepIndex(steps: FilmStep[], p: number) {
   let i = 0;
@@ -80,7 +118,9 @@ function stepIndex(steps: FilmStep[], p: number) {
  * stage. Captions stay in place on the stage and change as the active step
  * changes, with a transition chosen per section (`captions`). Scroll
  * position maps to a 0–1 target; a damped copy drives the 3D scene, the
- * active step and any HUD. Nothing here intercepts the wheel or touch events.
+ * active step and any HUD. Nothing here intercepts the wheel or touch
+ * events, with one exception the client asked for: a film that plays by
+ * itself (`play`) holds the page for its few seconds (film/hold.ts).
  */
 export default function Film({
   id,
@@ -97,11 +137,14 @@ export default function Film({
   Scene,
   labels = [],
   eager = false,
+  reach = REACH,
   children,
   stepExtras,
+  stepTitles,
   captions = 'fade',
   prelude,
   onReady: onReadyProp,
+  play,
 }: FilmProps) {
   const root = useRef<HTMLElement>(null);
   const sticky = useRef<HTMLDivElement>(null);
@@ -115,6 +158,8 @@ export default function Film({
 
   const [active, setActive] = useState(0);
   const [near, setNear] = useState(false);
+  /** Mounted ahead of time: within reach, and the page has stood still. */
+  const [early, setEarly] = useState(false);
   const [visible, setVisible] = useState(false);
   const [ready, setReady] = useState(false);
   const [compact, setCompact] = useState(false);
@@ -124,8 +169,11 @@ export default function Film({
   const [open, setOpen] = useState(false);
   /** The picture has taken more of the screen than the card: the header reads against the picture from here. */
   const [risen, setRisen] = useState(false);
+  /** A film that plays by itself has played. */
+  const [played, setPlayed] = useState(false);
+  const playing = useRef({ on: false, done: false, raf: 0, input: 0, lastY: 0, ready: false, release: null as (() => void) | null });
 
-  const state = useRef({ raf: 0, last: 0, active: 0, reduced: false, visible: false, pre: '', open: false, risen: false, seen: false });
+  const state = useRef({ raf: 0, last: 0, active: 0, reduced: false, visible: false, pre: '', open: false, risen: false, seen: false, soon: false, early: false });
   const preLen = prelude?.length ?? 0;
 
   /* Environment queries */
@@ -222,11 +270,53 @@ export default function Film({
           }
         }
       }
-      progress.target = travel > 0 ? clamp01((-r.top - prePx) / travel) : 0;
+      if (!play) progress.target = travel > 0 ? clamp01((-r.top - prePx) / travel) : 0;
       kick();
     };
 
     const ioNear = new IntersectionObserver(([e]) => setNear(e.isIntersecting), { rootMargin: '90% 0px' });
+    // Within reach: mount in the next quiet moment. Out of reach again: let it go.
+    let quiet = 0;
+    const s = state.current;
+    const rest = () => {
+      if (quiet) window.clearTimeout(quiet);
+      quiet = 0;
+      if (!s.soon || s.early) return;
+      // How many screens away it is: the nearer film goes first.
+      const r = el.getBoundingClientRect();
+      const vh = window.innerHeight || 1;
+      const away = Math.max(0, (r.top - vh) / vh);
+      quiet = window.setTimeout(() => {
+        quiet = 0;
+        const go = () => {
+          if (!s.soon || s.early) return;
+          s.early = true;
+          setEarly(true);
+        };
+        if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(go, { timeout: 1200 });
+        else go();
+      }, QUIET_MS + away * STAGGER_MS);
+    };
+    // A hand on the page (the configurator above a film is worked with the pointer) is not a quiet moment either.
+    const busy = () => {
+      if (s.soon && !s.early) rest();
+    };
+    window.addEventListener('pointermove', busy, { passive: true });
+    window.addEventListener('pointerdown', busy, { passive: true });
+    window.addEventListener('keydown', busy);
+    const ioSoon = new IntersectionObserver(
+      ([e]) => {
+        s.soon = e.isIntersecting;
+        if (s.soon) rest();
+        else if (s.early) {
+          s.early = false;
+          setEarly(false);
+        }
+      },
+      // Below the viewport only: a film the visitor has passed is let go as before.
+      { rootMargin: `0px 0px ${reach * 100}% 0px` },
+    );
+    ioSoon.observe(el);
     const ioVisible = new IntersectionObserver(([e]) => {
       state.current.visible = e.isIntersecting;
       setVisible(e.isIntersecting);
@@ -237,12 +327,19 @@ export default function Film({
 
     const onScroll = () => {
       if (state.current.visible) measure();
+      // Still moving: the quiet moment starts over.
+      if (s.soon && !s.early) rest();
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
     measure();
 
     return () => {
+      if (quiet) window.clearTimeout(quiet);
+      window.removeEventListener('pointermove', busy);
+      window.removeEventListener('pointerdown', busy);
+      window.removeEventListener('keydown', busy);
+      ioSoon.disconnect();
       ioNear.disconnect();
       ioVisible.disconnect();
       window.removeEventListener('scroll', onScroll);
@@ -250,13 +347,102 @@ export default function Film({
       cancelAnimationFrame(state.current.raf);
       state.current.raf = 0;
     };
-  }, [progress, kick, preLen]);
+  }, [progress, kick, preLen, reach]);
+
+  /*
+   * A film that plays by itself. It starts when a visitor's own scroll (a
+   * wheel, a finger, a key in the last moment: not a link's glide past, not
+   * the scrollbar) brings the page down onto its pinned stage, and only if
+   * its picture is up. The page is held where it stands: the stage is
+   * pinned, so nothing jumps. It ends by its own clock, or when the hold
+   * lets go for any reason of its own, whichever is first.
+   */
+  const startPlay = useCallback(() => {
+    const pl = playing.current;
+    if (!play || pl.on) return;
+    pl.on = true;
+    const ms = play.seconds * 1000;
+    const end = () => {
+      if (!pl.on) return;
+      pl.on = false;
+      pl.done = true;
+      cancelAnimationFrame(pl.raf);
+      const let_go = pl.release;
+      pl.release = null;
+      let_go?.();
+      progress.target = progress.value = 1;
+      progress.listeners.forEach((fn) => fn(1));
+      progress.invalidate?.();
+      setPlayed(true);
+    };
+    pl.release = holdPage(window.scrollY, ms + 1200, end);
+    const t0 = performance.now();
+    const step = (now: number) => {
+      if (!pl.on) return;
+      const t = Math.min(1, (now - t0) / ms);
+      progress.target = progress.value = t;
+      progress.listeners.forEach((fn) => fn(t));
+      progress.invalidate?.();
+      if (t < 1) pl.raf = requestAnimationFrame(step);
+      else end();
+    };
+    pl.raf = requestAnimationFrame(step);
+  }, [play, progress]);
+
+  useEffect(() => {
+    if (!play) return;
+    const el = root.current;
+    const pin = sticky.current;
+    const pl = playing.current;
+    if (!el || !pin) return;
+    pl.lastY = window.scrollY;
+    const input = () => {
+      pl.input = performance.now();
+    };
+    const onScroll = () => {
+      const y = window.scrollY;
+      const down = y > pl.lastY;
+      pl.lastY = y;
+      if (!down || pl.on || pl.done || !pl.ready || state.current.reduced || performance.now() - pl.input > 600) return;
+      const r = el.getBoundingClientRect();
+      // On the pinned stage, with travel left under it.
+      if (r.top <= 0 && r.bottom - pin.offsetHeight > 8) startPlay();
+    };
+    window.addEventListener('wheel', input, { passive: true });
+    window.addEventListener('touchmove', input, { passive: true });
+    window.addEventListener('keydown', input);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('wheel', input);
+      window.removeEventListener('touchmove', input);
+      window.removeEventListener('keydown', input);
+      window.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(pl.raf);
+      pl.on = false;
+      pl.release?.();
+      pl.release = null;
+    };
+  }, [play, startPlay]);
+
+  /** Again, from the top of its stage. */
+  const replay = () => {
+    const el = root.current;
+    const pl = playing.current;
+    if (!el || pl.on) return;
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY + 2, behavior: 'instant' });
+    pl.done = false;
+    setPlayed(false);
+    startPlay();
+  };
 
   // A scene that unmounts when it is far away reports ready again when it comes back. One that stays mounted
   // (the hero) reports once, so its stage must not be hidden on the way out: it would never be shown again.
   useEffect(() => {
-    if (!near && !eager) setReady(false);
-  }, [near, eager]);
+    if (!near && !early && !eager) {
+      setReady(false);
+      playing.current.ready = false;
+    }
+  }, [near, early, eager]);
 
   useEffect(() => {
     kick();
@@ -286,10 +472,19 @@ export default function Film({
 
   const onReady = useCallback(() => {
     setReady(true);
+    const pl = playing.current;
+    pl.ready = true;
+    // The picture was not up when the visitor scrolled onto a film that plays by itself: it starts now, if they are still on it.
+    const el = root.current;
+    const pin = sticky.current;
+    if (play && el && pin && !pl.on && !pl.done && !state.current.reduced && performance.now() - pl.input < 1500) {
+      const r = el.getBoundingClientRect();
+      if (r.top <= 0 && r.bottom - pin.offsetHeight > 8) startPlay();
+    }
     performance.mark?.(`vee:film-ready:${id}`);
     onReadyProp?.();
     window.dispatchEvent(new CustomEvent('vee:film-ready', { detail: id }));
-  }, [onReadyProp, id]);
+  }, [onReadyProp, id, play, startPlay]);
 
   /* A step can switch the caption theme (a dark sky needs light text). */
   const stepTheme = steps[active].theme ?? theme;
@@ -300,7 +495,7 @@ export default function Film({
   }, [headerTheme]);
 
   // The hero stays mounted (`eager`) so its opening assembly does not replay.
-  const mount = hydrated && (eager || near);
+  const mount = hydrated && (eager || near || early);
   /*
    * One element for as long as its props hold. A change of caption re-renders
    * this component, and without this it re-rendered the whole 3D scene with it.
@@ -325,6 +520,7 @@ export default function Film({
         data-pre={preLen || undefined}
         data-chapter={chapter ?? id}
         data-step={steps[active].id}
+        data-play={play ? (played ? 'done' : '') : undefined}
         aria-labelledby={`${id}-heading`}
         style={{ '--film-len': len, '--film-len-c': lenC } as CSSProperties}
       >
@@ -337,13 +533,17 @@ export default function Film({
                 <span
                   key={l.id}
                   className={`lbl lbl--${l.kind ?? 'call'}`}
+                  data-label={l.id}
                   style={{ visibility: 'hidden' }}
                   ref={(el) => {
                     if (el) labelEls.current.set(l.id, el);
                     else labelEls.current.delete(l.id);
                   }}
                 >
-                  <span>{l.text}</span>
+                  <span>
+                    {l.sub && <small>{l.sub}</small>}
+                    {l.text}
+                  </span>
                 </span>
               ))}
             </div>
@@ -373,9 +573,14 @@ export default function Film({
                   aria-current={i === active ? 'step' : undefined}
                   aria-hidden={i === active ? undefined : true}
                 >
-                  <p className="t-label film__kicker">{s.kicker}</p>
+                  <p className="t-label film__kicker">
+                    {s.kicker}
+                    {s.badge && <span className="film__badge">{s.badge}</span>}
+                  </p>
                   <StepTitle className="film__title" data-long={s.title.length > 48 ? '' : undefined}>
-                    {captions === 'words'
+                    {stepTitles?.[s.id]
+                      ? stepTitles[s.id]
+                      : captions === 'words'
                       ? s.title.split(' ').map((w, k, all) => (
                           <Fragment key={k}>
                             <span className="film__word" style={{ '--w': k } as CSSProperties}>
@@ -399,6 +604,12 @@ export default function Film({
             </ol>
 
             {children}
+
+            {play && played && (
+              <button type="button" className="link film__replay" onClick={replay}>
+                Replay
+              </button>
+            )}
 
             <div className="film__ticks" role="group" aria-label={`${heading}: steps`}>
               {steps.map((s, i) => (

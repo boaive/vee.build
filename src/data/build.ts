@@ -63,7 +63,7 @@ export const manualKinds: { id: ManualKind; name: string; hint: string }[] = [
   { id: 'roof', name: addOns[6], hint: 'Click the roof of a top shell.' },
   { id: 'solar', name: addOns[7], hint: 'Click the roof of a top shell.' },
 ];
-/** Brief, 2.3: the High-Rise Block is five floors. G+4 is the ceiling. */
+/** Brief, 2.3: the tallest stack is five floors. G+4 is the ceiling. */
 export const MAX_FLOORS = 5;
 export const MAX_UNITS = 32;
 
@@ -155,7 +155,7 @@ export const presets: Preset[] = [
     note: s.floors,
     // Rows of turned shells: every door ends up on the street end (build/model.ts, doorFaces).
     units: s.modules.map((p) => U(p.t, p.x, p.z, p.y, p.t === 'A' ? 1 : 0)),
-    addOns: (s.id === 'highrise' ? ['handrail', 'shades', 'solar'] : ['deck', 'posts', 'spandrel', 'handrail', 'steps', 'shades']) as AddOnId[],
+    addOns: (s.id === 'midrise' ? ['handrail', 'shades', 'solar'] : ['deck', 'posts', 'spandrel', 'handrail', 'steps', 'shades']) as AddOnId[],
     deckSide: 0 as DeckSide,
   })),
 ];

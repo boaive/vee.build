@@ -1,99 +1,110 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useLayoutEffect, useMemo, useRef } from 'react';
-import { CatmullRomCurve3, Plane, TubeGeometry, Vector3, type BufferGeometry, type Group, type InstancedMesh, type Material, type Mesh } from 'three';
-import { presets } from '../../data/build';
-import { centred, extent, type Unit } from '../../build/model';
+import { BackSide, CatmullRomCurve3, MeshBasicMaterial, Object3D, Plane, TubeGeometry, Vector3, type BufferGeometry, type Group, type InstancedMesh, type Material, type Mesh } from 'three';
 import { shown, useBuild } from '../../build/store';
+import { FACTORY as T } from '../../film/factoryTimeline';
 import type { SceneProps } from '../../film/progress';
-import { clamp01, ease, hold, lerp, sampleCamera, stagger, track, win, type CameraKey } from '../../film/timeline';
-import Stage, { aim, useLabel, type Rig } from '../Stage';
-import { Pad } from '../kit/buildings';
+import { clamp01, ease, hold, lerp, sampleCamera, stagger, win, type CameraKey } from '../../film/timeline';
+import Stage, { aim, useLabel, useWarmAll, type Rig } from '../Stage';
 import { UNIT_BOX, box, cyl, memo, merge, mergeGroups, setInst } from '../kit/geometry';
-import { House } from '../kit/house';
-import { MobileCrane, TRUCK, Truck } from '../kit/machines';
+import { LIFT, MobileCrane, PUMP_OUTLET, Pump, TRUCK, Truck, prepareMachines } from '../kit/machines';
 import { instanced, mat, moduleMats } from '../kit/materials';
-import { jackBaseGeometry, jackScrewGeometry, moduleGeometry, moduleOpenings } from '../kit/parts';
+import { jackBaseGeometry, jackScrewGeometry, moduleGeometry } from '../kit/parts';
+import { HOOKS, SHELL, castRoofGeometry, castWallsGeometry, epsFloorGeometry, epsRoofGeometry, epsWallGeometry, frameGeometry, shellJoinery, wallBays, type FrameStage } from '../kit/shell';
 import { boxUV } from '../kit/textures';
 
 /**
- * Open-air factory, following the brief's sequence: gates → assembly bays
- * and adjustable piers → core shell and insulation panels → green formwork →
- * concreting → de-shuttering → finishing line; then dispatch, where a mobile
- * crane lifts the finished shell onto a truck that leaves by the gate.
- * Finished homes stand beside the shed, the visitor's own build among them.
+ * The factory: one shell made in one bay, start to finish, then lifted
+ * onto the truck. Redrawn on 2026-10-10 on the client's instruction; the
+ * order is theirs (film/factoryTimeline.ts):
  *
- * The whole tour is seen from above, at the angle it opens on (client,
- * 2026-10-07): the camera comes in over the gate and moves from station to
- * station without coming down to the ground. It looks up the production
- * line, so far is −x, near is +x and the right of the picture is −z. The
- * yard on the +z side of the line is kept clear: the captions stand there,
- * as plain text on the slab.
+ *   structural frame, with its four hooks → insulation panels, walls and
+ *   top → formwork → concrete, cast as walls → de-shuttering, which leaves
+ *   the openings empty → doors and windows → spray finish, in the same bay
+ *   → the crane lifts it by its four hooks onto the truck, lets go once it
+ *   is down, and the truck leaves.
  *
- * "Core shell" is the steel frame of the client's structure sequence (notes
- * H7, C3): the insulation panels stand round it, the formwork closes on
- * them and the concrete is cast between the two. Production runs over the
- * first 80% of the scroll; dispatch over the rest.
+ * The shell is the one "Componentized building" takes apart (kit/shell.ts):
+ * the same frame, the same panels, the same openings. Sprayed, it is the
+ * finished module every other film shows (kit/parts.ts, moduleGeometry).
+ *
+ * The yard is seen from above and from the side, on the diagonal, with the
+ * shell as its subject (the same instruction: "a more diagonal angle";
+ * before it was seen from above throughout, from 2026-10-07). The shell's
+ * front faces the camera's side of the yard; the picture's left, where the
+ * captions stand as plain text, is open slab. The yard is about half the
+ * size it was, and what stands in it besides the working bay stands still:
+ * a second shell with its panels going on, a third cast and curing, the
+ * finished ones in the shed. No gantry: parts are set as they are in
+ * section 3.
  */
 
-const PROD = 0.8;
-/** Production progress (0–1) from film progress. */
-const pp = (p: number) => Math.min(1, p / PROD);
+type V3 = [number, number, number];
+type Prog = { progress: { value: number } };
 
-const SHELL = { L: 6, D: 3, H: 3 };
-const PIER_H = 0.5;
-/** The line's bays along x: one already in formwork, the working bay, the finishing bay. */
-const QUEUE_X = -13;
-const BAY_X = 0;
-const FINISH_X = 13;
-/** A shell stands across the line: its 6 m front faces down the yard, to the gate and the camera. */
-const TURN = Math.PI / 2;
+/** The shell stands on four adjustable piers: its underside above the slab. */
+const BASE = 0.5;
+/** The slab runs on towards the viewer, out of the picture: the captions of a narrow screen stand on it. */
+const YARD = { x0: -32, x1: 30, z0: -31, z1: 46 };
+/** The truck's lane runs along the shell's front, to the gate in the right-hand wall. */
+const LANE = 7.6;
+const TRUCK_X = 5.2;
+/** The crane stands behind the bay and to its right, out of the shell's way until it is wanted. */
+const CRANE_AT: V3 = [3.5, 0, -12];
+/** The pump stands by the shell's front corner, its hopper end towards it. */
+const PUMP_AT: V3 = [3.9, 0, 4.1];
+const PUMP_TURN = 2.9;
+/** The spray gantry waits at the end of its rails, well past the shell's end. */
+const GANTRY = { park: 13.5, from: 3.9, to: -3.9, z: 2.45, h: 4.5 };
 
-const YARD = { x0: -52, x1: 46, z0: -40, z1: 36 };
-/** The gate is in the near wall, on the truck's lane. */
-const GATE_Z = -14;
-const TRUCK_Z = GATE_Z;
-const TRUCK_X = 30;
-/** The mobile crane stands clear of the gantry's rails, between the finishing bay and the lane. */
-const CRANE: [number, number, number] = [21.5, 0, -8.6];
-
-/** One viewing angle for the whole tour: where the camera stands from what it looks at. */
-const AZIMUTH = (78 * Math.PI) / 180;
-function shot(p: number, look: [number, number, number], distance: number, elevation = 36): CameraKey {
-  const e = (elevation * Math.PI) / 180;
-  return { p, look, pos: [look[0] + distance * Math.cos(e) * Math.sin(AZIMUTH), look[1] + distance * Math.sin(e), look[2] + distance * Math.cos(e) * Math.cos(AZIMUTH)] };
-}
-/*
- * The yard, then in over the gate, then bay by bay. At a station the
- * camera stands far enough back for the gantry, 9.6 m high over the bay,
- * to stay under the header.
- */
-const CAM: CameraKey[] = [
-  shot(0, [0, 0, -8], 150, 34),
-  shot(0.09, [8, 0, -9], 138, 34),
-  shot(0.16, [BAY_X, 1, 0], 44),
-  shot(0.248, [BAY_X, 2, 0], 48),
-  shot(0.4, [BAY_X, 2, 0], 44),
-  shot(0.512, [BAY_X + 1.5, 2, -1.5], 47),
-  shot(0.616, [BAY_X, 2, 0], 44),
-  shot(0.696, [6.5, 2.5, 0], 52),
-  shot(0.8, [FINISH_X, 2, -1], 46),
-  shot(0.9, [21, 3, -7], 58),
-  shot(1, [34, 2, -13], 70),
+/** One job per geometry, for building them in idle time before the film mounts (film/prefetch.ts). */
+export const prepare: (() => void)[] = [
+  ...prepareMachines,
+  ...(['floor', 'columns', 'top', 'hooks'] as FrameStage[]).map((s) => () => void frameGeometry(s)),
+  ...(['front', 'back', 'left', 'right'] as const).map((s) => () => void epsWallGeometry(s)),
+  () => void epsFloorGeometry(),
+  () => void epsRoofGeometry(),
+  () => void castWallsGeometry(),
+  () => void castRoofGeometry(),
+  () => void shellJoinery(),
+  () => void moduleGeometry('A'),
 ];
 
-type Prog = { progress: { value: number } };
-const one = () => 1;
-const zero = () => 0;
+/* ---------- Camera ---------- */
+
+/** A view: what it looks at, from how far, how high (degrees above the ground) and from which side (degrees from the front, towards the shell's right end). */
+function shot(p: number, look: V3, distance: number, elevation: number, azimuth: number): CameraKey {
+  const e = (elevation * Math.PI) / 180;
+  const a = (azimuth * Math.PI) / 180;
+  return { p, look, pos: [look[0] + distance * Math.cos(e) * Math.sin(a), look[1] + distance * Math.sin(e), look[2] + distance * Math.cos(e) * Math.cos(a)] };
+}
+/*
+ * The whole yard first, then in to the bay, and round it a little from
+ * stage to stage so that each is seen from where it shows best: the frame
+ * and the panels from the corner, the doors from nearer the front, the
+ * lift from farther back.
+ */
+const CAM: CameraKey[] = [
+  shot(0, [1, 1.2, -4], 60, 28, 33),
+  shot(0.075, [0, 1.5, 0], 31, 25, 41),
+  shot(0.18, [0, 1.8, 0], 28, 24, 45),
+  shot(0.32, [0, 1.9, 0], 27, 26, 36),
+  shot(0.412, [0, 1.9, 0], 28.5, 27, 43),
+  shot(0.545, [0.9, 1.9, 0.9], 31.5, 31, 46),
+  shot(0.668, [0, 1.9, 0], 27, 25, 38),
+  shot(0.742, [0.2, 1.8, 0.3], 23.5, 22, 29),
+  shot(0.845, [0.6, 2.0, 0], 28.5, 25, 40),
+  // The lift: back and up, so that the crane, the shell in the air and the trailer in front are all in the picture.
+  shot(0.91, [3.2, 3.4, 3.6], 45, 27, 30),
+  shot(0.972, [5.0, 2.6, 6.2], 41, 25, 33),
+  shot(1, [10.5, 2.2, 7.2], 41, 23, 31),
+];
 
 /* ---------- Yard ---------- */
 
-/**
- * The slab, with its texture at true scale. Plain: casting joints drawn as
- * blended lines over it cost about 0.7 ms of every frame on the test
- * laptop and could hardly be seen from this height.
- */
+/** The slab, with its texture at true scale. */
 function slab() {
-  return memo('factory-slab', () => {
+  return memo('factory-slab-v2', () => {
     const g = box(YARD.x1 - YARD.x0, 0.06, YARD.z1 - YARD.z0, (YARD.x0 + YARD.x1) / 2, -0.02, (YARD.z0 + YARD.z1) / 2);
     boxUV(g, 1);
     return g;
@@ -109,9 +120,9 @@ function gateLeaf() {
   });
 }
 
-/** Precast boundary wall in 4 m panels, with a 10 m gate opening in the near wall. */
+/** Precast boundary wall in 4 m panels on three sides, with the gate's opening on the lane. The side the yard is seen from is open. */
 function walls() {
-  return memo('factory-walls', () => {
+  return memo('factory-walls-v2', () => {
     const g: BufferGeometry[] = [];
     const runX = (x0: number, x1: number, z: number) => {
       for (let x = x0; x < x1 - 0.1; x += 4) g.push(box(Math.min(4, x1 - x) - 0.06, 2.6, 0.3, x + Math.min(4, x1 - x) / 2, 1.3, z));
@@ -120,30 +131,32 @@ function walls() {
       for (let z = z0; z < z1 - 0.1; z += 4) g.push(box(0.3, 2.6, Math.min(4, z1 - z) - 0.06, x, 1.3, z + Math.min(4, z1 - z) / 2));
     };
     runX(YARD.x0, YARD.x1, YARD.z0);
-    runX(YARD.x0, YARD.x1, YARD.z1);
     runZ(YARD.z0, YARD.z1, YARD.x0);
-    runZ(YARD.z0, GATE_Z - 5, YARD.x1);
-    runZ(GATE_Z + 5, YARD.z1, YARD.x1);
-    g.push(box(0.7, 3.4, 0.7, YARD.x1, 1.7, GATE_Z - 5.2), box(0.7, 3.4, 0.7, YARD.x1, 1.7, GATE_Z + 5.2));
+    runZ(YARD.z0, LANE - 5, YARD.x1);
+    runZ(LANE + 5, YARD.z1, YARD.x1);
+    g.push(box(0.7, 3.4, 0.7, YARD.x1, 1.7, LANE - 5.2), box(0.7, 3.4, 0.7, YARD.x1, 1.7, LANE + 5.2));
     return merge(g);
   });
 }
 
-/** Bay outlines and the truck's lane, painted on the slab. */
+/** Painted on the slab: the working bay, the two behind it, the truck's lane. With the rails the spray gantry runs on. Groups: 0 paint, 1 steel. */
 function markings() {
-  return memo('factory-markings', () => {
-    const g: BufferGeometry[] = [];
+  return memo('factory-markings-v2', () => {
+    const paint: BufferGeometry[] = [];
     const rect = (cx: number, cz: number, w: number, d: number) =>
-      g.push(box(w, 0.012, 0.1, cx, 0.02, cz - d / 2), box(w, 0.012, 0.1, cx, 0.02, cz + d / 2), box(0.1, 0.012, d, cx - w / 2, 0.02, cz), box(0.1, 0.012, d, cx + w / 2, 0.02, cz));
-    for (const x of [QUEUE_X, BAY_X, FINISH_X]) rect(x, 0, 5.4, 8.4);
-    for (const s of [-1, 1]) g.push(box(YARD.x1 - 19, 0.012, 0.14, (YARD.x1 + 19) / 2, 0.02, GATE_Z + s * 3.6));
-    return merge(g);
+      paint.push(box(w, 0.012, 0.1, cx, 0.02, cz - d / 2), box(w, 0.012, 0.1, cx, 0.02, cz + d / 2), box(0.1, 0.012, d, cx - w / 2, 0.02, cz), box(0.1, 0.012, d, cx + w / 2, 0.02, cz));
+    rect(0, 0, 9.4, 6.2);
+    for (const b of BACK) rect(b.at[0], b.at[2], 9.4, 6.2);
+    // The lane's lines stop short of the picture's left, where the captions stand.
+    for (const s of [-1, 1]) paint.push(box(YARD.x1 + 1.5, 0.012, 0.14, (YARD.x1 - 1.5) / 2, 0.02, LANE + s * 2.1));
+    const rails = [-1, 1].map((s) => box(GANTRY.park - GANTRY.to + 2.4, 0.05, 0.07, (GANTRY.park + GANTRY.to) / 2, 0.025, s * GANTRY.z));
+    return mergeGroups([paint, rails]);
   });
 }
 
-/** Open-fronted portal-frame shed. Groups: 0 cladding, 1 steel. */
-function warehouse(w: number, d: number, h: number) {
-  return memo(`warehouse-${w}-${d}-${h}`, () => {
+/** Open-fronted portal-frame shed, its open side to +z. Groups: 0 cladding, 1 steel. */
+function shed(w: number, d: number, h: number) {
+  return memo(`shed-${w}-${d}-${h}`, () => {
     const clad = [box(w, h, 0.2, 0, h / 2, -d / 2), box(0.2, h, d, -w / 2, h / 2, 0), box(0.2, h, d, w / 2, h / 2, 0)];
     const pitch = 0.16;
     for (const s of [-1, 1]) {
@@ -152,12 +165,9 @@ function warehouse(w: number, d: number, h: number) {
       p.translate(0, h + Math.tan(pitch) * (d / 4) + 0.1, (-s * d) / 4);
       clad.push(p);
     }
-    for (let i = 0; i <= Math.round(d / 1.2); i++) {
-      const z = -d / 2 + i * 1.2;
-      clad.push(box(0.08, h, 0.06, -w / 2 - 0.12, h / 2, z), box(0.08, h, 0.06, w / 2 + 0.12, h / 2, z));
-    }
-    const steel = [box(w, 0.7, 0.45, 0, h - 0.35, d / 2)];
-    for (let i = 0; i <= Math.round(w / 6); i++) steel.push(box(0.45, h, 0.45, -w / 2 + (i * w) / Math.round(w / 6), h / 2, d / 2));
+    const steel = [box(w, 0.6, 0.4, 0, h - 0.3, d / 2)];
+    const bays = Math.round(w / 6);
+    for (let i = 0; i <= bays; i++) steel.push(box(0.4, h, 0.4, -w / 2 + (i * w) / bays, h / 2, d / 2));
     return mergeGroups([clad, steel]);
   });
 }
@@ -172,50 +182,75 @@ function batching() {
   });
 }
 
-const SHED = { x: -40, z: -4, w: 36, d: 22, h: 9 };
+const SHED = { x: -12, z: -25, w: 30, d: 11, h: 8 };
 const shedMats = [mat.sheeting, mat.steel];
 const plantMats = [mat.paint, mat.paintDark];
+const markMats = [mat.marking, mat.galv];
+
+/**
+ * What else is going on in the yard, standing still (client, 2026-10-10:
+ * "active rather than empty"; static, so it costs the picture nothing while
+ * the working bay moves): a shell with its frame up and its panels going
+ * on, and one cast and curing, waiting for its doors.
+ */
+const BACK: { at: V3; stage: 'panels' | 'cast' }[] = [
+  { at: [-17, 0, -15], stage: 'panels' },
+  { at: [-8, 0, -19], stage: 'cast' },
+];
+
+/** A shell part way through the line, as few pieces as it can be. Origin on the slab under its middle. */
+function backShell(stage: 'panels' | 'cast') {
+  const stand = memo('back-stand', () => merge([-1, 1].flatMap((sx) => [-1, 1].map((sz) => box(0.5, BASE, 0.5, sx * 2.5, BASE / 2, sz * 1.15)))));
+  const lift = (g: BufferGeometry) => {
+    const c = g.clone();
+    c.translate(0, BASE, 0);
+    return c;
+  };
+  if (stage === 'panels')
+    return {
+      stand,
+      steel: memo('back-frame', () => merge((['floor', 'columns', 'top', 'hooks'] as FrameStage[]).map((s) => lift(frameGeometry(s))))),
+      // The floor, the back wall and one end are in; the rest of the panels wait in a stack beside the bay.
+      panel: memo('back-panels', () => merge([lift(epsFloorGeometry()), lift(epsWallGeometry('back')), lift(epsWallGeometry('left')), box(2.8, 0.84, 1.0, 4.9, 0.5, 1.6), box(0.96, 0.24, 2.7, 4.9, 0.2, -1.4)])),
+      cast: null,
+    };
+  return {
+    stand,
+    steel: memo('back-hooks', () => lift(frameGeometry('hooks'))),
+    panel: memo('back-reveals', () => merge((['front', 'back', 'left', 'right'] as const).map((f) => lift(epsWallGeometry(f))))),
+    cast: memo('back-cast', () => {
+      const roof = castRoofGeometry().clone();
+      roof.translate(0, SHELL.roofTop, 0);
+      return merge([lift(castWallsGeometry()), lift(roof)]);
+    }),
+  };
+}
 
 function Yard({ progress }: Prog) {
   const leaves = useRef<(Mesh | null)[]>([]);
-  const active = useRef<Group>(null);
   const stock = useRef<InstancedMesh>(null);
   const stockMats = useMemo(() => moduleMats(), []);
 
-  // Finished shells in stock, stacked two high: placed once.
+  // Finished shells in the shed, two high: placed once.
   useLayoutEffect(() => {
     const s = stock.current;
     if (!s) return;
     let i = 0;
-    for (let lvl = 0; lvl < 2; lvl++) for (let c = 0; c < 3; c++) setInst(s, i++, -6 + c * 4.4, lvl * 3, -33, TURN);
+    for (let lvl = 0; lvl < 2; lvl++) for (let c = 0; c < 3; c++) setInst(s, i++, SHED.x - 7 + c * 7, 0.3 + lvl * 3.05, SHED.z - 0.5, 0);
     s.instanceMatrix.needsUpdate = true;
   }, []);
 
   useFrame(() => {
-    const p = progress.value;
-    const open = win(p, 0.035, 0.085, ease.inOutCubic);
-    leaves.current.forEach((m, i) => m && (m.position.z = GATE_Z + (i ? 1 : -1) * (2.5 + open * 5.1)));
-    // Brief: "assembly bays activation" — the working bay is outlined.
-    if (active.current) {
-      const on = win(pp(p), 0.13, 0.185, ease.out);
-      active.current.visible = on > 0.001;
-      active.current.scale.set(on, 1, on);
-    }
+    // The gate opens for the truck and stays open.
+    const open = win(progress.value, T.truck.in[0] - 0.035, T.truck.in[0], ease.inOutCubic);
+    leaves.current.forEach((m, i) => m && (m.position.z = LANE + (i ? 1 : -1) * (2.5 + open * 5.1)));
   });
 
   return (
     <>
       <mesh geometry={slab()} material={mat.yard} receiveShadow />
       <mesh geometry={walls()} material={mat.concrete} castShadow receiveShadow />
-      <mesh geometry={markings()} material={mat.marking} receiveShadow />
-      <group ref={active} position={[BAY_X, 0.03, 0]} visible={false}>
-        {[-1, 1].map((s) => (
-          <mesh key={`z${s}`} geometry={UNIT_BOX} material={mat.accent} scale={[0.07, 0.012, 7.7]} position-x={s * 2.35} />
-        ))}
-        {[-1, 1].map((s) => (
-          <mesh key={`x${s}`} geometry={UNIT_BOX} material={mat.accent} scale={[4.77, 0.012, 0.07]} position-z={s * 3.85} />
-        ))}
-      </group>
+      <mesh geometry={markings()} material={markMats} receiveShadow />
       {[0, 1].map((i) => (
         <mesh
           key={i}
@@ -224,73 +259,43 @@ function Yard({ progress }: Prog) {
           }}
           geometry={gateLeaf()}
           material={mat.steel}
-          position={[YARD.x1 + 0.4, 0, GATE_Z + (i ? 2.5 : -2.5)]}
+          position={[YARD.x1 + 0.4, 0, LANE + (i ? 2.5 : -2.5)]}
           castShadow
         />
       ))}
-      {/* The shed stands at the far end, open towards the yard. */}
-      <group position={[SHED.x, 0, SHED.z]} rotation-y={TURN}>
-        <mesh geometry={warehouse(SHED.w, SHED.d, SHED.h)} material={shedMats} castShadow receiveShadow />
-        <mesh geometry={memo('shed-stock', () => merge([0, 1, 2, 3].map((i) => box(5.6, 0.25 + i * 0.2, 2.4, -10.5 + i * 7, 0.15 + i * 0.1, 0))))} material={mat.panel} castShadow receiveShadow />
-      </group>
-      <mesh geometry={batching()} material={plantMats} position={[26, 0, -34]} castShadow receiveShadow />
+      <mesh geometry={shed(SHED.w, SHED.d, SHED.h)} material={shedMats} position={[SHED.x, 0, SHED.z]} castShadow receiveShadow />
+      <mesh geometry={batching()} material={plantMats} position={[19, 0, -25]} castShadow receiveShadow />
       <instancedMesh ref={stock} args={[moduleGeometry('A'), instanced(stockMats), 6]} castShadow receiveShadow frustumCulled={false} />
+      {BACK.map((b) => {
+        const g = backShell(b.stage);
+        return (
+          <group key={b.stage} position={b.at}>
+            <mesh geometry={g.stand} material={mat.steel} castShadow />
+            <mesh geometry={g.steel} material={mat.frameSteel} castShadow />
+            <mesh geometry={g.panel} material={mat.panel} castShadow receiveShadow />
+            {g.cast && <mesh geometry={g.cast} material={mat.cast} castShadow receiveShadow />}
+          </group>
+        );
+      })}
     </>
   );
 }
 
-/* ---------- Finished homes beside the shed ---------- */
-
-const POD_PRESET = presets.find((p) => p.id === 'the-pod')!;
-const POD: Unit[] = centred(POD_PRESET.units).map((s, i) => ({ ...s, id: i + 1 }));
-const POD_FIT = extent(POD);
-/** Beside the shed, at the far end: in the opening picture, and out of the way of the stations after it. */
-const SHOW: [number, number] = [-38, -31];
-const SHOW_POD: [number, number] = [-24, -33];
-
-function ShowHomes({ progress, label, rig }: Prog & { label: ReturnType<typeof useLabel>; rig: Rig }) {
-  const state = useBuild((s) => s);
-  const view = useMemo(() => shown(state), [state]);
-  const fit = useMemo(() => extent(view.units, view.base), [view.units, view.base]);
-
-  useFrame(() => {
-    label('your-build', SHOW[0], fit.h + 1.4, SHOW[1], hold(progress.value, -0.1, 0.045, 0.02));
-  });
-
-  return (
-    <>
-      {/* Fronts to the yard, like the shells on the line. */}
-      <Pad w={Math.max(12, fit.w + 6)} d={Math.max(10, fit.d + 6)} r={0.4} x={SHOW[0]} z={SHOW[1]} y={0.02} rot={TURN} material={mat.gravel} />
-      <group position={[SHOW[0], 0.08, SHOW[1]]} rotation-y={TURN}>
-        <group position={[-fit.cx, 0, -fit.cz]}>
-          <House units={view.units} addOns={view.addOns} deckSide={view.deckSide} manual={view.manual} shellHex={view.shellHex} deckHex={view.deckHex} trimHex={view.trimHex} foundation={view.foundation} look={rig.look} plot={view.plot} />
-        </group>
-      </group>
-      <Pad w={12} d={9} r={0.4} x={SHOW_POD[0]} z={SHOW_POD[1]} y={0.02} rot={TURN} material={mat.gravel} />
-      <group position={[SHOW_POD[0], 0.08, SHOW_POD[1]]} rotation-y={TURN}>
-        <group position={[-POD_FIT.cx, 0, -POD_FIT.cz]}>
-          <House units={POD} addOns={POD_PRESET.addOns} deckSide="auto" shellHex={view.shellHex} deckHex={view.deckHex} trimHex={view.trimHex} look={rig.look} />
-        </group>
-      </group>
-    </>
-  );
-}
-
-/* ---------- A bay: piers, insulation, formwork (on the bay's own plan: x along the shell) ---------- */
+/* ---------- The bay: piers ---------- */
 
 /**
  * Four adjustable piers. Brief: they "position dynamically": each one
  * travels out from the middle of the bay to its corner, then its head is
  * screwed up to a common level.
  */
-function Piers({ getT }: { getT: () => number }) {
+function Piers({ progress }: Prog) {
   const bases = useRef<InstancedMesh>(null);
   const screws = useRef<InstancedMesh>(null);
   const last = useRef(-1);
   useFrame(() => {
     const b = bases.current;
     const s = screws.current;
-    const t = getT();
+    const t = win(progress.value, T.piers[0], T.piers[1], ease.linear);
     if (!b || !s || t === last.current) return;
     last.current = t;
     let i = 0;
@@ -303,7 +308,7 @@ function Piers({ getT }: { getT: () => number }) {
         const z = sz * lerp(0.35, 1.15, out);
         const sc = ti <= 0 ? 0.0001 : 2.1 * Math.min(1, ti * 8);
         setInst(b, i, x, 0, z, 0, sc);
-        setInst(s, i, x, PIER_H - (1 - adjust) * 0.14, z, adjust * Math.PI * 4, sc * 0.8, sc * 0.62, sc * 0.8);
+        setInst(s, i, x, BASE - (1 - adjust) * 0.14, z, adjust * Math.PI * 4, sc * 0.8, sc * 0.62, sc * 0.8);
         i++;
       }
     b.instanceMatrix.needsUpdate = true;
@@ -317,490 +322,453 @@ function Piers({ getT }: { getT: () => number }) {
   );
 }
 
-/** Perimeter positions for sheet goods standing around the shell: [x, z, rotY, width]. */
-function perimeter(offset: number, across: number, along: number): [number, number, number, number][] {
-  const out: [number, number, number, number][] = [];
-  const w = SHELL.L / along;
-  for (const sz of [1, -1]) for (let i = 0; i < along; i++) out.push([-SHELL.L / 2 + w * (i + 0.5), sz * (SHELL.D / 2 + offset), sz > 0 ? 0 : Math.PI, w]);
-  const d = SHELL.D / across;
-  for (const sx of [1, -1]) for (let i = 0; i < across; i++) out.push([sx * (SHELL.L / 2 + offset), -SHELL.D / 2 + d * (i + 0.5), sx * (Math.PI / 2), d]);
-  return out;
-}
+/* ---------- The shell, stage by stage ---------- */
 
-const INSULATION = perimeter(-0.11, 3, 6);
-const BOARDS = perimeter(0.035, 3, 6);
-
-/** White insulation panels drop into the slots round the core shell; the concrete then closes over them. */
-function Insulation({ progress }: Prog) {
-  const ref = useRef<InstancedMesh>(null);
-  const last = useRef(-1);
-  useFrame(() => {
-    const m = ref.current;
-    if (!m) return;
-    const q = pp(progress.value);
-    const cast = q > 0.672;
-    const t = cast ? -2 : win(q, 0.345, 0.405, ease.linear);
-    if (t === last.current) return;
-    last.current = t;
-    m.visible = !cast && t > 0;
-    INSULATION.forEach(([x, z, ry, w], i) => {
-      const ti = stagger(t, i, INSULATION.length, 0.75);
-      const sc = ti <= 0 ? 0.0001 : 1;
-      setInst(m, i, x, PIER_H + 0.12 + 1.36 + (1 - ease.outQuart(ti)) * 5, z, ry, (w - 0.03) * sc, 2.72 * sc, 0.06 * sc);
-    });
-    m.instanceMatrix.needsUpdate = true;
-  });
-  return <instancedMesh ref={ref} args={[UNIT_BOX, instanced(mat.panel), INSULATION.length]} visible={false} castShadow receiveShadow frustumCulled={false} />;
+/** A piece that is set in place: where it comes from, and over which stretch of the film. */
+interface Piece {
+  key: string;
+  geo: BufferGeometry;
+  mat: Material | Material[];
+  from: V3;
+  win: readonly [number, number];
+  /**
+   * Gone from sight once it cannot be seen: `in`, what is inside the walls,
+   * when the boards have closed round them; `under`, what lies under the
+   * roof's concrete, when that has been laid.
+   */
+  hid?: 'in' | 'under';
+  /** Fitted, not dropped: slides home at full size. */
+  slide?: boolean;
 }
+const part = ([a, b]: readonly [number, number], from: number, to: number): [number, number] => [a + (b - a) * from, a + (b - a) * to];
+
+/** The formwork's green boards: one a bay, standing just clear of where the concrete's face will be. */
+const SHUTTERS = wallBays().map((w) => ({
+  x: w.pos[0] + w.out[0] * (SHELL.eps / 2 + SHELL.coat + 0.012),
+  z: w.pos[2] + w.out[2] * (SHELL.eps / 2 + SHELL.coat + 0.012),
+  turn: Math.atan2(w.out[0], w.out[2]),
+  width: w.width / SHELL.bay,
+  nx: w.out[0],
+  nz: w.out[2],
+}));
+/** The order they close in, and come off in: round the shell from the corner nearest the camera. */
+const ROUND = SHUTTERS.map((s, i) => ({ i, a: (Math.atan2(s.z, s.x) - Math.atan2(1.5, 3) + Math.PI * 4) % (Math.PI * 2) }))
+  .sort((p, q) => p.a - q.a)
+  .map((o) => o.i);
+const RANK = SHUTTERS.map((_, i) => ROUND.indexOf(i));
 
 /**
- * Bright green formwork boards (brief). `getOut` 1→0 as they close in from
- * all four sides, and two steel walers then lock round them; `getDrop` 0→1
- * as the walers come off and the boards fall away.
+ * One board of the formwork, a bay wide, standing on its foot with its
+ * face at z = 0 and its back to +z: a green ply face on two steel
+ * soldiers, with a push-pull prop down to the slab. Groups: 0 the green
+ * face, 1 steel.
  */
-function Boards({ getOut, getDrop }: { getOut: () => number; getDrop: () => number }) {
+function shutterGeometry() {
+  return memo('shutter-v2', () => {
+    const h = SHELL.roofTop + 0.16;
+    const face = [box(SHELL.bay - 0.012, h, 0.02, 0, h / 2 - 0.04, 0.01)];
+    const steel: BufferGeometry[] = [];
+    for (const x of [-0.3, 0.3]) steel.push(box(0.06, h, 0.09, x, h / 2 - 0.04, 0.065));
+    for (const y of [0.3, 1.5, 2.7]) steel.push(box(SHELL.bay - 0.05, 0.05, 0.04, 0, y, 0.04));
+    const prop = box(0.045, 2.7, 0.045);
+    prop.rotateX(-0.5);
+    prop.translate(0, 1.18 - BASE, 0.11 + 0.65);
+    steel.push(prop, box(0.22, 0.03, 0.22, 0, -BASE + 0.015, 0.11 + 1.3));
+    return mergeGroups([face, steel]);
+  });
+}
+const shutterMats = [mat.formwork, mat.steel];
+const _o = new Object3D();
+
+/**
+ * The boards close on the panels from all round, two steel walers lock
+ * round them, and after the pour the walers come off and each board is
+ * eased back and lifted away, round the shell in turn.
+ */
+function Formwork({ progress }: Prog) {
   const ref = useRef<InstancedMesh>(null);
   const walers = useRef<InstancedMesh>(null);
-  const last = useRef({ out: -1, drop: -1 });
+  const last = useRef(-1);
+  const boards = useMemo(() => instanced(shutterMats), []);
   useFrame(() => {
     const m = ref.current;
     const wl = walers.current;
+    const p = progress.value;
     if (!m || !wl) return;
-    const out = getOut();
-    const drop = getDrop();
-    if (out === last.current.out && drop === last.current.drop) return;
-    last.current.out = out;
-    last.current.drop = drop;
-    m.visible = out < 1 && drop < 1;
-    BOARDS.forEach(([x, z, ry, w], i) => {
-      const o = stagger(1 - out, i, BOARDS.length, 0.8);
-      const d = ease.in(stagger(drop, i, BOARDS.length, 0.7));
-      const push = (1 - ease.outQuart(o)) * 3.2 + d * 1.5;
-      const nx = Math.sin(ry);
-      const nz = Math.cos(ry);
-      const sc = o <= 0 || d >= 1 ? 0.0001 : 1;
-      setInst(m, i, x + nx * push, PIER_H + 1.55 - d * 1.6, z + nz * push, ry, (w - 0.02) * sc, 3.1 * sc * (1 - d * 0.5), 0.07 * sc);
+    const here = p > T.form.close[0] - 0.002 && p < T.strip.off[1] + 0.002;
+    m.visible = here;
+    wl.visible = here;
+    if (!here || p === last.current) return;
+    last.current = p;
+    const close = win(p, T.form.close[0], T.form.close[1], ease.linear);
+    const off = win(p, T.strip.off[0], T.strip.off[1], ease.linear);
+    SHUTTERS.forEach((s, i) => {
+      const c = ease.outQuart(stagger(close, RANK[i], SHUTTERS.length, 0.72));
+      const o = stagger(off, RANK[i], SHUTTERS.length, 0.68);
+      // Coming off: eased back from the concrete and tipped, then lifted clear.
+      const back = ease.out(clamp01(o / 0.35));
+      const away = ease.in(clamp01((o - 0.3) / 0.7));
+      const push = (1 - c) * 3.4 + back * 0.55 + away * 1.6;
+      const size = c <= 0 || o >= 1 ? 0.0001 : 1 - clamp01((o - 0.78) / 0.22) * 0.999;
+      _o.position.set(s.x + s.nx * push, BASE + away * 6.5, s.z + s.nz * push);
+      _o.rotation.set(back * 0.16, s.turn, 0, 'YXZ');
+      _o.scale.set(s.width * size, size, size);
+      _o.updateMatrix();
+      m.setMatrixAt(i, _o.matrix);
     });
     m.instanceMatrix.needsUpdate = true;
-    // The walers run on once the last board is home, and come off before the first one falls.
-    const lock = ease.out(clamp01((0.1 - out) / 0.1)) * (1 - clamp01(drop / 0.05));
-    wl.visible = lock > 0.001;
-    let i = 0;
-    for (const y of [1.0, 2.6]) {
-      for (const sz of [1, -1]) setInst(wl, i++, 0, PIER_H + y, sz * (SHELL.D / 2 + 0.11), 0, Math.max(0.0001, (SHELL.L + 0.4) * lock), 0.09, 0.07);
-      for (const sx of [1, -1]) setInst(wl, i++, sx * (SHELL.L / 2 + 0.11), PIER_H + y, 0, 0, 0.07, 0.09, Math.max(0.0001, (SHELL.D + 0.4) * lock));
+    // The walers run on once the last board is home, and come off before the first one moves.
+    const lock = win(p, T.form.lock[0], T.form.lock[1], ease.out) * (1 - win(p, T.strip.unlock[0], T.strip.unlock[1], ease.inOut));
+    const ox = SHELL.outer.x + 0.16;
+    const oz = SHELL.outer.z + 0.16;
+    let k = 0;
+    for (const y of [0.95, 2.45]) {
+      for (const sz of [1, -1]) setInst(wl, k++, 0, BASE + y, sz * oz, 0, Math.max(0.0001, (ox * 2 + 0.3) * lock), 0.1, 0.07);
+      for (const sx of [1, -1]) setInst(wl, k++, sx * ox, BASE + y, 0, 0, 0.07, 0.1, Math.max(0.0001, (oz * 2 + 0.3) * lock));
     }
     wl.instanceMatrix.needsUpdate = true;
   });
   return (
     <>
-      <instancedMesh ref={ref} args={[UNIT_BOX, instanced(mat.formwork), BOARDS.length]} castShadow receiveShadow frustumCulled={false} />
-      <instancedMesh ref={walers} args={[UNIT_BOX, instanced(mat.steel), 8]} castShadow frustumCulled={false} />
+      <instancedMesh ref={ref} args={[shutterGeometry(), boards, SHUTTERS.length]} visible={false} castShadow receiveShadow frustumCulled={false} />
+      <instancedMesh ref={walers} args={[UNIT_BOX, instanced(mat.steel), 8]} visible={false} castShadow frustumCulled={false} />
     </>
   );
 }
 
-/* ---------- Concreting: the pump and its hose ---------- */
-
-function pumpGeometry() {
-  return memo('pump', () => {
-    const hopper = cyl(0.62, 0.3, 0.55, 4, -0.55, 1.2, 0);
-    hopper.rotateY(Math.PI / 4);
-    const wheels = [-1, 1].flatMap((sx) =>
-      [-1, 1].map((sz) => {
-        const w = cyl(0.26, 0.26, 0.16, 14);
-        w.rotateX(Math.PI / 2);
-        w.translate(sx * 0.6, 0.26, sz * 0.52);
-        return w;
-      }),
-    );
-    return merge([box(1.9, 0.62, 0.9, 0, 0.66, 0), hopper, box(0.5, 0.5, 0.6, 0.6, 1.2, 0), box(0.06, 0.6, 0.06, -1.25, 0.5, 0), ...wheels]);
-  });
-}
-
-/** The pump stands in front of the bay, on the lane side; its hose goes up and over the formwork. */
-const PUMP_AT = new Vector3(BAY_X + 6.4, 0, -5);
-const POUR_TOP = PIER_H + SHELL.H + 0.15;
-const HOSE = new CatmullRomCurve3([
-  new Vector3(PUMP_AT.x - 0.1, 1.4, PUMP_AT.z),
-  new Vector3(PUMP_AT.x - 0.5, 3.3, PUMP_AT.z + 0.2),
-  new Vector3(BAY_X + 4.1, 4.9, -3.9),
-  new Vector3(BAY_X + 2.3, 4.7, -2.9),
-  new Vector3(BAY_X + 1.3, POUR_TOP, -2.4),
-]);
-
-function Concreting({ progress }: Prog) {
-  const pump = useRef<Mesh>(null);
-  const hose = useRef<Mesh>(null);
-  const geo = useMemo(() => memo('factory-hose', () => new TubeGeometry(HOSE, 48, 0.06, 8)), []);
-  const total = geo.index?.count ?? 0;
-
-  useFrame(() => {
-    const q = pp(progress.value);
-    // It drives in from the lane, pumps, and drives off again.
-    const here = hold(q, 0.55, 0.7, 0.035);
-    if (pump.current) {
-      pump.current.visible = here > 0.001;
-      pump.current.position.set(PUMP_AT.x + (1 - here) * 14, 0, PUMP_AT.z - (1 - here) * 5);
-    }
-    const reach = hold(q, 0.585, 0.672, 0.02);
-    if (hose.current) {
-      hose.current.visible = reach > 0.001;
-      geo.setDrawRange(0, Math.floor((total * reach) / 3) * 3);
-    }
-  });
-
-  return (
-    <>
-      <mesh ref={pump} geometry={pumpGeometry()} material={mat.yellow} rotation-y={-0.35} visible={false} castShadow receiveShadow />
-      <mesh ref={hose} geometry={geo} material={mat.rubber} visible={false} castShadow />
-    </>
+/** The delivery line from the pump: along the slab, up the face of the formwork and over its edge onto the roof. */
+const HOSE = (() => {
+  const c = Math.cos(PUMP_TURN);
+  const s = Math.sin(PUMP_TURN);
+  const out = new Vector3(PUMP_AT[0] + PUMP_OUTLET[0] * c, PUMP_OUTLET[1], PUMP_AT[2] - PUMP_OUTLET[0] * s);
+  const top = BASE + SHELL.roofTop;
+  return new CatmullRomCurve3(
+    [
+      out,
+      new Vector3(out.x - 0.3, 0.14, out.z - 0.4),
+      new Vector3(1.94, 0.1, 2.6),
+      new Vector3(1.92, BASE + 0.4, 1.8),
+      new Vector3(1.92, BASE + 2.1, 1.71),
+      new Vector3(1.92, top + 0.22, 1.66),
+      new Vector3(1.82, top + 0.3, 1.25),
+      new Vector3(1.45, top + 0.12, 0.7),
+      new Vector3(0.9, top + 0.09, 0.35),
+    ],
+    false,
+    'catmullrom',
+    0.35,
   );
-}
-
-/* ---------- Gantry: places the core shell, carries the cast shell to finishing ---------- */
-
-const PARK = -27;
-const RAIL_Z = 7.4;
-const GANTRY_X = [
-  [0.16, PARK],
-  [0.255, BAY_X],
-  [0.345, BAY_X],
-  [0.41, PARK],
-  [0.76, PARK],
-  [0.815, BAY_X],
-  [0.842, BAY_X],
-  [0.878, FINISH_X],
-  [0.9, FINISH_X],
-  [0.94, PARK],
-] as const;
-const LOAD_TOP = PIER_H + SHELL.H;
-const CORE = { L: 5.56, D: 2.56, H: 2.72, base: PIER_H + 0.14 };
-const CORE_LIFT = [
-  [0.255, 6],
-  [0.335, 0],
-] as const;
-const SHELL_LIFT = [
-  [0.825, 0],
-  [0.845, 2.6],
-  [0.874, 2.6],
-  [0.894, 0],
-] as const;
+})();
 
 /**
- * The core shell (notes H7): a steel frame of square corner columns, a ring
- * beam top and bottom, a cross beam at mid-span and the floor joists. On
- * the bay's own plan, standing on its underside.
+ * The inside of the shell, once its roof is on and the boards have closed
+ * round it: a room in shadow. Seen through the openings when the boards
+ * come off, it is what makes them read as empty, and the shell as hollow
+ * (client, 2026-10-10: "do not make the entire interior a solid concrete
+ * mass"). The white panels behind it, lit as if they stood in the open,
+ * made each opening look filled in.
  */
-function coreFrame() {
-  return memo('core-frame', () => {
-    const { L, D, H } = CORE;
-    const c = 0.12;
-    const g: BufferGeometry[] = [];
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.push(box(c, H, c, sx * (L / 2 - c / 2), H / 2, sz * (D / 2 - c / 2)));
-    for (const y of [c / 2, H - c / 2]) {
-      for (const sz of [-1, 1]) g.push(box(L - c * 2, c, c, 0, y, sz * (D / 2 - c / 2)));
-      for (const sx of [-1, 1]) g.push(box(c, c, D - c * 2, sx * (L / 2 - c / 2), y, 0));
-    }
-    g.push(box(c, c, D - c * 2, 0, H - c / 2, 0));
-    for (let i = 1; i < 10; i++) g.push(box(0.07, 0.1, D - c * 2, -L / 2 + (i * L) / 10, 0.05, 0));
-    return merge(g);
-  });
-}
-
-function gantryFrame() {
-  return memo('gantry', () => {
-    const g = [box(0.9, 1, 16, 0, 9.6, 0)];
-    for (const sz of [-1, 1]) {
-      g.push(box(3.4, 0.45, 0.45, 0, 0.5, sz * RAIL_Z), box(3.2, 0.4, 0.4, 0, 9.3, sz * RAIL_Z));
-      for (const sx of [-1, 1]) {
-        const leg = box(0.34, 9.2, 0.34);
-        leg.rotateZ(sx * -0.13);
-        leg.translate(sx * 0.9, 4.9, sz * RAIL_Z);
-        g.push(leg);
-      }
-    }
-    return merge(g);
-  });
-}
-
-/** The two rails the gantry runs on, as one mesh. */
-function rails() {
-  return memo('gantry-rails-v2', () => merge([-1, 1].map((s) => box(FINISH_X + 3.5 - (PARK - 5), 0.1, 0.22, (FINISH_X + 3.5 + PARK - 5) / 2, 0.06, s * RAIL_Z))));
-}
-
-function Gantry({ progress, label }: Prog & { label: ReturnType<typeof useLabel> }) {
-  const group = useRef<Group>(null);
-  const cable = useRef<Mesh>(null);
-  const block = useRef<Mesh>(null);
-  const core = useRef<Mesh>(null);
-
-  useFrame(() => {
-    const q = pp(progress.value);
-    const x = track(q, GANTRY_X);
-    if (group.current) group.current.position.x = x;
-
-    const carryingCore = q < 0.345;
-    const coreLift = track(q, CORE_LIFT);
-    const shellLift = track(q, SHELL_LIFT);
-    const coreTop = CORE.base + CORE.H;
-    // Hook rides the load when attached, parks high otherwise.
-    let hookY = 8;
-    if (q > 0.23 && carryingCore) hookY = coreTop + coreLift;
-    else if (q >= 0.345 && q < 0.37) hookY = coreTop + win(q, 0.345, 0.37) * (8 - coreTop);
-    else if (q >= 0.8 && q < 0.825) hookY = 8 - win(q, 0.8, 0.825) * (8 - LOAD_TOP);
-    else if (q >= 0.825 && q < 0.894) hookY = LOAD_TOP + shellLift;
-    else if (q >= 0.894 && q < 0.92) hookY = LOAD_TOP + win(q, 0.894, 0.92) * (8 - LOAD_TOP);
-
-    if (cable.current) {
-      cable.current.scale.y = Math.max(0.01, 9.1 - hookY);
-      cable.current.position.y = (9.1 + hookY) / 2;
-    }
-    if (block.current) block.current.position.y = hookY + 0.18;
-
-    // The frame stays in the wall: once the concrete has closed over it, it is no longer drawn.
-    if (core.current) {
-      core.current.visible = q > 0.23 && q < 0.69;
-      core.current.position.set(carryingCore ? x : BAY_X, CORE.base + (carryingCore ? coreLift : 0), 0);
-    }
-    label('core', BAY_X + 0.2, coreTop + (carryingCore ? coreLift : 0), -1.5, hold(q, 0.3, 0.352, 0.012));
-  });
-
-  return (
-    <>
-      <mesh geometry={rails()} material={mat.steel} receiveShadow />
-      <group ref={group} position-x={PARK}>
-        <mesh geometry={gantryFrame()} material={mat.yellow} castShadow receiveShadow />
-        <mesh geometry={UNIT_BOX} material={mat.steel} scale={[1.3, 0.5, 1.3]} position={[0, 8.9, 0]} castShadow />
-        <mesh ref={cable} geometry={UNIT_BOX} material={mat.steel} scale={[0.04, 1, 0.04]} />
-        <mesh ref={block} geometry={UNIT_BOX} material={mat.steel} scale={[0.34, 0.36, 0.34]} />
-      </group>
-      <mesh ref={core} geometry={coreFrame()} material={mat.steel} rotation-y={TURN} visible={false} castShadow receiveShadow />
-    </>
-  );
-}
-
-/* ---------- The cast shell: rises with the pour, travels, is finished, is dispatched ---------- */
-
-const ZF = SHELL.D / 2 - 0.01;
-const XF = SHELL.L / 2 - 0.01;
-/** Door leaf and glass set into the openings of the finished shell: its front, which faces the camera, and the end beside it. */
-const FILL: { s: [number, number, number]; at: [number, number, number]; m: 'frame' | 'glass' }[] = moduleOpenings('A')
-  .filter((o) => o.face === 'front' || o.face === 'right')
-  .map((o): { s: [number, number, number]; at: [number, number, number]; m: 'frame' | 'glass' } => {
-    const y = o.sill + o.h / 2;
-    const t = o.door ? 0.05 : 0.03;
-    return o.face === 'front'
-      ? { s: [o.w, o.h, t], at: [o.u, y, ZF + (o.door ? 0.01 : 0)], m: o.door ? 'frame' : 'glass' }
-      : { s: [t, o.h, o.w], at: [XF, y, o.u], m: 'glass' };
-  });
-
-const truckXAt = (p: number) => TRUCK_X + win(p, 0.962, 1, ease.in) * 30;
-
-/** Dispatch, by film progress: the crane's hook comes over, lifts, slews to the trailer, sets down. */
-const LIFT = { reach: [0.79, 0.815], up: [0.815, 0.85], across: [0.85, 0.915], down: [0.915, 0.95] } as const;
+const INSIDE = { size: [5.74, 2.74, 2.74] as V3, y: SHELL.floor + 1.37 };
+const insideMat = new MeshBasicMaterial({ color: '#34363a', side: BackSide });
 
 /**
- * Where the finished shell's base is during dispatch, and how it is turned:
- * lifted off the finishing bay, slewed round to lie along the trailer, and
- * set down on it.
+ * The shell's parts. Raw, every one is drawn in front of the paint (a
+ * plane that travels with the spray gantry); the finished module is drawn
+ * behind it.
  */
-function dispatchPose(p: number): [number, number, number, number] | null {
-  if (p < LIFT.up[0]) return null;
-  const lift = win(p, LIFT.up[0], LIFT.up[1], ease.inOut);
-  const travel = win(p, LIFT.across[0], LIFT.across[1], ease.inOut);
-  const lower = win(p, LIFT.down[0], LIFT.down[1], ease.inOut);
-  const x = lerp(FINISH_X, truckXAt(p), travel);
-  const z = lerp(0, TRUCK_Z, travel);
-  const y = lerp(PIER_H, 7, lift) - lower * (7 - TRUCK.deckY);
-  return [x, y, z, TURN * (1 - travel)];
-}
-
-function CastShell({ progress, label }: Prog & { label: ReturnType<typeof useLabel> }) {
+function Shell({ progress, label }: Prog & { label: ReturnType<typeof useLabel> }) {
   const shellHex = useBuild((s) => shown(s).shellHex);
-  const group = useRef<Group>(null);
-  const raw = useRef<Mesh>(null);
-  const painted = useRef<Mesh>(null);
-  const arch = useRef<Group>(null);
-  const fills = useRef<(Mesh | null)[]>([]);
-  // The paint front runs along the shell, across the picture: bare concrete ahead of it, the finish behind.
-  const planes = useMemo(() => ({ raw: new Plane(new Vector3(0, 0, 1), 0), painted: new Plane(new Vector3(0, 0, -1), 0) }), []);
+  const refs = useRef<(Mesh | null)[]>([]);
+  const walls = useRef<Mesh>(null);
+  const roof = useRef<Mesh>(null);
+  const hose = useRef<Mesh>(null);
+  const gantry = useRef<Group>(null);
+  const done = useRef<Mesh>(null);
+  const inside = useRef<Mesh>(null);
+  const hoseGeo = useMemo(() => memo('factory-hose-v2', () => new TubeGeometry(HOSE, 72, 0.055, 8)), []);
+  const hoseLen = hoseGeo.index?.count ?? 0;
+
+  // The paint's front lies across the shell and travels along it: bare concrete ahead of it, the finish behind.
+  const planes = useMemo(() => ({ raw: new Plane(new Vector3(-1, 0, 0), 1e4), painted: new Plane(new Vector3(1, 0, 0), -1e4) }), []);
   const mats = useMemo(() => {
-    const opening = mat.rubber;
-    // Sprayed in the finish the visitor chose.
-    const finished = moduleMats(shellHex);
-    const mk = (src: Material, plane: Plane) => {
+    const cut = <M extends Material>(src: M, plane: Plane): M => {
       const m = src.clone();
       m.clippingPlanes = [plane];
       return m;
     };
+    const raw = (m: Material) => cut(m, planes.raw);
     return {
-      raw: [mk(mat.cast, planes.raw), mk(mat.cast, planes.raw), mk(opening, planes.raw), mk(mat.cast, planes.raw)],
-      painted: [mk(finished[0], planes.painted), mk(mat.fascia, planes.painted), mk(opening, planes.painted), mk(mat.frame, planes.painted)],
+      steel: mat.frameSteel,
+      hooks: raw(mat.frameSteel),
+      panel: mat.panel,
+      reveal: raw(mat.panel),
+      cast: raw(mat.cast),
+      joinery: [raw(mat.fascia), raw(mat.glass), raw(mat.frame)],
+      // Sprayed in the finish the visitor chose.
+      painted: moduleMats(shellHex).map((m) => cut(m, planes.painted)),
     };
   }, [planes, shellHex]);
-  useLayoutEffect(() => () => [...mats.raw, ...mats.painted].forEach((m) => m.dispose()), [mats]);
+  useLayoutEffect(() => () => [mats.hooks, mats.reveal, mats.cast, ...mats.joinery, ...mats.painted].forEach((m) => m.dispose()), [mats]);
+
+  const pieces = useMemo<Piece[]>(() => {
+    const P: Piece[] = [];
+    const up: V3 = [0, 4.2, 0];
+    P.push({ key: 'floor', geo: frameGeometry('floor'), mat: mats.steel, from: up, win: T.frame.floor, hid: 'in' });
+    P.push({ key: 'columns', geo: frameGeometry('columns'), mat: mats.steel, from: up, win: T.frame.columns, hid: 'in' });
+    P.push({ key: 'top', geo: frameGeometry('top'), mat: mats.steel, from: [0, 3.4, 0], win: T.frame.top, hid: 'under' });
+    // The hooks stay in sight to the end: they stand proud of the concrete, and the crane lifts by them.
+    P.push({ key: 'hooks', geo: frameGeometry('hooks'), mat: mats.hooks, from: [0, 3, 0], win: T.frame.hooks });
+    P.push({ key: 'eps-floor', geo: epsFloorGeometry(), mat: mats.panel, from: [0, 3.6, 0], win: T.panels.floor, hid: 'in' });
+    // The walls go in from their own sides, the front last; a wall's panels show in its openings to the end.
+    const order = ['back', 'left', 'right', 'front'] as const;
+    order.forEach((f, k) => {
+      const out: V3 = f === 'front' ? [0, 0, 1] : f === 'back' ? [0, 0, -1] : f === 'right' ? [1, 0, 0] : [-1, 0, 0];
+      const [a, b] = T.panels.walls;
+      const each = (b - a) * 0.52;
+      const start = a + ((b - a - each) * k) / 3;
+      P.push({ key: `eps-${f}`, geo: epsWallGeometry(f), mat: mats.reveal, from: [out[0] * 3.4, 0, out[2] * 3.4], win: [start, start + each] });
+    });
+    P.push({ key: 'eps-roof', geo: epsRoofGeometry(), mat: mats.panel, from: [0, 3.8, 0], win: T.panels.roof, hid: 'under' });
+    // Doors and windows: the standard shell's, pushed home from outside, the front's last.
+    const fit = shellJoinery().sort((p, q) => (p.face === 'front' ? 1 : 0) - (q.face === 'front' ? 1 : 0));
+    fit.forEach((j, k) => P.push({ key: `fit-${j.face}`, geo: j.geo, mat: mats.joinery, from: [j.out[0] * 1.3, 0, j.out[2] * 1.3], win: part(T.fit, (k / fit.length) * 0.55, (k / fit.length) * 0.55 + 0.45), slide: true }));
+    return P;
+  }, [mats]);
 
   useFrame(() => {
     const p = progress.value;
-    const q = pp(p);
-    const pour = win(q, 0.6, 0.67, ease.linear);
-    let x = track(q, [
-      [0.845, BAY_X],
-      [0.874, FINISH_X],
-    ]);
-    let y = PIER_H + track(q, SHELL_LIFT);
-    let z = 0;
-    let turn = TURN;
-    const d = dispatchPose(p);
-    if (d) [x, y, z, turn] = d;
-    const spray = win(q, 0.9, 0.955, ease.inOut);
-    // The paint front travels with the shell until the arch sweeps along it.
-    const front = z - 3.6 + spray * 7.2;
-    planes.raw.constant = -front;
-    planes.painted.constant = front;
+    // Closed: the boards are round it, and what is inside can no longer be seen for what it is. Sprayed: it is the finished module.
+    const closed = p >= T.form.lock[1];
+    const spray = win(p, T.spray.pass[0], T.spray.pass[1], ease.inOut);
+    const sprayed = spray >= 1;
+    const roofed = p >= T.pour.roof[1];
 
-    const g = group.current;
-    if (g) {
-      g.visible = pour > 0.001;
-      g.position.set(x, y, z);
-      g.rotation.y = turn;
+    for (let i = 0; i < pieces.length; i++) {
+      const m = refs.current[i];
+      if (!m) continue;
+      const d = pieces[i];
+      const raw = clamp01((p - d.win[0]) / (d.win[1] - d.win[0]));
+      if (raw <= 0 || sprayed || (closed && d.hid === 'in') || (roofed && d.hid === 'under')) {
+        m.visible = false;
+        continue;
+      }
+      const t = ease.outQuart(raw);
+      const s = d.slide ? 1 : Math.min(1, raw * 6);
+      m.visible = true;
+      m.position.set(d.from[0] * (1 - t), BASE + d.from[1] * (1 - t), d.from[2] * (1 - t));
+      m.scale.setScalar(s);
     }
-    for (const m of [raw.current, painted.current]) if (m) m.scale.set(1, Math.max(0.001, pour), 1);
-    // All bare before the spray, all finished after it: only one of the two is drawn then.
-    if (raw.current) raw.current.visible = spray < 1;
-    if (painted.current) painted.current.visible = spray > 0;
-    if (arch.current) {
-      arch.current.visible = q > 0.86 && p < LIFT.reach[0];
-      arch.current.position.z = front;
-    }
-    const set = win(q, 0.955, 0.995, ease.linear);
-    fills.current.forEach((m, i) => {
-      if (!m) return;
-      const t = ease.out(stagger(set, i, FILL.length, 0.5));
-      m.visible = t > 0.001;
-      const s = FILL[i].s;
-      m.scale.set(s[0] * t, s[1] * t, s[2] * t);
-    });
 
-    label('pour', PUMP_AT.x - 0.5, 3.3, PUMP_AT.z + 0.2, hold(q, 0.61, 0.668, 0.012));
-    label('smooth', BAY_X + 1.5, PIER_H + 2.5, -1.2, hold(q, 0.775, 0.81, 0.012));
-    label('spray', FINISH_X + 1.6, 4.4, front, hold(q, 0.905, 0.95, 0.012));
+    if (inside.current) inside.current.visible = closed && p < T.fit[1] + 0.004 && !sprayed;
+
+    // The concrete: up the walls between the boards and the panels, then over the roof from the hose's end.
+    const level = win(p, T.pour.walls[0], T.pour.walls[1], ease.inOut);
+    const over = win(p, T.pour.roof[0], T.pour.roof[1], ease.inOut);
+    if (walls.current) {
+      walls.current.visible = level > 0.001 && !sprayed;
+      walls.current.scale.y = Math.max(0.001, level);
+    }
+    if (roof.current) {
+      roof.current.visible = over > 0.001 && !sprayed;
+      const len = SHELL.L + 0.1;
+      roof.current.scale.x = Math.max(0.001, over);
+      roof.current.position.x = (len / 2) * (1 - over);
+    }
+    // The hose is run out for the pour and taken back after it.
+    const run = win(p, T.pour.hose[0], T.pour.hose[1], ease.inOut) * (1 - win(p, T.pour.away[0], T.pour.away[1], ease.inOut));
+    if (hose.current) {
+      hose.current.visible = run > 0.002;
+      hoseGeo.setDrawRange(0, Math.floor((hoseLen * run) / 3) * 3);
+    }
+
+    // The spray gantry rolls up from its end of the rails, passes along the shell and goes back.
+    const gx =
+      p < T.spray.pass[0]
+        ? lerp(GANTRY.park, GANTRY.from, win(p, T.spray.in[0], T.spray.in[1], ease.inOut))
+        : p < T.spray.out[0]
+          ? lerp(GANTRY.from, GANTRY.to, spray)
+          : lerp(GANTRY.to, GANTRY.park, win(p, T.spray.out[0], T.spray.out[1], ease.inOut));
+    if (gantry.current) gantry.current.position.x = gx;
+    const front = spray <= 0 ? 1e4 : sprayed ? -1e4 : gx;
+    planes.raw.constant = front;
+    planes.painted.constant = -front;
+
+    // Finished, it is one piece: on its piers, in the air under the crane's frame, on the truck.
+    const m = done.current;
+    if (m) {
+      m.visible = spray > 0;
+      const [x, y, z] = shellAt(p);
+      m.position.set(x, y, z);
+    }
+
+    label('frame', -2.95, BASE + SHELL.roofTop, 1.45, hold(p, T.frame.columns[1], T.frame.hooks[1] + 0.012, 0.012));
+    label('hook', HOOKS[3][0], BASE + SHELL.roofTop + 0.2, HOOKS[3][2], hold(p, T.frame.hooks[0] + 0.012, T.frame.hooks[1] + 0.012, 0.01));
+    label('panels', -1.44, BASE + 2.3, 1.5, hold(p, T.panels.walls[0] + 0.03, T.panels.roof[1], 0.012));
+    label('formwork', -1.9, BASE + 2.6, 1.62, hold(p, T.form.close[0] + 0.03, T.form.lock[1] + 0.006, 0.012));
+    label('pour', 1.92, BASE + SHELL.roofTop + 0.25, 1.66, hold(p, T.pour.walls[0], T.pour.roof[1], 0.012));
+    label('openings', -0.51, BASE + 1.5, 1.54, hold(p, T.strip.off[0] + 0.04, T.fit[0], 0.012));
+    label('joinery', 1.72, BASE + 2.1, 1.56, hold(p, T.fit[0] + 0.02, T.fit[1] + 0.004, 0.012));
+    label('spray', gx, GANTRY.h + 0.2, GANTRY.z, hold(p, T.spray.pass[0], T.spray.pass[1], 0.012));
   });
-
-  const geo = moduleGeometry('A');
 
   return (
     <>
-      <group ref={group} visible={false}>
-        <mesh ref={raw} geometry={geo} material={mats.raw} castShadow receiveShadow />
-        <mesh ref={painted} geometry={geo} material={mats.painted} castShadow receiveShadow />
-        {FILL.map((f, i) => (
-          <mesh
-            key={i}
-            ref={(m) => {
-              fills.current[i] = m;
-            }}
-            geometry={UNIT_BOX}
-            material={mat[f.m]}
-            position={f.at}
-            scale={f.s}
-            visible={false}
-          />
-        ))}
+      {pieces.map((d, i) => (
+        <mesh
+          key={d.key}
+          ref={(m) => {
+            refs.current[i] = m;
+          }}
+          geometry={d.geo}
+          material={d.mat}
+          visible={false}
+          castShadow
+          receiveShadow
+        />
+      ))}
+      <mesh ref={walls} geometry={castWallsGeometry()} material={mats.cast} position-y={BASE} visible={false} castShadow receiveShadow />
+      <mesh ref={roof} geometry={castRoofGeometry()} material={mats.cast} position-y={BASE + SHELL.roofTop} visible={false} castShadow receiveShadow />
+      <mesh ref={inside} geometry={UNIT_BOX} material={insideMat} scale={INSIDE.size} position-y={BASE + INSIDE.y} visible={false} />
+      <mesh ref={hose} geometry={hoseGeo} material={mat.rubber} visible={false} castShadow />
+      <group ref={gantry} position-x={GANTRY.park}>
+        <mesh geometry={sprayGantry()} material={gantryMats} castShadow />
       </group>
-      {/* The spray arch straddles the shell and travels along it. */}
-      <group ref={arch} position-x={FINISH_X} visible={false}>
-        {[-1, 1].map((s) => (
-          <mesh key={s} geometry={UNIT_BOX} material={mat.steel} scale={[0.16, 4.6, 0.16]} position={[s * 2.3, 2.3, 0]} castShadow />
-        ))}
-        <mesh geometry={UNIT_BOX} material={mat.steel} scale={[4.76, 0.16, 0.16]} position={[0, 4.6, 0]} castShadow />
-        {[-1.4, -0.7, 0, 0.7, 1.4].map((xx) => (
-          <mesh key={xx} geometry={UNIT_BOX} material={mat.accent} scale={[0.08, 0.14, 0.08]} position={[xx, 4.45, 0]} />
-        ))}
-      </group>
+      <mesh ref={done} geometry={moduleGeometry('A')} material={mats.painted} visible={false} castShadow receiveShadow />
     </>
   );
 }
 
-/* ---------- Dispatch: crane and truck ---------- */
+/**
+ * The spray gantry: a portal on two bogies that straddles the shell, with a
+ * bar of nozzles down each side and one across the top, and the paint pump
+ * on one leg. Origin on the slab, the shell's length along x. Groups:
+ * 0 frame, 1 dark.
+ */
+function sprayGantry() {
+  return memo('spray-gantry', () => {
+    const { z, h } = GANTRY;
+    const frame: BufferGeometry[] = [box(0.22, 0.26, z * 2 + 0.22, 0, h, 0)];
+    const dark: BufferGeometry[] = [box(0.05, 0.05, 3.2, 0, h - 0.36, 0), box(0.5, 0.72, 0.34, 0, 1.25, z + 0.28)];
+    for (const s of [-1, 1]) {
+      frame.push(box(0.2, h - 0.3, 0.2, 0, (h - 0.3) / 2 + 0.3, s * z), box(1.2, 0.24, 0.3, 0, 0.2, s * z));
+      // Braces from the bogie up the leg, and the bar of nozzles facing the wall.
+      for (const e of [-1, 1]) {
+        const brace = box(0.07, 1.5, 0.07);
+        brace.rotateZ(e * 0.34);
+        brace.translate(e * 0.28, 0.98, s * z);
+        frame.push(brace);
+      }
+      dark.push(box(0.05, 3.3, 0.05, 0, BASE + 1.7, s * (z - 0.5)));
+      for (let k = 0; k < 7; k++) dark.push(box(0.04, 0.04, 0.16, 0, BASE + 0.25 + k * 0.48, s * (z - 0.58)));
+      for (const e of [-1, 1]) dark.push(box(0.26, 0.2, 0.36, e * 0.42, 0.1, s * z));
+    }
+    for (let k = 0; k < 6; k++) dark.push(box(0.04, 0.14, 0.04, 0, h - 0.45, -1.4 + k * 0.56));
+    return mergeGroups([frame, dark]);
+  });
+}
+const gantryMats = [mat.galv, mat.paintDark];
 
+/* ---------- Dispatch ---------- */
+
+/** How high the shell's underside is carried across the yard. */
+const CARRY = 5.4;
+/** Where the truck stands along its lane: reversing in through the gate, then away through it. */
+/** It is still in the picture when the film ends, on its way out of the gate: the next section takes it up on the road. */
+const truckX = (p: number) => TRUCK_X + (1 - win(p, T.truck.in[0], T.truck.in[1], ease.out)) * 27 + win(p, T.truck.go[0], T.truck.go[1], ease.in) * 13;
+
+/**
+ * Where the finished shell's underside is: on its piers, lifted, carried
+ * over to the trailer and set down on it, then away with the truck. It
+ * keeps the way it lies throughout: the trailer stands along its length.
+ */
+function shellAt(p: number): V3 {
+  if (p < T.lift.up[0]) return [0, BASE, 0];
+  const up = win(p, T.lift.up[0], T.lift.up[1], ease.inOutCubic);
+  const over = win(p, T.lift.over[0], T.lift.over[1], ease.inOutCubic);
+  const down = win(p, T.lift.down[0], T.lift.down[1], ease.inOutCubic);
+  const x = p >= T.lift.down[1] ? truckX(p) : lerp(0, TRUCK_X, over);
+  return [x, lerp(BASE, CARRY, up) - down * (CARRY - TRUCK.deckY), lerp(0, LANE, over)];
+}
+
+/** The hook above a shell's underside: its hooks, and the lifting frame's drop to them. */
+const HOOK_ABOVE = SHELL.roofTop - 0.04 + LIFT.drop;
+/** Stood by: the lifting frame rests on the slab past the shell's end, the boom low over it. */
+const REST = new Vector3(10.2, LIFT.drop + 0.06, -5.6);
 const _hook = new Vector3();
 
-function Dispatch({ progress }: Prog) {
+function Dispatch({ progress, label }: Prog & { label: ReturnType<typeof useLabel> }) {
   const getHook = () => {
     const p = progress.value;
-    const d = dispatchPose(p);
-    if (d && p < 0.955) return _hook.set(d[0], d[1] + SHELL.H + 0.4, d[2]);
-    // After setting the shell down the hook lifts clear.
-    if (p >= 0.955) {
-      const after = win(p, 0.955, 0.99, ease.out);
-      return _hook.set(lerp(TRUCK_X, CRANE[0] + 5, after), TRUCK.deckY + SHELL.H + 0.4 + after * 4, lerp(TRUCK_Z, CRANE[2], after));
+    // Let go: only once the shell is down on the trailer does the frame lift off it, and it stays where it is as the truck leaves.
+    if (p >= T.lift.release[0]) {
+      const clear = win(p, T.lift.release[0], T.lift.release[1], ease.inOutCubic);
+      return _hook.set(TRUCK_X, TRUCK.deckY + HOOK_ABOVE + clear * 2.6, LANE);
     }
-    // Until the shell is finished the boom lies stowed along its carrier, out of the picture's way; then it comes over.
-    const reach = win(p, LIFT.reach[0], LIFT.reach[1], ease.inOut);
-    return _hook.set(lerp(CRANE[0] + 7, FINISH_X, reach), lerp(3.2, PIER_H + SHELL.H + 0.4, reach), lerp(CRANE[2], 0, reach));
+    if (p >= T.lift.up[0]) {
+      const [x, y, z] = shellAt(p);
+      return _hook.set(x, y + HOOK_ABOVE, z);
+    }
+    // The frame is brought over the shell and lowered until its four slings reach the hooks.
+    const t = win(p, T.lift.reach[0], T.lift.reach[1], ease.inOutCubic);
+    return _hook.set(lerp(REST.x, 0, t), lerp(REST.y, BASE + HOOK_ABOVE, t) + Math.sin(Math.PI * t) * 3.2, lerp(REST.z, 0, t));
   };
+  useFrame(() => {
+    const p = progress.value;
+    const [x, y, z] = shellAt(p);
+    label('rig', x + HOOKS[3][0], y + SHELL.roofTop + LIFT.hang * 0.6, z + HOOKS[3][2], hold(p, T.lift.reach[1], T.lift.over[1], 0.012));
+  });
   return (
     <>
-      <MobileCrane position={CRANE} getHook={getHook} head={5} />
-      <Truck getX={() => truckXAt(progress.value)} z={TRUCK_Z} ry={Math.PI} />
+      <MobileCrane position={CRANE_AT} getHook={getHook} head={4.6} getTurn={() => 0} />
+      <Truck getX={() => truckX(progress.value)} z={LANE} ry={Math.PI} />
     </>
   );
 }
 
 /* ---------- Scene ---------- */
 
-function Director({ progress, rig }: Prog & { rig: Rig }) {
+/** On an upright screen the eye stands this much higher and nearer over what it looks at: the top of the picture, where the chapter's line is, is then slab and not what stands at the back of the yard. */
+const UPRIGHT = { rise: 1.75, in: 0.8 };
+const _eye: V3 = [0, 0, 0];
+
+function Director({ progress, rig, compact }: Prog & { rig: Rig; compact: boolean }) {
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
   useFrame(() => {
     const c = sampleCamera(CAM, progress.value);
-    aim(camera, c.pos, c.look, size.width / size.height, 1.4, 0.7);
+    const up = compact && size.width < size.height;
+    _eye[0] = c.look[0] + (c.pos[0] - c.look[0]) * (up ? UPRIGHT.in : 1);
+    _eye[1] = c.look[1] + (c.pos[1] - c.look[1]) * (up ? UPRIGHT.rise : 1);
+    _eye[2] = c.look[2] + (c.pos[2] - c.look[2]) * (up ? UPRIGHT.in : 1);
+    aim(camera, _eye, c.look, size.width / size.height, 1.4, 0.7);
     rig.lightTarget.set(c.look[0], 0, c.look[2]);
+    // Seen from above the horizon: there is no sky in the picture, and none is drawn.
+    rig.sky = 0;
   });
   return null;
 }
 
-function Factory({ progress, place, rig }: SceneProps & { rig: Rig }) {
+function Factory({ progress, place, rig, compact }: SceneProps & { rig: Rig }) {
   const label = useLabel(place);
-  useFrame(() => {
-    const q = pp(progress.value);
-    label('pier', BAY_X + 1.15, PIER_H, -2.5, hold(q, 0.2, 0.25, 0.012));
-    label('insulation', BAY_X + 1.45, PIER_H + 2.9, 1.5, hold(q, 0.38, 0.432, 0.012));
-    label('formwork', BAY_X + 1.55, PIER_H + 3.1, -0.5, hold(q, 0.475, 0.54, 0.012));
-  });
+  const all = useRef<Group>(null);
+  // Most of this film is out of sight until its turn: all of it is on the GPU before the first scroll.
+  useWarmAll(rig, all);
   return (
-    <>
-      <Director progress={progress} rig={rig} />
+    <group ref={all}>
+      <Director progress={progress} rig={rig} compact={compact} />
       <Yard progress={progress} />
-      <ShowHomes progress={progress} label={label} rig={rig} />
-      {/* The working bay. */}
-      <group position-x={BAY_X} rotation-y={TURN}>
-        <Piers getT={() => win(pp(progress.value), 0.165, 0.245, ease.linear)} />
-        <Insulation progress={progress} />
-        <Boards getOut={() => 1 - win(pp(progress.value), 0.44, 0.52, ease.linear)} getDrop={() => win(pp(progress.value), 0.71, 0.79, ease.linear)} />
-      </group>
-      <group position-x={FINISH_X} rotation-y={TURN}>
-        <Piers getT={one} />
-      </group>
-      {/* A second unit already in formwork, for a sense of the line. */}
-      <group position-x={QUEUE_X} rotation-y={TURN}>
-        <Piers getT={one} />
-        <Boards getOut={zero} getDrop={zero} />
-        <mesh geometry={UNIT_BOX} material={mat.cast} scale={[5.9, 0.1, 2.9]} position-y={PIER_H + SHELL.H - 0.05} />
-      </group>
-      <Gantry progress={progress} label={label} />
-      <Concreting progress={progress} />
-      <CastShell progress={progress} label={label} />
-      <Dispatch progress={progress} />
-    </>
+      <Piers progress={progress} />
+      <Shell progress={progress} label={label} />
+      <Formwork progress={progress} />
+      <Pump position={PUMP_AT} ry={PUMP_TURN} />
+      <Dispatch progress={progress} label={label} />
+    </group>
   );
 }
 
 export default function FactoryScene(props: SceneProps) {
   return (
-    <Stage {...props} look="clear" ground="land" focus={[0.67, 0.56]} focusCompact={[0.5, 0.36]} shadowExtent={44} localClipping>
+    <Stage {...props} look="clear" ground="land" focus={[0.67, 0.56]} focusCompact={[0.5, 0.36]} shadowExtent={30} localClipping>
       {(rig) => <Factory {...props} rig={rig} />}
     </Stage>
   );

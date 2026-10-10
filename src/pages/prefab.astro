@@ -2,6 +2,9 @@
 import Base from '../layouts/Base.astro';
 import Showcase from '../components/sections/Showcase.tsx';
 import EnquiryForm from '../components/forms/EnquiryForm.tsx';
+import { kinds } from '../data/narrative';
+
+const fab = kinds.find((k) => k.id === 'fab')!;
 ---
 
 <Base
@@ -13,8 +16,7 @@ import EnquiryForm from '../components/forms/EnquiryForm.tsx';
       <p class="page-hero__meta"><span class="badge">Coming soon</span><span class="t-label">Prefab</span></p>
       <h1 class="t-display">Prefab building</h1>
       <p class="t-lead page-hero__lead">
-        Insulated and comfortable living for your workforce. Rapidly deployed, heavy-duty employee living
-        infrastructure.
+        {fab.line} {fab.punch} Insulated living for your workforce, and institutional buildings in 36′ precast wall panels.
       </p>
       <div class="page-hero__actions">
         <a class="btn btn--down" href="#register">Discuss a project</a>

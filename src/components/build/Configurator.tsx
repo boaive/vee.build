@@ -348,127 +348,204 @@ export default function Configurator() {
   const manualMode = state.addOnMode === 'manual';
   const placedCount = (k: ManualKind) => state.manual.filter((m) => m.k === k).length;
 
+  /* What stands on the plot, in words, for the summary under the view. */
+  const chosen = manualMode
+    ? [
+        ...manualKinds.filter((k) => placedCount(k.id)).map((k) => (placedCount(k.id) > 1 ? `${k.name} × ${placedCount(k.id)}` : k.name)),
+        ...(placedCount('deck') ? deckDetails.filter((id) => addOns.includes(id)).map((id) => addOnInfo[id].name) : []),
+      ]
+    : addOnIds.filter((id) => addOns.includes(id) && (!addOnInfo[id].needs || addOns.includes(addOnInfo[id].needs))).map((id) => addOnInfo[id].name);
+  const finishes = [
+    ['Shell', shellFinishes.find((f) => f.id === state.shell)],
+    ['Deck', deckFinishes.find((f) => f.id === state.deck)],
+    ['Trim', trimFinishes.find((f) => f.id === state.trim)],
+  ] as const;
+
   return (
     <div className="cfg" ref={root}>
-      <div
-        className={`cfg__viewport${addOnTool ? ' is-placing' : ''}`}
-        ref={view}
-        tabIndex={0}
-        role="application"
-        aria-label="Configurator view. Keys: 1 Shell A, 2 Shell B, R rotate, Delete remove the selected shell or add-on, Ctrl+Z undo, T top view, Escape select."
-        onKeyDown={onKey}
-        onPointerDown={onDown}
-        onPointerMove={onMove}
-        onPointerUp={onUp}
-        onPointerCancel={onUp}
-      >
-        <div className={`cfg__stage${ready ? ' is-ready' : ''}`}>
-          {mount && (
-            <Suspense fallback={null}>
-              <Scene
-                progress={progress}
-                place={place}
-                compact={compact}
-                active={visible}
-                reduced={reduced}
-                onReady={() => setReady(true)}
-                tool={tool}
-                addOnTool={addOnTool}
-                turn={turn}
-                selected={selected}
-                piece={piece}
-                orbit={orbit}
-                onHover={onHover}
-                onAddOnHover={onAddOnHover}
-                onPick={pick}
-                onSelect={select}
-                onSelectPiece={selectPiece}
-                onAddOn={onAddOn}
-              />
-            </Suspense>
-          )}
-          <div className="cfg__handles">
-            {([0, 1, 2, 3] as Turn[]).map((s) => (
-              <button
-                key={s}
-                type="button"
-                ref={handleRef(`extend-${s}`)}
-                className={`cfg__extend cfg__extend--${s}`}
-                style={{ visibility: 'hidden' }}
-                onClick={() => extend(s, 1)}
-                aria-label={EXTEND_LABEL[s]}
-                title={EXTEND_LABEL[s]}
-              >
-                <span aria-hidden="true">+</span>
-              </button>
-            ))}
-            <div className="cfg__pill" ref={handleRef('selection')} style={{ visibility: 'hidden' }}>
-              {selected !== null && (
-                <button type="button" onClick={rotate}>
-                  <span aria-hidden="true">↻</span> Rotate
+      <div className="cfg__main">
+        <div
+          className={`cfg__viewport${addOnTool ? ' is-placing' : ''}`}
+          ref={view}
+          tabIndex={0}
+          role="application"
+          aria-label="Configurator view. Keys: 1 Shell A, 2 Shell B, R rotate, Delete remove the selected shell or add-on, Ctrl+Z undo, T top view, Escape select."
+          onKeyDown={onKey}
+          onPointerDown={onDown}
+          onPointerMove={onMove}
+          onPointerUp={onUp}
+          onPointerCancel={onUp}
+        >
+          <div className={`cfg__stage${ready ? ' is-ready' : ''}`}>
+            {mount && (
+              <Suspense fallback={null}>
+                <Scene
+                  progress={progress}
+                  place={place}
+                  compact={compact}
+                  active={visible}
+                  reduced={reduced}
+                  onReady={() => setReady(true)}
+                  tool={tool}
+                  addOnTool={addOnTool}
+                  turn={turn}
+                  selected={selected}
+                  piece={piece}
+                  orbit={orbit}
+                  onHover={onHover}
+                  onAddOnHover={onAddOnHover}
+                  onPick={pick}
+                  onSelect={select}
+                  onSelectPiece={selectPiece}
+                  onAddOn={onAddOn}
+                />
+              </Suspense>
+            )}
+            <div className="cfg__handles">
+              {([0, 1, 2, 3] as Turn[]).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  ref={handleRef(`extend-${s}`)}
+                  className={`cfg__extend cfg__extend--${s}`}
+                  style={{ visibility: 'hidden' }}
+                  onClick={() => extend(s, 1)}
+                  aria-label={EXTEND_LABEL[s]}
+                  title={EXTEND_LABEL[s]}
+                >
+                  <span aria-hidden="true">+</span>
                 </button>
-              )}
-              <button type="button" onClick={remove}>
-                Remove{selected === null && piece && piece.k !== 'access' ? ` ${nameOf(piece.k).toLowerCase()}` : ''}
-              </button>
+              ))}
+              <div className="cfg__pill" ref={handleRef('selection')} style={{ visibility: 'hidden' }}>
+                {selected !== null && (
+                  <button type="button" onClick={rotate}>
+                    <span aria-hidden="true">↻</span> Rotate
+                  </button>
+                )}
+                <button type="button" onClick={remove}>
+                  Remove{selected === null && piece && piece.k !== 'access' ? ` ${nameOf(piece.k).toLowerCase()}` : ''}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="cfg__toolbar" role="toolbar" aria-label="Build tools">
-          <div className="seg" role="radiogroup" aria-label="Shell to place">
-            {(['A', 'B'] as const).map((s) => (
-              <button key={s} type="button" role="radio" aria-checked={tool === s} className={`seg__btn${tool === s ? ' is-on' : ''}`} onClick={() => choose(s)}>
-                <span className={`shell-icon shell-icon--${s}${turn % 2 && s === 'A' ? ' is-turned' : ''}`} aria-hidden="true" />
-                Shell {s}
-                <small>{s === 'A' ? '6 × 3 m' : '3 × 3 m'}</small>
+          <div className="cfg__toolbar" role="toolbar" aria-label="Build tools">
+            <div className="seg" role="radiogroup" aria-label="Shell to place">
+              {(['A', 'B'] as const).map((s) => (
+                <button key={s} type="button" role="radio" aria-checked={tool === s} className={`seg__btn${tool === s ? ' is-on' : ''}`} onClick={() => choose(s)}>
+                  <span className={`shell-icon shell-icon--${s}${turn % 2 && s === 'A' ? ' is-turned' : ''}`} aria-hidden="true" />
+                  Shell {s}
+                  <small>{s === 'A' ? '6 × 3 m' : '3 × 3 m'}</small>
+                </button>
+              ))}
+              <button type="button" role="radio" aria-checked={tool === null && !addOnTool} className={`seg__btn${tool === null && !addOnTool ? ' is-on' : ''}`} onClick={() => choose(null)}>
+                Select
               </button>
-            ))}
-            <button type="button" role="radio" aria-checked={tool === null && !addOnTool} className={`seg__btn${tool === null && !addOnTool ? ' is-on' : ''}`} onClick={() => choose(null)}>
-              Select
+            </div>
+            <div className="cfg__acts">
+              <button type="button" className="tool tool--rotate" onClick={rotate} title="Rotate 90° (R)">
+                <span aria-hidden="true">↻</span> Rotate{selected === null && tool ? ' next' : ''}
+              </button>
+              <button type="button" className="tool" onClick={addAuto} title="Add beside the house">
+                + Add
+              </button>
+              <button type="button" className="tool" onClick={remove} disabled={selected === null && (!piece || piece.k === 'access')} title="Remove the selected shell or add-on (Delete)">
+                Remove
+              </button>
+              <button type="button" className="tool" onClick={undo} title="Undo (Ctrl+Z)">
+                Undo
+              </button>
+            </div>
+            {addOnTool && (
+              <button type="button" className="cfg__placing" onClick={() => chooseAddOn(null)}>
+                Placing: {manualKinds.find((k) => k.id === addOnTool)?.name} <span aria-hidden="true">✕</span>
+              </button>
+            )}
+          </div>
+
+          <div className="cfg__view">
+            <button type="button" onClick={() => zoom(1)} aria-label="Zoom in">
+              +
+            </button>
+            <button type="button" onClick={() => zoom(-1)} aria-label="Zoom out">
+              −
+            </button>
+            <button type="button" onClick={toggleTop} aria-pressed={top}>
+              {top ? '3D view' : 'Top view'}
             </button>
           </div>
-          <div className="cfg__acts">
-            <button type="button" className="tool tool--rotate" onClick={rotate} title="Rotate 90° (R)">
-              <span aria-hidden="true">↻</span> Rotate{selected === null && tool ? ' next' : ''}
-            </button>
-            <button type="button" className="tool" onClick={addAuto} title="Add beside the house">
-              + Add
-            </button>
-            <button type="button" className="tool" onClick={remove} disabled={selected === null && (!piece || piece.k === 'access')} title="Remove the selected shell or add-on (Delete)">
-              Remove
-            </button>
-            <button type="button" className="tool" onClick={undo} title="Undo (Ctrl+Z)">
-              Undo
-            </button>
-          </div>
-          {addOnTool && (
-            <button type="button" className="cfg__placing" onClick={() => chooseAddOn(null)}>
-              Placing: {manualKinds.find((k) => k.id === addOnTool)?.name} <span aria-hidden="true">✕</span>
-            </button>
-          )}
+          <p className="cfg__status" role="status" aria-live="polite">
+            {status}
+          </p>
         </div>
 
-        <div className="cfg__view">
-          <button type="button" onClick={() => zoom(1)} aria-label="Zoom in">
-            +
-          </button>
-          <button type="button" onClick={() => zoom(-1)} aria-label="Zoom out">
-            −
-          </button>
-          <button type="button" onClick={toggleTop} aria-pressed={top}>
-            {top ? '3D view' : 'Top view'}
-          </button>
-        </div>
-        <p className="cfg__status" role="status" aria-live="polite">
-          {status}
-        </p>
+        {/* The build in figures, by itself under the view (developer, 2026-10-10): it used to be the last thing the panel scrolled to. */}
+        <section className="sum" aria-label="Your build in figures">
+          <div className="sum__area">
+            <p className="sum__label">Your build</p>
+            <p className="sum__value">
+              {t.sqft} <small>sq.ft.</small>
+            </p>
+            <p className="sum__sub">{t.count ? `${t.sqm} m² · nominal area` : 'Nothing on the plot yet'}</p>
+          </div>
+          <dl className="sum__facts">
+            <div>
+              <dt>Shells</dt>
+              <dd>{t.count ? `${t.a} A · ${t.b} B` : '—'}</dd>
+            </div>
+            <div>
+              <dt>Floors</dt>
+              <dd>{t.floors ? (t.floors === 1 ? 'G' : `G+${t.floors - 1}`) : '—'}</dd>
+            </div>
+            <div>
+              <dt>Footprint</dt>
+              <dd>{t.count ? `${t.width} × ${t.depth} m` : '—'}</dd>
+            </div>
+            <div>
+              <dt>Plot</dt>
+              <dd>
+                {state.plot.x * CELL} × {state.plot.z * CELL} m
+              </dd>
+            </div>
+            <div>
+              <dt>Foundation</dt>
+              <dd>
+                {FOUNDATION_HEIGHTS[state.foundation.h]} mm <small>{state.foundation.type === 'plinth' ? 'with L plinth' : 'footings'}</small>
+              </dd>
+            </div>
+            <div>
+              <dt>Finish</dt>
+              <dd className="sum__finish">
+                {finishes.map(([name, f]) => (
+                  <span key={name} title={`${name}: ${f?.name}`}>
+                    <i style={{ background: f?.hex }} aria-hidden="true" />
+                    <span className="sr-only">{name}: </span>
+                    {f?.name}
+                  </span>
+                ))}
+              </dd>
+            </div>
+          </dl>
+          <div className="sum__addons">
+            <p className="sum__label">Add-ons</p>
+            {chosen.length || t.floors > 1 ? (
+              <ul>
+                {chosen.map((name) => (
+                  <li key={name}>{name}</li>
+                ))}
+                {t.floors > 1 && <li className="is-given">Gallery and outer staircase</li>}
+              </ul>
+            ) : (
+              <p className="sum__none">None chosen</p>
+            )}
+          </div>
+        </section>
       </div>
 
       <aside className="cfg__panel" aria-label="Configuration">
         <section className="cfg__group">
           <h3 className="cfg__h">Start from</h3>
-          <div className="chips">
+          <div className="chips chips--pair">
             {presets.map((p) => (
               <button key={p.id} type="button" className={`chip${state.preset === p.id ? ' is-on' : ''}`} onClick={() => loadPreset(p.id)}>
                 {p.name}
@@ -508,6 +585,30 @@ export default function Configurator() {
             </div>
           </div>
           <p className="cfg__note">Or use the + handles on each edge of the plot to extend it that way.</p>
+        </section>
+
+        {/* The ground comes before what stands on it: the plot, then how high the house sits above it (developer, 2026-10-10). */}
+        <section className="cfg__group">
+          <h3 className="cfg__h">
+            Foundation <span className="cfg__tag">Illustrative</span>
+          </h3>
+          <div className="sides" role="radiogroup" aria-label="Height above ground">
+            <span className="t-label">Height</span>
+            {FOUNDATION_HEIGHTS.map((h, i) => (
+              <button key={h} type="button" role="radio" aria-checked={state.foundation.h === i} className={`side${state.foundation.h === i ? ' is-on' : ''}`} onClick={() => build.setFoundation({ h: i as 0 | 1 | 2 })}>
+                {h} mm
+              </button>
+            ))}
+          </div>
+          <div className="sides" role="radiogroup" aria-label="Foundation type">
+            <span className="t-label">Type</span>
+            {foundationTypes.map((f) => (
+              <button key={f.id} type="button" role="radio" aria-checked={state.foundation.type === f.id} className={`side${state.foundation.type === f.id ? ' is-on' : ''}`} onClick={() => build.setFoundation({ type: f.id })} title={f.hint}>
+                {f.name}
+              </button>
+            ))}
+          </div>
+          <p className="cfg__note">Precast footings at every corner, height above ground set per site. Where shells meet they share one footing and one plinth.</p>
         </section>
 
         <section className="cfg__group">
@@ -585,29 +686,6 @@ export default function Configurator() {
 
         <section className="cfg__group">
           <h3 className="cfg__h">
-            Foundation <span className="cfg__tag">Illustrative</span>
-          </h3>
-          <div className="sides" role="radiogroup" aria-label="Height above ground">
-            <span className="t-label">Height</span>
-            {FOUNDATION_HEIGHTS.map((h, i) => (
-              <button key={h} type="button" role="radio" aria-checked={state.foundation.h === i} className={`side${state.foundation.h === i ? ' is-on' : ''}`} onClick={() => build.setFoundation({ h: i as 0 | 1 | 2 })}>
-                {h} mm
-              </button>
-            ))}
-          </div>
-          <div className="sides" role="radiogroup" aria-label="Foundation type">
-            <span className="t-label">Type</span>
-            {foundationTypes.map((f) => (
-              <button key={f.id} type="button" role="radio" aria-checked={state.foundation.type === f.id} className={`side${state.foundation.type === f.id ? ' is-on' : ''}`} onClick={() => build.setFoundation({ type: f.id })} title={f.hint}>
-                {f.name}
-              </button>
-            ))}
-          </div>
-          <p className="cfg__note">Precast footings at every corner, height above ground set per site. Where shells meet they share one footing and one plinth.</p>
-        </section>
-
-        <section className="cfg__group">
-          <h3 className="cfg__h">
             Finish <span className="cfg__tag">Indicative</span>
           </h3>
           {(
@@ -641,26 +719,6 @@ export default function Configurator() {
           </div>
           <BuildPlan units={units} addOns={addOns} deckSide={state.deckSide} manual={manualMode ? state.manual : null} plot={state.plot} floor={floor} selected={selected} onSelect={select} />
           <p className="cfg__note">Each shell has one door, marked on the plan. It moves to a free wall when another shell stands against it.</p>
-          <dl className="stats">
-            <div>
-              <dt>Area</dt>
-              <dd>
-                {t.sqft} <small>sq.ft.</small>
-              </dd>
-            </div>
-            <div>
-              <dt>Shells</dt>
-              <dd>{t.count ? `${t.a} A · ${t.b} B` : '—'}</dd>
-            </div>
-            <div>
-              <dt>Floors</dt>
-              <dd>{t.floors ? (t.floors === 1 ? 'G' : `G+${t.floors - 1}`) : '—'}</dd>
-            </div>
-            <div>
-              <dt>Footprint</dt>
-              <dd>{t.count ? `${t.width} × ${t.depth} m` : '—'}</dd>
-            </div>
-          </dl>
           <p className="cfg__note">
             Areas are the brief&rsquo;s nominal figures: Shell A 200 sq.ft., Shell B 100 sq.ft. Up to {MAX_FLOORS} floors.
           </p>

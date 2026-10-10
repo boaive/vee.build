@@ -1,40 +1,48 @@
 ---
-import { primaryNav, sections, site } from '../../data/site';
+import { Image } from 'astro:assets';
+import hemisphereOne from '../../assets/brand/hemisphere-one.png';
+import { bandNav, primaryNav, sections, site } from '../../data/site';
 const year = new Date().getFullYear();
 const { email, phone, address, legalName } = site.contact;
 const hasContact = email || phone || address;
+const products = primaryNav.filter((n) => n.label !== 'Contact');
 ---
 
 <footer class="ftr theme-dark" data-theme="dark">
   <div class="wrap">
     <div class="ftr__top">
       <div>
-        <a class="brand" href="/" aria-label={`${site.name} — home`}>
+        <a class="brand" href="/" aria-label={`${site.name}, powered by ${site.poweredBy} — home`}>
           <svg class="brand__mark" viewBox="0 0 34.5 12" aria-hidden="true">
             <rect x="0.75" y="0.75" width="21" height="10.5"></rect>
             <rect x="23.25" y="0.75" width="10.5" height="10.5"></rect>
           </svg>
           <span class="brand__word">VEE<i>.</i>BUILD</span>
+          <span class="brand__by" aria-hidden="true">Powered by {site.poweredBy}</span>
         </a>
-        <p class="ftr__statement">
-          Two standardised precast shells, 6 m × 3 m × 3 m and 3 m × 3 m × 3 m. One system, configured into many
-          buildings.
-        </p>
+        <p class="ftr__statement">One system. Many buildings. Modular houses, capsule homes and prefab buildings, made in a factory and set on your site.</p>
       </div>
 
       <div class="ftr__cols">
         <div class="ftr__col">
           <h2 class="t-label">Products</h2>
-          {primaryNav.slice(0, 4).map((n) => <a href={n.href}>{n.label}</a>)}
+          {
+            products.map((n) => (
+              <a href={n.href}>
+                <span class="ftr__code">{n.label}</span>
+                {n.note}
+              </a>
+            ))
+          }
         </div>
         <div class="ftr__col">
           <h2 class="t-label">The system</h2>
-          {sections.slice(1, 8).map((s) => <a href={`/#${s.id}`}>{s.label}</a>)}
+          {sections.slice(1, -1).map((s) => <a href={`/#${s.id}`}>{s.label}</a>)}
         </div>
         <div class="ftr__col">
           <h2 class="t-label">Contact</h2>
           <a href="/#contact">Start an enquiry</a>
-          <a href="/partnership/#enquire">Partner with us</a>
+          <a href="/partnership/#enquire">Partner with VEE</a>
           {
             hasContact && (
               <>
@@ -51,6 +59,19 @@ const hasContact = email || phone || address;
     <div class="ftr__base t-label">
       <span>© {year} {legalName ?? site.name}</span>
       <span>Modular · Capsule · Prefab</span>
+    </div>
+  </div>
+
+  {/* The bottom band (client, 2026-10-09): what is not in the top menu, and who the site is powered by. On paper, where the supplied logo reads as drawn. */}
+  <div class="band theme-light">
+    <div class="wrap band__in">
+      <nav class="band__nav" aria-label="More">
+        {bandNav.map((n) => <a href={n.href}>{n.label}</a>)}
+      </nav>
+      <p class="band__by">
+        <span class="t-label">Powered by</span>
+        <Image src={hemisphereOne} alt={site.poweredBy} height={30} densities={[1, 2, 3]} loading="lazy" />
+      </p>
     </div>
   </div>
 </footer>

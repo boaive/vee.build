@@ -1,5 +1,5 @@
 ---
-import { differences } from '../../data/difference';
+import { differenceCopy, differences } from '../../data/difference';
 
 /*
  * The six points, all on show: a ledger of six cells (number, word, claim,
@@ -8,7 +8,37 @@ import { differences } from '../../data/difference';
  * scrolled to; a point and its comparison light up together under the
  * pointer. Without script, with reduced motion or with ?still it is the
  * same page standing still.
+ *
+ * Each point has a mark of its own, drawn in the page's hairline (client,
+ * 2026-10-09: "an animated icon for mouse over, in addition to the colour
+ * line"). It is drawn once as its cell comes in, and moves again under the
+ * pointer. `i-draw`: a stroke that draws itself (pathLength 1); `i-turn`:
+ * a part that turns; `i-move`: a part that travels (sections.css).
  */
+const icons: Record<string, string> = {
+  // From the footing to the roof, in one line.
+  'end-to-end':
+    '<path d="M4 43h40"/><path class="i-draw" pathLength="1" d="M9 43v-6h8v6M13 37V21L26 10l13 11v22"/><circle class="i-move" cx="13" cy="43" r="2.2"/>',
+  // A wall in section: two faces and what is cast between them.
+  insulated:
+    '<path d="M11 5v38M37 5v38"/><path class="i-draw" pathLength="1" d="M24 5l-7 4.75 14 4.75-14 4.75 14 4.75-14 4.75 14 4.75-14 4.75L24 43"/>',
+  // Round again.
+  sustainable:
+    '<g class="i-turn"><path d="M39 24a15 15 0 0 1-26.6 9.5M9 24a15 15 0 0 1 26.6-9.5"/><path d="M36 7.5v7.5h-7.5M12 40.5V33h7.5"/></g><path class="i-draw" pathLength="1" d="M24 31c-5-1-7.5-5-7-11 6 0 10 2.5 11 7M24 31v-7"/>',
+  // The sun and an array.
+  energy:
+    '<circle cx="14" cy="13" r="5"/><g class="i-turn i-rays"><path d="M14 2.5v3M14 20.5v3M3.5 13h3M21.5 13h3M6.6 5.6l2.1 2.1M19.3 18.3l2.1 2.1M21.4 5.6l-2.1 2.1M8.7 18.3l-2.1 2.1"/></g><path d="M15 44l6-15h22l-6 15z"/><path class="i-draw" pathLength="1" d="M28.3 29l-6 15M35.7 29l-6 15M18 36.5h22"/>',
+  // Checked.
+  code: '<path d="M24 4.5l15 5v12.5c0 10-6.4 17.2-15 21.5-8.6-4.3-15-11.5-15-21.5V9.5z"/><path class="i-draw" pathLength="1" d="M16.5 24l5.5 5.5 10-11.5"/>',
+  /*
+   * A price tag, and the price on it coming down ("keeps the cost down").
+   * Before 2026-10-10 it was a row of bars getting shorter under a falling
+   * line, which reads as a thing losing its value (client: "communicates low
+   * value rather than affordability").
+   */
+  affordable:
+    '<path class="i-draw" pathLength="1" d="M7 7h17l18 18-17 17L7 24z"/><circle cx="14.5" cy="14.5" r="2.5"/><g class="i-move"><path d="M27.5 18.5v13.5"/><path d="M22.6 27.4l4.9 4.9 4.9-4.9"/></g>',
+};
 const pad = (i: number) => String(i + 1).padStart(2, '0');
 const compared = differences.filter((d) => d.other);
 ---
@@ -16,14 +46,17 @@ const compared = differences.filter((d) => d.other);
 <section class="diff theme-light" id="difference" data-theme="light" data-chapter="difference" aria-labelledby="difference-heading" data-diff>
   <div class="wrap">
     <header class="diff__head">
-      <p class="eyebrow" data-rv><b>04</b> How we are different</p>
+      <p class="eyebrow" data-rv><b>04</b> {differenceCopy.eyebrow}</p>
       <h2 class="diff__title" id="difference-heading">
-        <span class="diff__ln" data-rv><span>How are we</span></span>
-        <span class="diff__ln" data-rv style="--i:1"><span>different?</span></span>
+        {
+          differenceCopy.title.map((line, i) => (
+            <span class="diff__ln" data-rv style={`--i:${i}`}>
+              <span>{line}</span>
+            </span>
+          ))
+        }
       </h2>
-      <p class="diff__lead" data-rv style="--i:2">
-        Six points separate a VEE.BUILD building from brick-and-mortar construction and from lightweight prefab.
-      </p>
+      <p class="diff__lead" data-rv style="--i:2">{differenceCopy.lead}</p>
     </header>
 
     <ol class="diff__grid">
@@ -33,6 +66,7 @@ const compared = differences.filter((d) => d.other);
             <p class="t-label diff__n" aria-hidden="true">
               {pad(i)}
             </p>
+            <svg class="diff__icon" viewBox="0 0 48 48" aria-hidden="true" set:html={icons[d.id]} />
             <h3 class="diff__word">{d.word}</h3>
             <p class="diff__claim">{d.claim}</p>
             <p class="diff__detail">{d.detail}</p>
@@ -51,8 +85,8 @@ const compared = differences.filter((d) => d.other);
     <div class="diff__vs">
       <div class="diff__vs-head" data-rv aria-hidden="true">
         <span></span>
-        <p class="t-label">VEE.BUILD</p>
-        <p class="t-label">Others</p>
+        <p>{differenceCopy.ours}</p>
+        <p>{differenceCopy.others}</p>
       </div>
       <ul class="diff__rows">
         {

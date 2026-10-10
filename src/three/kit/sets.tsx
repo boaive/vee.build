@@ -4,16 +4,17 @@
  * wood at blue hour, workforce housing on a site yard in the morning, the
  * institutional block on a paved forecourt by day. Reused on the sub-pages.
  */
-import { useLayoutEffect, useMemo, type Ref } from 'react';
-import type { Group, Material } from 'three';
+import { useFrame } from '@react-three/fiber';
+import { useEffect, useLayoutEffect, useMemo, useRef, type Ref } from 'react';
+import type { Group, Material, Mesh, PointLight } from 'three';
 import { deckFinishes, shellFinishes, trimFinishes } from '../../data/build';
 import type { CameraKey } from '../../film/timeline';
 import { clearing } from './atmosphere';
 import { Paving } from './env';
-import { CapsulePods, InstitutionalBlock, Pad, WorkforceBlock, padGeometry, type BuildingProps } from './buildings';
+import { Capsule, CapsulePods, InstitutionalBlock, Pad, WorkforceBlock, padGeometry, type BuildingProps } from './buildings';
 import { merge } from './geometry';
 import { Flowers, Fence, Grass, Ground, LAND, TreeLine, Woodland, along, strip, settled, type Eye, type FieldPatch, type LandPalette, type Rect, type TreeSpot } from './landscape';
-import type { LookName } from './looks';
+import type { Look, LookName } from './looks';
 import { mat } from './materials';
 import { HOME_FOOTPRINT, HOME_LAMP, HOME_LANDING, HOME_STEP_FOOT, ModelHome } from './modelhome';
 
@@ -62,13 +63,28 @@ export const SETS: Record<SetName, SetInfo> = {
 const eyeOf = (s: SetInfo): Eye => [0, 0.5, 1].map((u) => [s.from.pos[0] + (s.to.pos[0] - s.from.pos[0]) * u, s.from.pos[2] + (s.to.pos[2] - s.from.pos[2]) * u] as const);
 const EYE: Record<SetName, Eye> = { farm: eyeOf(SETS.farm), pods: eyeOf(SETS.pods), work: eyeOf(SETS.work), campus: eyeOf(SETS.campus) };
 
-/** A warm lamp: one point light per set, so the light count never changes between sets. */
-function Lamp({ at, intensity, color = '#ffc98a', distance = 9 }: { at: [number, number, number]; intensity: number; color?: string; distance?: number }) {
+/**
+ * A warm lamp: one point light per set, so the light count never changes
+ * between sets. `getOn` 0–1: brought up by the scene, for a house that is
+ * put together in view; its light and its fitting are dark until then.
+ */
+function Lamp({ at, intensity, color = '#ffc98a', distance = 9, getOn }: { at: [number, number, number]; intensity: number; color?: string; distance?: number; getOn?: () => number }) {
+  const light = useRef<PointLight>(null);
+  const bulb = useRef<Mesh>(null);
+  const glow = useMemo(() => (getOn ? mat.lamp.clone() : null), [getOn]);
+  useEffect(() => () => glow?.dispose(), [glow]);
+  useFrame(() => {
+    if (!getOn || !glow) return;
+    const v = getOn();
+    if (light.current) light.current.intensity = intensity * v;
+    glow.emissiveIntensity = mat.lamp.emissiveIntensity * v;
+    if (bulb.current) bulb.current.visible = v > 0.004;
+  });
   return (
     <group position={at}>
-      <pointLight intensity={intensity} color={color} distance={distance} decay={2} />
+      <pointLight ref={light} intensity={getOn ? 0 : intensity} color={color} distance={distance} decay={2} />
       {intensity > 0 && (
-        <mesh material={mat.lamp}>
+        <mesh ref={bulb} material={glow ?? mat.lamp} visible={!getOn}>
           <boxGeometry args={[0.12, 0.18, 0.08]} />
         </mesh>
       )}
@@ -187,9 +203,6 @@ const YAW_SIN = Math.sin(FARM_YAW);
 /** A point on the house's own plan, as it lies in the set. */
 const turned = (x: number, z: number): [number, number] => [x * YAW_COS + z * YAW_SIN, -x * YAW_SIN + z * YAW_COS];
 
-/** Where the opening card's label touches the house: the roof's edge over the window. */
-export const FARM_TAG: [number, number, number] = [turned(-1.5, HOME_FOOTPRINT.z1)[0], 3.45, turned(-1.5, HOME_FOOTPRINT.z1)[1]];
-
 /** Stepping stones from the foot of the steps, out and round to where the camera stands. */
 const FARM_PATH: [number, number][] = [
   turned(HOME_STEP_FOOT[0], HOME_STEP_FOOT[1] + 0.5),
@@ -212,7 +225,7 @@ const FARM_EXCLUDE: Rect[] = [
 const FARM_PITS: [number, number][] = [-1, 1].flatMap((sx) => [-1, 1].map((sz) => [sx * (HOME_FOOTPRINT.x1 - 0.28), sz * (HOME_FOOTPRINT.z1 - 0.28)] as [number, number]));
 
 /** land: a ref to the group that holds everything but the house, for the scene to hide until it is wanted. */
-export function FarmSet({ getA, look, land }: Omit<BuildingProps, 'x'> & { land?: Ref<Group> }) {
+export function FarmSet({ getA, getLit, look, land }: Omit<BuildingProps, 'x'> & { land?: Ref<Group> }) {
   const palette = LAND.gold;
   return (
     <group>
@@ -243,9 +256,87 @@ export function FarmSet({ getA, look, land }: Omit<BuildingProps, 'x'> & { land?
         </group>
       </group>
       <group rotation-y={FARM_YAW}>
-        <ModelHome getA={getA} look={look} shellHex={HOME_FINISH.shell} deckHex={HOME_FINISH.deck} trimHex={HOME_FINISH.trim} />
-        {/* A soft porch light: the door and its sidelights stay readable under it. */}
-        <Lamp at={HOME_LAMP} intensity={(look.lamps ?? 0) * 0.9} />
+        <ModelHome getA={getA} getLit={getLit} look={look} shellHex={HOME_FINISH.shell} deckHex={HOME_FINISH.deck} trimHex={HOME_FINISH.trim} />
+        {/* A soft porch light: the door and its sidelights stay readable under it. It comes on with the windows. */}
+        <Lamp at={HOME_LAMP} intensity={(look.lamps ?? 0) * 0.9} getOn={getLit} />
+      </group>
+    </group>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* The opening card: the three kinds of building in a row              */
+/* ------------------------------------------------------------------ */
+
+type P3 = [number, number, number];
+
+/**
+ * Where the capsule and the prefab block stand beside the farm set's house
+ * while the opening card is up (client, 2026-10-09: "one system, many
+ * buildings" is shown by three objects, a modular home, a capsule home and
+ * a prefab building, and not by the two shells, which belong to the
+ * modular line only). The house is the set's own, at the origin. All three
+ * are to one scale: the block is three times the length of the other two,
+ * so it stands well back, where it reads as the third of the three.
+ */
+export interface Row {
+  capsule: { at: P3; turn: number; feet: number };
+  prefab: { at: P3; turn: number };
+  /** Where each one's name hangs from: a point on the floor in front of it (the label stands under that point, film.css). */
+  tags: Record<'mod' | 'pod' | 'fab', P3>;
+  /** Each one's place on the floor and how far its shadow is kept (x, z, from, to), for the bare floor of the opening. */
+  spots: [number, number, number, number][];
+}
+
+const rowOf = (capsule: P3, prefab: P3, tags: Row['tags']): Row => ({
+  capsule: { at: capsule, turn: -0.1, feet: 20 },
+  prefab: { at: prefab, turn: -0.16 },
+  tags,
+  spots: [
+    [0, 0, 3, 10],
+    [capsule[0], capsule[2], 3.5, 9],
+    [prefab[0], prefab[2], 10.5, 18],
+  ],
+});
+
+/**
+ * On a wide screen: side by side along the foot of the picture, seen from
+ * the front corner. The three are set out as three columns (developer,
+ * 2026-10-10, twice: "a little to the right, make it look uniform"): as
+ * seen, the capsule's middle is half-way between the house's and the
+ * block's, and each name hangs under the middle of its own building, so the
+ * names are evenly spaced too. The block's staircase now stands against its
+ * flank, which is what leaves the capsule the room.
+ */
+export const ROW: Row = rowOf([8.0, 0, -4.8], [5.6, 0, -39.3], { mod: [3.9, 0, 3.2], pod: [8.45, 0, -4.2], fab: [5.9, 0, -36.5] });
+/** On a narrow one the picture is upright: the three stand one behind another and are seen from above, the house nearest. */
+export const ROW_COMPACT: Row = rowOf([-0.7, 0, -13.7], [-22, 0, -57], { mod: [1.2, 0, 3.4], pod: [-0.7, 0, -13.1], fab: [-23.4, 0, -54.4] });
+
+/** The other two of the three: lowered in beside the house on the opening card, lifted away as the page scrolls on. */
+export function Lineup({
+  row,
+  getCapsule,
+  getPrefab,
+  getCapsuleLit,
+  getPrefabLit,
+  look,
+  hold,
+}: {
+  row: Row;
+  getCapsule: () => number;
+  getPrefab: () => number;
+  /** 0–1: each one's lights, on once it stands. */
+  getCapsuleLit?: () => number;
+  getPrefabLit?: () => number;
+  look: Look;
+  hold?: Ref<Group>;
+}) {
+  return (
+    <group ref={hold}>
+      <Capsule feet={row.capsule.feet} position={row.capsule.at} rotation={row.capsule.turn} getT={getCapsule} getLit={getCapsuleLit} look={look} drop={11} />
+      {/* The block's own ground line is the top of its set's gravel pad: here it stands on the bare floor. */}
+      <group position={[row.prefab.at[0], -0.06, row.prefab.at[2]]} rotation-y={row.prefab.turn}>
+        <WorkforceBlock getA={getPrefab} getLit={getPrefabLit} look={look} crane={false} />
       </group>
     </group>
   );

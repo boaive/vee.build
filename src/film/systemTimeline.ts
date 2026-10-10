@@ -14,15 +14,24 @@ export const SETTLE = [
   0.48, // 600
   0.53, // 700
   0.58, // 800
-  0.7, // villa
-  0.83, // apartment
-  0.98, // high-rise
+  0.72, // the villa
+  0.98, // the mid-rise
 ] as const;
 
 /** Progress at which the move into each configuration starts. */
-export const START = [0, 0.285, 0.348, 0.398, 0.448, 0.498, 0.548, 0.61, 0.755, 0.875] as const;
+export const START = [0, 0.285, 0.348, 0.398, 0.448, 0.498, 0.548, 0.61, 0.8] as const;
 
-export const STATE = { pair: 0, firstFootprint: 1, villa: 7, apartment: 8, highrise: 9 } as const;
+export const STATE = { pair: 0, firstFootprint: 1, villa: 7, midrise: 8 } as const;
+
+/**
+ * "Lift & shift" (step 2.2): how far the two finished shells are off the
+ * ground, in metres. Up by their hooks and set down again, before the
+ * first of them is moved to make a footprint.
+ */
+export const liftAt = (p: number) => {
+  const t = clamp01((p - 0.175) / (0.272 - 0.175));
+  return 0.6 * Math.sin(Math.PI * t) ** 2;
+};
 
 /** Which transition is under way: state index s and its local 0–1. */
 export function locate(p: number): { s: number; t: number } {

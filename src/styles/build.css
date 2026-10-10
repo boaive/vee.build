@@ -16,6 +16,19 @@
   }
 }
 
+/* The view and, under it, the build in figures: in the space that stood empty beside the foot of the panel. */
+.cfg__main {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+@media (min-width: 1040px) {
+  /* A little lower than it was, so that the area and the first figures show under it without scrolling. */
+  .cfg__main .cfg__viewport {
+    height: clamp(26rem, 68svh, 50rem);
+  }
+}
+
 /* ---------- Viewport ---------- */
 
 .cfg__viewport {
@@ -123,22 +136,6 @@
 .shell-icon--A.is-turned {
   width: 0.75rem;
   height: 1.5rem;
-}
-
-/* Rotate is the action people look for first: give it weight. */
-.tool--rotate {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  background: #111214;
-  color: #f7f5f0;
-}
-.tool--rotate:hover {
-  background: var(--accent);
-}
-.tool--rotate span {
-  font-size: 1.05rem;
-  line-height: 1;
 }
 
 .cfg__placing {
@@ -340,6 +337,22 @@
   cursor: default;
   background: none;
 }
+/* Rotate is the action people look for first: give it weight. After .tool, which would take its colour back (it stood before it, and the word was ink on ink). */
+.tool--rotate {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #111214;
+  color: #f7f5f0;
+}
+.tool--rotate:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.tool--rotate span {
+  font-size: 1.05rem;
+  line-height: 1;
+}
 
 .cfg__view {
   position: absolute;
@@ -473,6 +486,19 @@
   border-style: dashed;
   color: var(--mute);
 }
+/* The designs to start from, two to a row: half the height of one long column (developer, 2026-10-10). */
+.chips--pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.chips--pair .chip {
+  display: grid;
+  min-width: 0;
+}
+.chips--pair .chip--quiet {
+  grid-column: 1 / -1;
+  justify-items: center;
+}
 
 .toggles {
   display: grid;
@@ -579,29 +605,143 @@
   color: var(--bg);
 }
 
-.stats {
+/* ---------- The build in figures, under the view ---------- */
+
+.sum {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.8rem 1rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.9rem clamp(1.25rem, 2.6vw, 2.5rem);
+  padding: 1.1rem 1.35rem 1.15rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px var(--line),
+    var(--shadow);
 }
-.stats dt {
+.sum__area {
+  display: grid;
+  justify-items: start;
+  gap: 0.3rem;
+  padding-right: clamp(1.25rem, 2.6vw, 2.5rem);
+  border-right: 1px solid var(--line);
+}
+.sum__value {
+  font-size: clamp(2.5rem, 1.7rem + 2.2vw, 3.6rem);
+  font-weight: 630;
+  font-stretch: 106%;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sum__value small {
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: 0.78rem;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.sum__sub {
+  font-size: 0.8rem;
+  color: var(--mute);
+}
+.sum__facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem 1.25rem;
+}
+.sum__facts dt,
+.sum__label {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--mute);
 }
-.stats dd {
-  margin-top: 0.15rem;
-  font-size: 1.3rem;
-  font-weight: 620;
-  letter-spacing: -0.02em;
+.sum__facts dd {
+  margin-top: 0.12rem;
+  font-size: 1.02rem;
+  font-weight: 600;
+  letter-spacing: -0.012em;
   font-variant-numeric: tabular-nums;
 }
-.stats dd small {
-  font-size: 0.75rem;
+.sum__facts dd small {
+  font-size: 0.76rem;
   font-weight: 450;
+  letter-spacing: 0;
   color: var(--mute);
+}
+.sum__facts dd.sum__finish {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.7rem;
+  font-size: 0.82rem;
+  font-weight: 520;
+}
+.sum__finish > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+.sum__finish i {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.14);
+}
+.sum__addons {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+.sum__label {
+  flex: none;
+}
+.sum__addons ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.sum__addons li {
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+/* What comes with an upper floor, not chosen. */
+.sum__addons li.is-given {
+  border-style: dashed;
+  color: var(--mute);
+}
+.sum__none {
+  font-size: 0.86rem;
+  color: var(--mute);
+}
+@media (max-width: 700px) {
+  .sum {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 1.1rem;
+  }
+  .sum__area {
+    padding-right: 0;
+    padding-bottom: 0.9rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .sum__facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sum__addons {
+    display: grid;
+    gap: 0.5rem;
+  }
 }
 
 .cfg__cta {
@@ -650,7 +790,7 @@
   stroke-width: 0.2;
 }
 .plan__door {
-  stroke: var(--accent);
+  stroke: var(--accent-line);
   stroke-width: 0.1;
   stroke-linecap: round;
 }
@@ -687,11 +827,11 @@
   fill: var(--bg-2);
 }
 .plan__unit.is-selected rect {
-  stroke: var(--accent);
+  stroke: var(--accent-line);
   fill: rgb(226 73 29 / 0.08);
 }
 .plan__dim line {
-  stroke: var(--accent);
+  stroke: var(--accent-line);
   stroke-width: 0.05;
 }
 .plan__dim text {
@@ -788,7 +928,7 @@
     box-shadow: 0 0 0 1px var(--line);
   }
   .toggle.is-on {
-    box-shadow: 0 0 0 1.5px var(--accent);
+    box-shadow: 0 0 0 1.5px var(--accent-line);
   }
   .toggle__hint {
     display: none;

@@ -1,5 +1,6 @@
 ---
 import Configurator from '../build/Configurator.tsx';
+import { shown } from '../../data/site';
 ---
 
 <section class="section build theme-light" id="configure" data-theme="light" data-chapter="configure" aria-labelledby="configure-heading">
@@ -14,7 +15,7 @@ import Configurator from '../build/Configurator.tsx';
     </header>
     <Configurator client:visible={{ rootMargin: '500px' }} />
     <noscript>
-      <p class="t-lead">The configurator needs JavaScript. The catalogue below lists every model with its plan.</p>
+      <p class="t-lead">The configurator needs JavaScript.{shown.catalogue && ' The catalogue below lists every model with its plan.'}</p>
     </noscript>
   </div>
 </section>

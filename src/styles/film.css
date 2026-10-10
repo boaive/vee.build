@@ -77,7 +77,9 @@
   pointer-events: auto;
 }
 
+/* The chapter's line, number and name: a small title (base.css), all of it in the accent. */
 .film__head {
+  justify-self: start;
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -88,7 +90,6 @@
 }
 
 .film__index {
-  color: var(--accent-ink);
   font-weight: 500;
 }
 
@@ -99,12 +100,13 @@
   height: 1px;
   margin-left: 0.75rem;
   vertical-align: middle;
-  background: var(--line-strong);
+  background: currentColor;
+  opacity: 0.6;
 }
 
 .film__heading {
   font: inherit;
-  color: var(--mute);
+  color: inherit;
 }
 
 /* ---------- Captions: stacked in one place ---------- */
@@ -208,8 +210,57 @@
   transition: letter-spacing 1.1s var(--ease-out) 0.1s;
 }
 
+/*
+ * A heading whose words arrive with the picture ("Foundation. Module.
+ * Add-ons."): each is out of sight until its turn, and the one that has
+ * just come is in the green. Only where script runs; without it the
+ * heading stands whole.
+ */
+.layer-word {
+  display: inline-block;
+  white-space: pre;
+  transition:
+    opacity 0.5s var(--ease),
+    transform 0.7s var(--ease-out),
+    color 0.5s var(--ease);
+}
+
+.js .layer-word:not(.is-on) {
+  opacity: 0;
+  transform: translateY(0.35em);
+}
+
+.layer-word.is-now {
+  color: var(--title);
+}
+
+/* A caption's small line ("2.1 — The 2 core shells"): a small title (base.css). */
 .film__kicker {
-  color: var(--accent-ink);
+  justify-self: start;
+}
+
+/* A tag beside it ("Coming soon"): the pill and dot of the sub-pages' badge, in the kicker's own colour. */
+.film__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: 0.9rem;
+  padding: 0.3rem 0.62rem 0.28rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.film__badge::before {
+  content: '';
+  width: 0.36rem;
+  height: 0.36rem;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .film__title {
@@ -293,17 +344,46 @@
   border-color: var(--accent);
 }
 
+/*
+ * The add-on in play: the one that has just come down, or the one under the
+ * pointer. The green as a mark, with ink on it. (The client asked to try
+ * white text on green: it measures 1.3 to 1 and cannot be read; ink on the
+ * same green is 15 to 1.)
+ */
+.film__tag.is-now,
 button.film__tag:hover,
 button.film__tag:focus-visible {
-  background: var(--text);
-  border-color: var(--text);
-  color: var(--bg);
+  background: var(--mark);
+  border-color: var(--mark);
+  color: var(--on-mark);
+}
+
+.film__tag.is-now::before,
+button.film__tag:hover::before,
+button.film__tag:focus-visible::before {
+  background: var(--on-mark);
+  border-color: var(--on-mark);
 }
 
 .film__ticks {
   display: flex;
   align-items: flex-end;
   gap: 0.3rem;
+}
+
+/* A film that plays by itself has one caption and nothing to step through; once it has played it can be played again. */
+.film[data-play] .film__ticks {
+  visibility: hidden;
+}
+
+.film__replay {
+  position: absolute;
+  left: var(--gutter);
+  bottom: clamp(1.5rem, 4vh, 2.75rem);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 .film__tick {
@@ -331,7 +411,7 @@ button.film__tag:focus-visible {
 }
 
 .film__tick.is-active::after {
-  background: var(--accent);
+  background: var(--title);
   transform: scaleY(1.6);
 }
 
@@ -396,7 +476,7 @@ button.film__tag:focus-visible {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--accent-line);
 }
 
 /* Name plate: larger, no leader. */
@@ -407,6 +487,94 @@ button.film__tag:focus-visible {
   text-align: center;
   font-size: 0.72rem;
   color: var(--text);
+}
+
+/*
+ * Kind: the name of one of the three on the opening card, on the floor in
+ * front of it. Plain text on the studio's paper: the menu's short name, then
+ * the word.
+ */
+.lbl--kind>span {
+  top: 1.9rem;
+  left: 0;
+  transform: translateX(-50%);
+  display: grid;
+  justify-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-sans);
+  font-size: clamp(1rem, 0.7rem + 0.95vw, 1.6rem);
+  font-weight: 640;
+  font-stretch: 104%;
+  letter-spacing: -0.035em;
+  text-transform: none;
+  color: #111214;
+}
+
+.lbl--kind small {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--title);
+}
+
+.lbl--kind small::before {
+  content: '';
+  width: 0.9rem;
+  height: 1px;
+  background: currentColor;
+}
+
+/*
+ * Box: a call-out as a box of the green, with ink on it, and a tick in the
+ * same green down to what it names. Every call-out of "Componentized
+ * building" is one (developer, 2026-10-10: one colour, the green; the
+ * three colours of the day before made the picture harder to read).
+ */
+.lbl--box>span {
+  bottom: 2.1rem;
+  left: 0;
+  transform: translateX(-50%);
+  padding: 0.5rem 0.75rem 0.46rem;
+  border-radius: 3px;
+  background: var(--mark);
+  color: var(--on-mark);
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+}
+
+/* A small line over the name: what kind of thing it is ("Add-on"). */
+.lbl--box small {
+  display: block;
+  margin-bottom: 0.28rem;
+  font-size: 0.58rem;
+  letter-spacing: 0.2em;
+  opacity: 0.7;
+}
+
+.lbl--box::before {
+  content: '';
+  position: absolute;
+  left: -0.5px;
+  bottom: 0.25rem;
+  width: 1px;
+  height: 1.85rem;
+  background: var(--mark);
+}
+
+.lbl--box::after {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 6px;
+  height: 6px;
+  background: var(--mark);
 }
 
 /* Pulsing marker with a label to the right. */
@@ -428,12 +596,12 @@ button.film__tag:focus-visible {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--accent-line);
 }
 
 .lbl--pulse::after {
   background: none;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--accent-line);
   animation: lbl-pulse 2.2s var(--ease-out) infinite;
 }
 
@@ -473,6 +641,17 @@ button.film__tag:focus-visible {
   --win-round: var(--radius);
 }
 
+/*
+ * The hero's card has two parts (HeroScene, LINEUP): the row of three, then
+ * the house and its land. Its mist and backdrop follow the second, so they
+ * do what they did when the card was that part alone.
+ */
+.film--hero.has-prelude .film__sticky {
+  --lineup: 0.34;
+  --lead: clamp(0, var(--pre, 0) / var(--lineup), 1);
+  --p: clamp(0, (var(--pre, 0) - var(--lineup)) / (0.86 - var(--lineup)), 1);
+}
+
 /* The factory tour's title screen is ink from edge to edge: its window opens from nothing, at the point the camera looks at. */
 .film--factory.has-prelude .film__sticky {
   --win-t: 56svh;
@@ -502,13 +681,24 @@ button.film__tag:focus-visible {
  * subject is seen against until the scene brings its own sky and ground.
  */
 .film__backdrop--studio {
-  --pool-x: 73%;
-  --pool-y: 64%;
-  --floor: 80.5%;
+  --pool-x: 56%;
+  --pool-y: 62%;
+  --floor: 69;
+  /* How far the floor's line comes down as the camera goes from the row to the house, which it sees from nearer. */
+  --floor-drop: 11.5svh;
   background:
-    radial-gradient(ellipse 44% 50% at var(--pool-x) var(--pool-y), #fbfaf7 0%, rgb(251 250 247 / 0.6) 38%, rgb(251 250 247 / 0) 72%),
-    linear-gradient(180deg, rgb(17 18 20 / 0) 0%, rgb(17 18 20 / 0) calc(var(--floor) - 0.4%), rgb(17 18 20 / 0.05) var(--floor), rgb(17 18 20 / 0.022) calc(var(--floor) + 5%), rgb(17 18 20 / 0.035) 100%),
+    radial-gradient(ellipse 62% 46% at var(--pool-x) var(--pool-y), #fbfaf7 0%, rgb(251 250 247 / 0.6) 38%, rgb(251 250 247 / 0) 72%),
     #f2f0eb;
+}
+
+/* The floor, on a layer of its own so that it can move with the camera without anything being painted again. */
+.film__backdrop--studio::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgb(17 18 20 / 0) 0, rgb(17 18 20 / 0) calc(var(--floor) * 1svh - 0.4svh), rgb(17 18 20 / 0.05) calc(var(--floor) * 1svh), rgb(17 18 20 / 0.022) calc(var(--floor) * 1svh + 5svh), rgb(17 18 20 / 0.035) 100%);
+  transform: translate3d(0, calc(var(--lead, 0) * var(--floor-drop)), 0);
+  will-change: transform;
 }
 
 .has-prelude--window .film__stage {
@@ -572,10 +762,11 @@ button.film__tag:focus-visible {
 
 .film__mist i:nth-child(1)::before {
   background:
-    radial-gradient(ellipse 34% 9% at 73% 96%, rgb(var(--mist) / 0.94), rgb(var(--mist) / 0) 72%),
-    radial-gradient(ellipse 22% 8% at 50% 100%, rgb(var(--mist) / 0.8), rgb(var(--mist) / 0) 72%),
-    radial-gradient(ellipse 16% 10% at 99% 93%, rgb(var(--mist) / 0.85), rgb(var(--mist) / 0) 72%),
-    linear-gradient(0deg, rgb(var(--mist) / 0.92) 0%, rgb(var(--mist) / 0.5) 4%, rgb(var(--mist) / 0) 9%);
+    radial-gradient(ellipse 30% 7% at 76% 99%, rgb(var(--mist) / 0.94), rgb(var(--mist) / 0) 72%),
+    radial-gradient(ellipse 24% 6% at 42% 101%, rgb(var(--mist) / 0.85), rgb(var(--mist) / 0) 72%),
+    radial-gradient(ellipse 20% 7% at 10% 100%, rgb(var(--mist) / 0.85), rgb(var(--mist) / 0) 72%),
+    radial-gradient(ellipse 14% 8% at 99% 95%, rgb(var(--mist) / 0.8), rgb(var(--mist) / 0) 72%),
+    linear-gradient(0deg, rgb(var(--mist) / 0.92) 0%, rgb(var(--mist) / 0.5) 3%, rgb(var(--mist) / 0) 7%);
   animation: mist-a 17s ease-in-out infinite alternate;
 }
 
@@ -705,7 +896,7 @@ button.film__tag:focus-visible {
 }
 
 .prelude__kicker {
-  color: var(--accent);
+  align-self: flex-start;
 }
 
 .prelude__line {
@@ -716,6 +907,7 @@ button.film__tag:focus-visible {
   letter-spacing: -0.05em;
 }
 
+/* The second line of a title card, in the accent of its ground. */
 .prelude__line em {
   font-style: normal;
   color: var(--accent);
@@ -777,10 +969,14 @@ button.film__tag:focus-visible {
 
 /* ---------- Hero ---------- *//* ---------- Hero ---------- */
 
-/* The opening card: the words stand in the mist on the left, set from the middle of the screen. */
+/*
+ * The opening card: the statement stands at the top left, over the three
+ * kinds of building, which have the lower part of the screen from edge to
+ * edge. Each is named in the picture, on the floor in front of it (.lbl--kind).
+ */
 .film--hero .prelude {
-  justify-content: center;
-  padding-top: var(--hdr);
+  justify-content: flex-start;
+  padding-top: calc(var(--hdr) + clamp(2.5rem, 11svh, 6.5rem));
 }
 
 .film--hero .prelude__top {
@@ -790,69 +986,127 @@ button.film__tag:focus-visible {
 }
 
 .film--hero .prelude__line {
-  font-size: clamp(2.6rem, min(6.7vw, 13svh), 8rem);
+  font-size: clamp(2.6rem, min(6.7vw, 12.4svh), 8rem);
 }
 
-.film--hero .prelude__rest {
-  max-width: 34rem;
-  gap: clamp(1.25rem, 3.4svh, 2.25rem);
+/* The words go as soon as the camera starts for the house. */
+.film--hero .film__prelude-inner {
+  opacity: clamp(0, 1 - var(--pre, 0) * 5, 1);
 }
 
 .film--hero .film__prelude-cue {
-  bottom: clamp(1.75rem, 5.5svh, 3.25rem);
+  left: auto;
+  right: var(--gutter);
+  bottom: clamp(1.25rem, 3.6svh, 2.25rem);
 }
 
-/* The two shells, drawn to one scale. */
-.prelude__shells {
+/*
+ * Who the site is powered by, on the opening card (client, 2026-10-10):
+ * opposite the card's small title, in the clear upper right, the logo as
+ * supplied on the card's paper. It goes with the card's words.
+ */
+.prelude__by {
+  position: absolute;
+  top: calc(var(--hdr) + clamp(2.5rem, 11svh, 6.5rem) - 0.55rem);
+  right: var(--gutter);
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 1rem clamp(1.5rem, 3vw, 2.75rem);
-}
-
-.prelude__shells li {
-  display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 0.85rem;
+  color: var(--mute);
+  transition: opacity 0.8s var(--ease) 0.45s;
 }
 
-.prelude__shell {
-  display: grid;
-  gap: 0.3rem;
-  padding-bottom: 0.2rem;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.prelude__by img {
+  display: block;
+  width: auto;
+  height: clamp(1.45rem, 1.1rem + 0.9vw, 2rem);
+}
+
+.is-booting .prelude__by {
+  opacity: 0;
+}
+
+.no-js .prelude__by {
+  position: static;
+  margin-top: 1.5rem;
+}
+
+/* The three in words. With the picture up they are named in it: this list is for a reader that cannot see it. */
+.js .prelude__kinds {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
   white-space: nowrap;
+}
+
+.prelude__kinds {
+  display: grid;
+  gap: 0.6rem;
+  max-width: 34rem;
+  padding-top: 2rem;
+  font-size: 1.05rem;
   color: var(--text-2);
 }
 
-.prelude__shell b {
-  font-weight: 500;
+.prelude__kinds b {
+  font-weight: 640;
   color: var(--text);
 }
 
-.shell-glyph {
-  flex: none;
-  height: auto;
-  overflow: visible;
-  fill: none;
-  stroke: #111214;
-  stroke-width: 1;
-  stroke-linejoin: round;
+/* The last statement of each caption is its point: set as one. */
+.film--hero .film__note {
+  max-width: none;
+  padding-top: 0;
+  border-top: 0;
+  font-size: clamp(1.5rem, 1rem + 1.7vw, 2.5rem);
+  font-weight: 640;
+  font-stretch: 104%;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  color: var(--accent);
 }
 
-.shell-glyph__top {
-  fill: rgb(17 18 20 / 0.03);
+/*
+ * The hero's captions change on the cut itself (client, 2026-10-10: "the
+ * tab and text transitions happen simultaneously"). The words that go and
+ * the words that come move together, in the time and on the curve of the
+ * step's mark, and nothing waits: before, the mark changed at once and the
+ * caption followed over a second, a ninth of a screen after the picture.
+ */
+.film--hero .film__step {
+  transition:
+    opacity var(--hero-swap) var(--ease),
+    visibility 0s linear var(--hero-swap),
+    filter var(--hero-swap) var(--ease),
+    transform var(--hero-swap) var(--ease);
 }
 
-.shell-glyph__front {
-  fill: rgb(17 18 20 / 0.1);
+.film--hero .film__step.is-active {
+  transition:
+    opacity var(--hero-swap) var(--ease),
+    visibility 0s,
+    filter var(--hero-swap) var(--ease),
+    transform var(--hero-swap) var(--ease);
 }
 
-.shell-glyph__end {
-  fill: rgb(17 18 20 / 0.18);
+.film--hero {
+  --hero-swap: 0.38s;
+}
+
+.film--hero [data-captions='blur'] .film__step {
+  filter: blur(8px);
+}
+
+.film--hero [data-captions='blur'] .film__step.is-active {
+  filter: blur(0);
+}
+
+.film--hero .film__tick::after {
+  transition:
+    background-color var(--hero-swap) var(--ease),
+    transform var(--hero-swap) var(--ease);
 }
 
 /* The hero's sky is plain enough to read on: no scrim. */
@@ -886,10 +1140,6 @@ button.film__tag:focus-visible {
 .film--hero .film__body {
   font-size: clamp(1.08rem, 1rem + 0.45vw, 1.35rem);
   max-width: 31rem;
-}
-
-.film--hero .film__heading {
-  color: var(--text-2);
 }
 
 .hero__actions {
@@ -948,22 +1198,35 @@ button.film__tag:focus-visible {
   margin-top: 0.5rem;
 }
 
+.counter__scale {
+  gap: 0.35rem;
+}
+
 .counter__scale span {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   letter-spacing: 0.06em;
+  text-align: center;
   color: var(--mute);
-  padding-top: 0.5rem;
+  padding: 0.5rem 0.4rem 0.35rem;
   border-top: 2px solid var(--line);
-  min-width: 2.2rem;
+  min-width: 2.6rem;
   transition:
     color 0.3s var(--ease),
-    border-color 0.3s var(--ease);
+    border-color 0.3s var(--ease),
+    background-color 0.3s var(--ease);
 }
 
 .counter__scale span.is-on {
   color: var(--text);
-  border-color: var(--accent);
+  border-color: var(--text);
+}
+
+/* The footprint on show: its number in the titles' colour, as a text colour (client, 2026-10-09; developer, 2026-10-10). */
+.counter__scale span.is-now {
+  color: var(--title);
+  border-color: var(--title);
+  font-weight: 500;
 }
 
 /* ---------- Live build summary (your house) ---------- */
@@ -985,26 +1248,100 @@ button.film__tag:focus-visible {
   color: var(--text);
 }
 
-/* A quiet word that the scene can be turned by hand (your house). */
-.film__hint {
+/*
+ * The 3D tour's views (your house): a word that the house can be turned by
+ * hand, and the five views as keys, set out as the directions they are.
+ */
+.viewpad {
   position: absolute;
   right: var(--gutter);
   bottom: clamp(1.5rem, 4vh, 2.75rem);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--mute);
+  display: grid;
+  justify-items: end;
+  gap: 0.75rem;
 }
 
-.film__hint span {
-  font-size: 1rem;
-  color: var(--accent-ink);
+.viewpad__hint {
+  max-width: 15rem;
+  text-align: right;
+  color: var(--text-2);
+}
+
+.viewpad__keys {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(3.9rem, auto));
+  grid-template-areas:
+    '. top .'
+    'left centre right'
+    '. down .';
+  gap: 0.25rem;
+}
+
+.viewpad__key {
+  min-height: 2.5rem;
+  padding: 0.3rem 0.6rem;
+  /* Keys, not captions: they keep a backing, so they can be read whatever part of the studio is behind them. */
+  background: rgb(var(--scrim) / 0.78);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  transition:
+    color 0.2s var(--ease),
+    border-color 0.2s var(--ease),
+    background-color 0.2s var(--ease);
+}
+
+.viewpad__key--top {
+  grid-area: top;
+}
+
+.viewpad__key--down {
+  grid-area: down;
+}
+
+.viewpad__key--left {
+  grid-area: left;
+}
+
+.viewpad__key--right {
+  grid-area: right;
+}
+
+.viewpad__key--centre {
+  grid-area: centre;
+  border-color: var(--text-2);
+  color: var(--text);
+}
+
+.viewpad__key:hover,
+.viewpad__key:focus-visible {
+  background: var(--mark);
+  border-color: var(--mark);
+  color: var(--on-mark);
 }
 
 @media (max-width: 860px) {
-  .film__hint {
-    top: calc(var(--hdr) + 2.6rem);
+  .viewpad {
+    top: calc(var(--hdr) + 2.4rem);
     bottom: auto;
+    gap: 0.5rem;
+  }
+
+  .viewpad__hint {
+    max-width: 11.5rem;
+  }
+
+  .viewpad__keys {
+    grid-template-columns: repeat(3, minmax(3.4rem, auto));
+  }
+
+  .viewpad__key {
+    min-height: 2.75rem;
+    font-size: 0.6rem;
   }
 }
 
@@ -1038,7 +1375,9 @@ button.film__tag:focus-visible {
   .film__backdrop--studio {
     --pool-x: 50%;
     --pool-y: 30%;
-    --floor: 43%;
+    /* The row is seen from above, all floor: the line comes down into the picture as the camera does. */
+    --floor: -6;
+    --floor-drop: 49svh;
   }
 
   .film__mist i:nth-child(1)::before {
@@ -1059,12 +1398,24 @@ button.film__tag:focus-visible {
     padding-top: 0;
   }
 
+  /* The three stand one behind another here, and take more of the screen's height than one house did. */
   .film--hero .prelude__top {
-    padding-top: calc(100svh - var(--win-b) + 1.25rem);
+    padding-top: 63svh;
   }
 
-  .film--hero .prelude__rest {
-    gap: 0.9rem;
+  /* The bank lies at the feet of the nearest of the three, and comes up to the house's own as the camera comes down to it. */
+  .film--hero .film__mist i:nth-child(1) {
+    transform: translate3d(0, calc((1 - var(--lead, 1)) * 9svh + var(--rise) * -6svh), 0);
+  }
+
+  .film--hero .film__note {
+    font-size: clamp(1.3rem, 6vw, 1.7rem);
+  }
+
+  /* On a narrow screen the picture has the top of the card: "Powered by" goes under the statement. */
+  .prelude__by {
+    position: static;
+    margin-top: 1.1rem;
   }
 
   .film--hero .film__prelude-cue {
@@ -1291,6 +1642,7 @@ button.film__tag:focus-visible {
 
   .film__step,
   .film__stage,
+  .layer-word,
   .film__word {
     transition-duration: 0.01ms !important;
     transition-delay: 0s !important;
@@ -1307,6 +1659,7 @@ button.film__tag:focus-visible {
 .is-still .film__stage,
 .is-still .film__step,
 .is-still .film__word,
+.is-still .layer-word,
 .is-still .showcase__stage {
   transition: none !important;
 }

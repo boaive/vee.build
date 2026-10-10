@@ -553,6 +553,105 @@ export function doorFaces(units: readonly Unit[]): Map<number, DoorFace> {
   return out;
 }
 
+/**
+ * One home, one main door (client, 2026-10-09, on the footprints of "How it
+ * works": "in multiple modules it is better we maintain one main door").
+ * Of the doors the rule above gives the shells of a ground-floor home, one
+ * is kept: the one that opens to the street, a Shell A's before a Shell
+ * B's, on a shell's own front before an end, the leftmost of equals. Every
+ * other shell is reached from inside (`none`).
+ * A Shell A comes before a Shell B whatever face its door is on (client,
+ * 2026-10-10: the door is to sit naturally with the block): before, the
+ * door of the row of three left its end for the front of the Shell B that
+ * joins it at 700 sq.ft., and came back at 800.
+ * CONFIRM: used for the footprints of "How it works" and, a floor at a
+ * time, for its villa (floorDoors). The configurator, the catalogue and the
+ * mid-rise keep a door for each shell (notes J7).
+ */
+export function mainDoor(units: readonly Unit[], doors: ReadonlyMap<number, DoorFace> = doorFaces(units)): Map<number, DoorFace> {
+  let best = -1;
+  let top = -Infinity;
+  for (const u of units) {
+    const f = doors.get(u.id);
+    if (!f || f === 'none') continue;
+    const d = doorSpot(u, f as WallFace);
+    const s = (d.side === 0 ? 10 : 0) + (u.t === 'A' ? 5 : 0) + (f === 'front' ? 4 : 0) - d.x * 0.01;
+    if (s > top) {
+      top = s;
+      best = u.id;
+    }
+  }
+  const out = new Map<number, DoorFace>();
+  for (const u of units) out.set(u.id, u.id === best ? (doors.get(u.id) ?? 'none') : 'none');
+  return out;
+}
+
+/**
+ * One main door a floor, and a door of its own onto the balcony (client,
+ * 2026-10-10, on the Net Zero villa of "How it works": "maintain one main
+ * door per floor; add a separate door providing access to the balcony").
+ * On each floor one of the rule's doors is kept as that floor's main door
+ * (mainDoor). On an upper floor a shell whose front looks onto the open
+ * roof beside it has its one door there instead: the way out onto the
+ * terrace. `doors` is what to draw. `access` is what needs a floor outside
+ * it and a way up: the main doors, not the terrace door, which is reached
+ * from inside.
+ */
+export function floorDoors(units: readonly Unit[]): { doors: Map<number, DoorFace>; access: Map<number, DoorFace> } {
+  const all = doorFaces(units);
+  const occ = occupancy(units);
+  const doors = new Map<number, DoorFace>();
+  const access = new Map<number, DoorFace>();
+  for (const y of new Set(units.map((u) => u.y))) {
+    const here = units.filter((u) => u.y === y);
+    const terrace = new Set<number>();
+    if (y > 0)
+      for (const u of here) {
+        const d = doorSpot(u, 'front');
+        const [dx, dz] = FRONT[d.side];
+        const nx = d.cell[0] + dx;
+        const nz = d.cell[1] + dz;
+        if (!occ.has(key(nx, nz, y)) && occ.has(key(nx, nz, y - 1))) terrace.add(u.id);
+      }
+    // The floor's main door goes to a shell that has no terrace door, where there is one.
+    const rest = here.filter((u) => !terrace.has(u.id));
+    const main = mainDoor(rest.length ? rest : here, all);
+    for (const u of here) {
+      const m = main.get(u.id) ?? 'none';
+      if (m === 'none' && terrace.has(u.id)) {
+        doors.set(u.id, 'front');
+        access.set(u.id, 'none');
+      } else {
+        doors.set(u.id, m);
+        access.set(u.id, m);
+      }
+    }
+  }
+  return { doors, access };
+}
+
+/**
+ * The shells whose blank end takes a window. A Shell A's −x end is plain
+ * wall, as the client's single shell has it. In a row of shells turned
+ * end-on to the street that end is the building's front, and with one main
+ * door to the home every end but one was a blank wall (client, 2026-10-10:
+ * "add windows to each applicable block"). So where that end looks to the
+ * street, is free, and does not carry the shell's door, it has a window:
+ * the shell's own two-pane window, in the middle of the end.
+ */
+export function streetEnds(units: readonly Unit[], doors: ReadonlyMap<number, DoorFace>): Set<number> {
+  const occ = occupancy(units);
+  const out = new Set<number>();
+  for (const u of units) {
+    if (u.t !== 'A' || doors.get(u.id) === 'left') continue;
+    const d = doorSpot(u, 'left');
+    if (d.side !== 0) continue;
+    const [dx, dz] = FRONT[d.side];
+    if (!occ.has(key(d.cell[0] + dx, d.cell[1] + dz, u.y))) out.add(u.id);
+  }
+  return out;
+}
+
 /* ------------------------------------------------------------------ */
 /* Add-on layout                                                       */
 /* ------------------------------------------------------------------ */
@@ -998,8 +1097,10 @@ export function layoutAddOns(
   manual: readonly ManualAddOn[] | null = null,
   base = PLINTH,
   plot?: Plot,
+  /** The doors that need a deck or a way up, where they are not the rule's own (floorDoors). */
+  given?: ReadonlyMap<number, DoorFace>,
 ): AddOnLayout {
-  const doors = doorFaces(units);
+  const doors = given ?? doorFaces(units);
   const side: Turn = deckSide === 'auto' ? dominantSide(units, doors) : deckSide;
   const deckY = base + 0.12;
   const out: AddOnLayout = { side, deckY, decks: [], posts: [], spandrels: [], rails: [], steps: [], shades: [], roofs: [], solar: [], galleries: [], stairs: [], pieces: [] };

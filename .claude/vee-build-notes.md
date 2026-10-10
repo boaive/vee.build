@@ -8,12 +8,13 @@
 | A2 | Enquiry form destination | Forms cannot deliver | `PUBLIC_ENQUIRY_ENDPOINT` env var; unset = form reports it cannot send |
 | A3 | Real photography: modules in transit, crane installs, handovers, factory | Section 7 is proof; cannot be faked | Gallery is manifest-driven (`src/data/gallery.ts`); empty slots render as labelled "awaiting photograph" frames |
 | A4 | Clean export of the module render | Supplied JPEG carries a third-party "ReRender" watermark | Used once, uncropped, labelled "Visualisation"; replace file in `public/images/` |
-| A5 | Capsule pod renders | Capsule page requirement | Page uses the real-time 3D maquette of the 10′/16′/20′ pods |
+| A5 | Capsule home renders of VEE.BUILD's own | Capsule page requirement | Three reference renders came on 2026-10-09 (another maker's product, one with its watermark): used for form only (C9). The page shows the real-time model built after them, in 10′/16′/20′ |
 | A6 | Labour camp / prefab building renders | Prefab page requirement | Page uses the real-time 3D maquette |
 | A7 | Logo files | Brand | Typeset wordmark + two-module mark (6×3 and 3×3 rectangles from the client sketch) |
 | A8 | Production domain | Canonical URLs, sitemap, OG | Assumed `https://vee.build` in `astro.config.mjs` |
 | A9 | Floor plans for The Homestead 500 and Duplex Prime 600 | Catalogue requires plans | Neutral module plan only (module outlines + overall dimensions) |
 | A10 | Engineering references for Hook & Cleat, plug footing, L plinth, jack pier | 3D shows simplified stand-ins | See C1, C2 |
+| A11 | Where "Investors" and "Technology" lead; a link for Hemisphere One | Bottom band (J2) | Investors opens the enquiry form, Technology the "How it works" film; the logo is not a link |
 
 ## B. Claims supplied by the client that need confirmation before public use
 
@@ -30,6 +31,20 @@ Tagged `CONFIRM:` in the data files.
    structural bolt methods"** — comparative cost claim, no figure supplied.
 6. **"Radically less water, minimal site energy"** — no figures supplied; none shown.
 7. **"Built to the highest international structural metrics"** — which codes?
+8. **"Enveloped in concrete!"** (capsule home, client 2026-10-09) — that the
+   capsule's shell is concrete. Nothing about its construction is supplied.
+9. **"Built in days!"** (prefab building, same) — for what size of building,
+   and counted from what.
+10. **"Net zero"** and **"off-grid capability"** (How it works 2.4, same) —
+    no energy figures supplied; the picture shows solar arrays on two roofs.
+11. **"High-grade steel, 3D EPS insulation, and advanced micro-concrete"**,
+    **"eco-friendly concrete shells"** (Componentized building 3.2, same) —
+    grades, the panel product and the mix are not supplied.
+12. **"Installed in one day!"** replaces "Get your house installed in one
+    day!" in the hero: the same claim as B4.
+13. The word **"patented"** is no longer on the site: the sentence that
+    carried it (2.1, hook & cleat) was replaced by the client's 2.2 (B3
+    stands for when it comes back).
 
 ## C. Representation risks in 3D
 
@@ -37,9 +52,20 @@ Tagged `CONFIRM:` in the data files.
   the roof corners. The scene shows a simplified hook lug on an angle cleat at
   each top corner, labelled only "Hook & cleat". No mechanism is described in copy.
 - **C2 Foundation.** Brief and sketch name three components but not how they
-  relate. Scene shows plug footings at the corners, L plinth sections along
-  the long edges and jack piers at mid-span, height set by a rotating thread.
-  This arrangement is illustrative.
+  relate. As shown in "Componentized building" since 2026-10-10: plug
+  footings at the corners and L plinth pieces between them, the shell
+  sitting on both, set first; a jack pier (a precast pad with a screw jack
+  on it) under each deck post and under each stringer of the steps, set
+  when the add-on that lands on it is (client, 2026-10-09: "the jack pier
+  has to come where deck post, stair frame land"; developer, 2026-10-10:
+  "we don't install the jack pier in the starting, we include that when
+  adding add-ons"). Under the steps each pier stands 0.7 m along from the
+  foot, where the stringer's underside is 157 mm off the ground, and its
+  head carries the stringer. Pad sizes, jack heights and that position are
+  ours. The ground is drawn see-through while the footings and plinth go
+  in and closes round them afterwards. The configurator's foundation
+  (`kit/house.tsx`) still has a jack head on each pedestal and none under
+  the deck (K8).
 - **C3 "Core shell" in the factory.** Drawn since 2026-10-07 as the steel
   frame of the client's structure sequence (H7): corner columns, a ring beam
   top and bottom, a cross beam, floor joists. The insulation panels stand
@@ -63,11 +89,37 @@ Tagged `CONFIRM:` in the data files.
 - **C7 Shell B openings.** No drawing of the 3 × 3 m shell was supplied. Its
   openings are ours: a window and the door on the front, a clerestory on the
   back and on one end.
-- **C8 Factory yard.** The yard's plan (bays in one line, gantry on rails,
-  shed at the far end, gate on the truck's lane, batching plant, stock) and
-  the way each step is shown (piers travelling out to the corners, walers
-  locking the formwork, the pump's hose over the top, a spray arch) are an
-  illustration of the brief's seven lines, not a record of the real yard.
+- **C9 Capsule home.** Drawn after three reference renders of another
+  maker's capsule (client, 2026-10-09): a white hull with rounded corners
+  in segments with dark joints, black-framed glazing wrapped round each
+  end, a door bay in the long side with light lines beside it, a line of
+  light at the foot, jack legs, two fold-down timber steps. The 10′ pod
+  has glazing round one end only and a square light in the other; the
+  back has a ribbon of high glazing. Width 3.0 m, hull 2.75 m on 0.4 m
+  legs, corner radius 0.8 m: all ours, as is every opening. The lit
+  glazing is a glow, not a room: nothing is modelled inside.
+- **C10 The module's three parts** (Componentized building 3.2). Steel
+  frame: a ring beam at the floor with nine joists, a column at each
+  corner carrying a lifting lug, and a ring round the top on the four
+  sides with nothing across the middle (developer, 2026-10-10, twice:
+  D, L6). Described once, in `kit/shell.ts`, which the factory draws
+  from too (M8). EPS as 18 wall
+  panels, six floor segments and six roof segments, the roof's lying on
+  the walls. The concrete as a 35 mm coat over walls and roof and a
+  topping on the floor, put on by a travelling portal with spray bars.
+  Door, panes, sidelights and frames are the standard shell's (H8), fitted
+  last, with the cleats along the roof's long edges. Thicknesses, segment
+  sizes and the portal are illustrations of the client's three sentences,
+  not a record of the process.
+- **C8 Factory yard.** Since 2026-10-10 (M8): one working bay, the truck's
+  lane along its front to a gate, a mobile crane behind it, a trailer
+  pump, a spray gantry on rails, a shed with finished shells and two
+  shells standing part-made behind. The plan, and the way each step is
+  shown (piers travelling out to the corners, boards on soldiers with
+  props, walers locking them, the pump's line over the top, the gantry,
+  the four-point lifting frame) are an illustration of the client's order
+  of work, not a record of the real yard. The lifting frame follows the
+  client's photograph; its sizes, and every machine's, are ours.
 
 ## D. Source conflicts and how they were resolved
 
@@ -80,6 +132,17 @@ Tagged `CONFIRM:` in the data files.
 | Module areas | Nominal 200 / 100 sq.ft. | Geometry: 18 m² = 193.8 sq.ft., 9 m² = 96.9 sq.ft. | Nominal sq.ft. as headline, true m² beside it. Confirm whether sq.ft. figures are external footprint or carpet area. |
 | Pricing | None | Wieldy: ₹5L–₹25L | No pricing on the site. |
 | Testimonials | None | Wieldy HTML has three unattributed quotes and calls itself a "design study" | Not used. |
+| Hero lines | "Get your house installed in one day!", "Live a sci-fi life.", "Insulated and comfortable living for your workforce.", "Lean, clean, resilient…" | Client, 2026-10-09: a heading and a line for each of three kinds | Latest instruction. The brief's first three lines are gone; the institutional line stays, set as statements (E). |
+| Stacked buildings | Three: The Villa, The Apartment, High-Rise Block | Client, 2026-10-09: remove The Apartment, "mid-rise" for "high-rise" | "How it works" shows two. The configurator keeps all three as presets (the client found it "just great" bar the name). |
+| Section 3 | "Building components", "Three simple steps", "Insulation" | Client, 2026-10-09: "Componentized building", "Foundation. Module. Add-on's.", "Module" | Latest instruction. |
+| Steel frame | H7: a ring beam at the roof with a cross beam, as well as the one at the floor | Developer, 2026-10-10: "we don't have side bars in top, only in bottom" | Latest instruction, twice that day: first "no bars in top" (K4), then "top steel bar only 4 sides, not in centre" (L6). A ring round the top, no beam across. The factory draws the same frame from the same file (M8). |
+| Factory view | Client, 2026-10-07: seen from above throughout, at the angle it opens on | Client, 2026-10-10: "a more diagonal angle, from above and from the side", the factory smaller, the opening redesigned | Latest instruction (M8). |
+| Factory order | Brief: gates, assembly bays, core shell, insulation, formwork, concreting, de-shuttering, finishing line | Client, 2026-10-10: begins with "Structural frame – core shell"; doors, windows and spray in the same bay; lifted by four hooks | Latest instruction. The gates and the bays' activation are not shown. |
+| Small titles on paper | Developer, 2026-10-10 morning: green everywhere as a text colour (a deep tone on paper) | The same day, afternoon: "if the white background doesn't support the green, use orange only there" | Latest instruction: vermilion on paper, green on ink (L3). |
+| Installation's wording | "Lifted onto the piers." | Client, 2026-10-10: "Placed on the foundation" | Latest instruction (M10). |
+| "How are we different?" | Client, 2026-10-09: the heading stays | Client, 2026-10-10: "We → VEE" where it stands for the company | Latest instruction: "How is VEE different?" (M13). |
+| Call-outs of section 3 | Client, 2026-10-09: "different colour boxes for foundation, module and add-ons" | Developer, 2026-10-10: "change the colour to green… difficult to view" | Latest instruction: every call-out there is a green box; the three colours and the outlines round the groups are gone. |
+| Capsule | "Capsule pods", lengths only | Client, 2026-10-09: "Capsule home", reference renders | Name and form from the latest; the three lengths from the brief. The renders show a longer capsule than 20′: not followed. |
 
 ## E. Copy edits made to brief text (meaning unchanged)
 
@@ -89,6 +152,25 @@ Tagged `CONFIRM:` in the data files.
   original would read as an error to engineers. Confirm intended wording.
 - "BMPTC" → "BMTPC" (see B1).
 - Emoji bullets dropped from the six differentiators.
+- From the client's notes of 2026-10-09, which are written in capitals:
+  set in sentence case throughout.
+- "ADD-ON's" → "Add-ons" (the brief's spelling; the apostrophe marks a
+  plural after capitals).
+- "VEE.BUILD Modules from these 2 shell frames" → "VEE.BUILD modules are
+  made from these 2 shell frames."
+- "Further adjustments can be done with jack" → "…with the jack."
+- "Casted with concrete with its insulation panels in place" → "Cast in
+  concrete with its insulation panels in place".
+- "VEE have componentized the modules" kept as written.
+- "standardised" → "standardized" as asked, and every other -ise on the
+  site with it ("optimized", "minimized", "componentized").
+- Institutional line: "Lean, clean, resilient, environmentally friendly
+  buildings for future generations." → heading "Lean. Clean. Resilient.",
+  text "Environmentally friendly buildings for future generations." The
+  client asked for statement headings on all four; the words are the
+  brief's.
+- "This is just like car manufacturing – See how they all connect
+  together." → two sentences.
 
 ## F. Technical decisions
 
@@ -386,6 +468,316 @@ changed power state during the runs, which is the width of the ranges.
   level, against 0.22-0.26 between two settled frames (the mist drifts).
 - **Not measured**: what the browser spends compositing a canvas that is
   mostly transparent over the page (the timer sees only the 3D).
+
+### F7. Sixth pass: the client's corrections of 2026-10-09 (section J)
+
+Same machine and method as F4 (headless Edge on the Arc GPU, 1280 × 720 at
+DPR 1.5, last commit and working tree served side by side as dev builds and
+visited in turn, one timer query per frame, 20 frames a reading, medians of
+3 or 4 alternating rounds, range in brackets). The machine was in its
+slower power state for most of it and changed state several times.
+
+| Film, where | Last commit | Now | Draw calls |
+| --- | --- | --- | --- |
+| Hero, opening card at rest | 4.23 [4.19-4.27] | 4.91 [4.91-4.95] | 41 → 69 |
+| Hero, card, the two being lifted away | (no such part) | 4.81 [4.79-4.83] | 77 |
+| Hero, card, land half spread | 14.25 [13.91-14.37] | 13.18 [12.56-13.32] | 106 → 106 |
+| Hero, farm | 11.54 [11.49-11.61] | 11.45 [11.37-11.51] | 106 → 106 |
+| Hero, capsules | 10.48 [10.41-10.62] | 10.50 [10.43-10.55] | 106 → 112 |
+| Hero, workforce | 7.32 [7.15-7.35] | 7.18 [7.14-7.37] | 74 → 82 |
+| Hero, institutional | 8.00 [6.62-8.03] | 8.02 [7.97-8.10] | 67 → 67 |
+| How it works, the two shells | 21.37 [19.40-22.19] | 8.57 [8.08-8.60] | 51 → 44 |
+| How it works, lift & shift (was hook & cleat) | 16.68 [15.82-17.38] | 8.29 [7.44-8.70] | 32 → 46 |
+| How it works, 600 sq.ft. | 20.07 [18.95-20.19] | 7.85 [7.83-8.19] | 40 → 51 |
+| How it works, 800 sq.ft. | 18.28 [18.03-18.90] | 8.88 [8.19-9.73] | 30 → 41 |
+| How it works, villa | 16.33 [16.17-16.93] | 8.11 [7.23-8.27] | 67 → 62 |
+| How it works, top of the mid-rise | 7.92 [7.19-7.92] | 8.22 [7.54-9.03] | 67 → 60 |
+| Components, exploded view | 6.93 [6.90-9.77] | 7.20 [6.79-10.82] | 231 → 351 |
+| Components, foundation | 20.97 [19.91-38.11] | 17.15 [16.05-27.28] | 92 → 128 |
+| Components, frame | 8.86 [8.34-10.29] | 8.12 [8.02-8.43] | 146 → 200 |
+| Components, panels | 8.14 [7.66-8.23] | 8.32 [8.31-8.79] | 231 → 345 |
+| Components, concrete going on | 8.34 [8.34-11.91] | 8.83 [6.35-8.89] | 284 → 410 |
+| Components, shell closed | 7.91 [7.17-11.19] | 8.34 [8.14-12.80] | 194 → 192 |
+| Components, all add-ons on | 7.29 [7.25-9.10] | 7.68 [7.32-10.46] | 231 → 237 |
+| 3D tour (your house) | 8.55 [8.50-8.69] | 8.56 [8.21-8.57] | 64 → 72 |
+
+- **"How it works" costs less than half of what it did: 8 ms where it was
+  16 to 21.** Not from this round's changes: the blueprint grid was 58
+  blended line segments, and they were 12 ms of every frame (switching
+  one thing off at a time inside one page, four rounds: 19.6, 19.8, 19.5,
+  19.0 ms with everything on; 7.9, 7.2, 7.7, 7.5 with the lines off; the
+  shadow ground, the shells and the rest each within a millisecond of
+  "everything on"). The progress file had listed them as worth timing
+  since 2026-10-07 (issue 15). The grid is now one flat sheet whose
+  fragment shader finds the lines with screen-space derivatives, a pixel
+  wide at any distance, as the lines were: 7.0, 7.2, 6.4 ms. A crop at
+  1:1 before and after shows the same hairlines in the same places. Why
+  line segments cost that much on this GPU was not found (the components
+  film's 1 m grid is the same kind of object and does not); the other
+  grids are untouched and worth the same test: the configurator's plot
+  grid and the joints of every `Paving`.
+  At the very top of the mid-rise the sheet costs about 0.3 ms more than
+  the lines did (they were far away and cheap there).
+- **The opening card at rest: 0.68 ms more** (4.91 against 4.23), for two
+  more buildings in the picture, which is what was asked for. It is still
+  the cheapest frame of the hero. The prefab block's seven gallery posts
+  became one mesh on the way (89 draw calls → 69; it helps the workforce
+  set too). The film's four sets are unchanged within the spread: the new
+  capsule costs nothing that can be measured.
+- **Components: within half a millisecond everywhere, after one fix.**
+  With every part of the three-part module drawn, a closed shell cost
+  10.03 ms against 8.14 (450 draw calls against 186). What the concrete
+  seals in (steel frame, floor and roof segments, plain wall panels,
+  partitions: fifty meshes, each drawn three times a frame) is no longer
+  drawn once the door and the glass are in; the glazing is not see-through,
+  so the picture is the same. What is left of the difference (+0.4 ms with
+  the same draw calls) is the walls being textured concrete where they
+  were plain white. The foundation step is 3.8 ms cheaper: its camera
+  stands a little farther back to take the jack piers in.
+- **Lift & shift** was first read as 2.5 ms dearer than the hook close-up
+  it replaced. Not the shells' shadows being redrawn as they move (a
+  moving and a still frame at that pose: 12.31 and 12.12 against 12.25 and
+  12.13 ms, in one power state); it was the same grid, more of it in shot.
+- **Load.** Time to the hero's first picture, dev builds, four alternating
+  rounds: 2.3 to 2.9 s now, 2.7 to 4.3 s for the last commit; longest
+  single task before it 1.1 to 1.3 s against 1.2 to 2.6 s. Not slower with
+  two more buildings to build; the spread is the machine's.
+- **Frame pacing**, a steady 1500 px/s scroll, two passes each: hero 54.6
+  and 55.9 fps (last commit 55.4 and 54.8), longest frame 76 and 75 ms at
+  its end (89 and 62); how it works 55.9 and 55.0 (55.3 and 54.9), longest
+  71 and 72 ms (71 and 111); components 56.1 and 57.0 (56.0 and 55.7),
+  longest 35 and 19 ms (36 and 36); the 3D tour 39 and 48 fps over its
+  thirty frames (42 and 47), longest 258 and 101 ms (215 and 114). The
+  long frames are where the next film mounts, in both builds.
+- **Moving against still**, thirteen poses (the row, the lift-away, farm,
+  capsules, institutional; lift & shift, 600 sq.ft., villa; exploded view,
+  frame, concrete going on, closed shell; the 3D tour): the largest shift
+  in tone over any twelfth of the picture is 0.39 of a grey level (the
+  villa, where the railings are, as in F5), 0.27 or less elsewhere; the
+  mean difference pixel by pixel is 0.15 to 1.98 grey levels, which is
+  the grain.
+- **Found on the way: the settled picture could carry the glow of another
+  pose.** The glow is refreshed on alternate moving frames. If the last
+  moving frame was one that reused it, the settle kept that glow: after a
+  jump of the page (a link, a key, reduced motion's snap, `?go`) the
+  lamps and lit windows of the pose before stood in the new picture as
+  soft ghosts until the next frame. The settle now makes the glow itself
+  when the last frame reused one (`post.tsx`): one glow pass, once, on
+  about half the pauses.
+- **Not measured:** a production build (all of the above are dev builds
+  of both trees); the capsule and prefab pages' showcases; anything on a
+  phone.
+
+### F8. The rules the 3D pipeline is held to
+
+Set down on 2026-10-09 from the developer's brief for any change to the
+3D. They describe the pipeline as built (F2, F3); follow them, and say so
+where a change cannot.
+
+**The standard.**
+1. A moving picture and a still picture are the same picture (client).
+   Never lower resolution while scrolling, never an effect only at rest or
+   only in motion. The one difference allowed: edges are multisampled 2x
+   moving and 4x at rest.
+2. Speed comes from removing work that does not show, never from trading
+   quality. If something is slow, find the wasted work.
+3. Budget, on the client's laptop (Arc integrated, 1920 × 1200 at 150%): a
+   moving hero frame is 4 to 6 ms of GPU in the fast power state, two to
+   three times that throttled. More than about 0.5 ms a frame needs a
+   reason and a measurement. Do not make a film slower without saying so.
+
+**The pipeline.**
+- `Stage.tsx` is the only `<Canvas>`. Scenes are pure functions of one
+  damped progress value: no render passes, render targets, scroll
+  listeners or animation loops of their own. Frameloop stays `demand`.
+- The stage and the finish (`kit/post.tsx`) own everything drawn besides
+  the scene: the sky (drawn on its own at half size, put behind the
+  scene), the shadow map, occlusion (every frame, half resolution), bloom,
+  tone mapping, the grade. No sky dome, second shadow light or post effect
+  inside a scene.
+- The shadow map is redrawn only when the light or a caster moves. A
+  caster that changes every frame forces a 4096 px redraw every frame:
+  `castShadow` only where the shadow shows, and casters move by progress,
+  not by time.
+- The scene's picture stays premultiplied, alpha as coverage (the sky is
+  put behind it). No additive or custom blending over open sky without
+  checking against the sky.
+
+**Geometry and materials.**
+- Repeated objects are one `InstancedMesh`; static pieces sharing a
+  material are merged. An `InstancedMesh` takes `instanced()` copies of
+  shared materials.
+- Reuse the kit's materials and memoised geometry: a new material variant
+  is a shader to compile, a new texture is main-thread time before the
+  first picture.
+- Dense things follow the distance levels of `kit/landscape.tsx`;
+  overlapping alpha-tested cards need the depth-only pass the leaves have.
+- Memoise on values. Allocate nothing inside `useFrame`.
+- What the camera reaches later is built and warmed in idle time
+  (`rig.prepare`, `rig.warm`), and a mesh is made very small rather than
+  hidden if it must be compiled with the first frame.
+- Text is never in WebGL. No new dependency without a note here.
+- What cannot be seen is not drawn (F7: the inside of a closed shell).
+- Lines on the ground are a shaded sheet, not line segments (F7).
+- When something is removed, its geometry, materials and textures go too.
+
+**Before saying it is done.**
+1. `npm run check`, `npm run build`, the legacy-name search.
+2. Look at every film touched at several progress values, `/capsule/`,
+   `/prefab/`, the configurator, 390 px wide and `?still`. No console errors.
+3. A frame captured while frames are being asked for against the settled
+   one at the same pose (region means and 1:1 crops). Two settled pictures
+   do not show what this project has got wrong before.
+4. Against the tree before the change at the same poses: a picture that
+   changed without being the task is a regression.
+5. Measure: headless Edge on the same GPU over the DevTools protocol, GPU
+   time by `EXT_disjoint_timer_query_webgl2`, old and new interleaved,
+   medians. One reading means nothing on this laptop.
+6. A steady scroll through each film touched: pacing and any long frame.
+7. Report the cost before and after, draw calls if they moved, and what
+   was not verified. If a request cannot meet these rules, stop, give the
+   numbers and offer the cheapest version that keeps moving and still
+   pictures the same.
+
+### F9. Seventh pass: the developer's round of 2026-10-10 (section K)
+
+Method as F7, with two changes found necessary that day. A reading is now
+taken after a second of frames at the pose (60 before the 20 that are
+timed): the page has just been idle while it settled, the GPU with it, and
+the first batch after that read up to three times high (the "17 ms"
+foundation step of F7 was mostly this). And the capture browser is started
+with `--disable-features=BackForwardCache` and restarted between long
+runs: its GPU process grew by some 200 MB a page load and hung at about
+2.5 GB, three times that day.
+"Before" is the tree as it stood before this round (the round of
+2026-10-09, not yet committed), copied and served beside the working tree.
+
+| Components film, where | Before | Now | Draw calls |
+| --- | --- | --- | --- |
+| The house whole (0.02) | 8.08 [8.07-8.10] | 7.87 [7.62-7.88] | 339 → 234 |
+| Come apart (0.17) | 7.06 [7.04-7.07] | 6.75 [6.72-6.87] | 351 → 234 |
+| Foundation (0.4) | 12.91 [11.47-13.10] | 12.54 [11.80-12.67] | 136 → 48 |
+| Frame (0.5) | 7.91 [7.87-8.03] | 7.94 [7.89-8.07] | 208 → 125 |
+| Panels (0.62) | 8.35 [8.13-8.69] | 8.30 [8.28-8.41] | 353 → 217 |
+| Concrete going on (0.68) | 8.74 [8.71-8.77] | 8.87 [8.87-9.04] | 402 → 281 |
+| Shell closed (0.74) | 8.19 [8.18-8.24] | 8.37 [4.65-8.58] | 200 → 156 |
+| All add-ons on (0.98) | 7.43 [7.42-7.44] | 7.45 [7.44-7.49] | 245 → 236 |
+
+- **The components film costs what it did, within 0.2 ms, with a third
+  fewer draw calls.** In the opening nothing inside the shell is drawn;
+  the solar panels, the cleats and each pier's pad and jack are one mesh
+  each; the cut-outs of the openings are gone.
+- **The ground under the house.** See-through, the block of ground costs
+  about a millisecond of a frame (switching it off inside one page, five
+  rounds in the fast power state: 4.65 ms with it, 3.54 without). It is
+  see-through only while the footings and plinth go in; then it closes
+  and is a solid block drawn with everything else, which is why it can
+  stay to the end, under the steps and the piers.
+- **Entering a film** ("while scrolling to your build I can feel a little
+  lag"). A film's scene was mounted when the film came within a screen of
+  the viewport, in the middle of the scroll towards it: geometry, a WebGL
+  context, the environment map, shaders; and its first visible frame then
+  sent its buffers, textures and shadow map to the GPU. Now a film within
+  1.75 screens below the viewport (the factory: 2.8) is mounted in the
+  first quiet moment (the page still for 0.28 s, no pointer or key), and
+  a stage mounted out of sight draws itself once into the warming target
+  as soon as its shaders are in. Test: stand 1.3 screens above "Your
+  build" for 3.5 s, then scroll on at 1500 px/s for 2.4 screens.
+  Longest frame before: 233 and 83 ms (earlier runs 106 to 160). Now: 17
+  and 17 ms, no frame over 20. With the factory reaching only 1.75 it was
+  34 to 67 ms, the long frame falling 0.6 to 0.77 of a screen into "Your
+  build", where the factory mounted: hence its longer reach. Into "How it
+  works" the same test read 71 ms before and 19 after. A visitor who
+  never stops still gets the mount in mid-scroll, as before.
+- **What that costs: GPU memory at one place.** Working set of the
+  browser's GPU process, one fresh page visit each, read at seven places:
+
+  | Where | Before | Now |
+  | --- | --- | --- |
+  | Hero at rest | 1,141 MB | 952 to 1,115 MB |
+  | In "How it works" | 1,657 | 1,479 to 1,622 |
+  | In the components film | 1,681 | 1,519 to 1,679 |
+  | Foot of the configurator, after 7 s | 1,624 (3 canvases) | 1,997 (4 canvases) |
+  | In "Your build", after 6 s | 1,841 (3) | 1,900 to 2,031 (3) |
+  | In the factory film | 1,727 (2) | 1,570 to 1,706 (2) |
+  | In the installation film | 1,718 (2) | 1,573 to 1,717 (2) |
+
+  One more stage is mounted while the visitor is at the foot of the
+  configurator (the factory's, ahead of time): about 0.4 GB there, nothing
+  elsewhere beyond the spread between visits. A mounted stage is 300 to
+  500 MB (shadow map, the finish's targets, textures); the hero's stays
+  mounted for the whole page. A first version reached three screens both
+  ways and had five canvases and 2.6 GB at that spot: withdrawn. Not
+  measured on a machine with less memory or on a phone, where a stage is
+  smaller (no occlusion, a 2048 shadow map).
+- **Moving against still**, eight poses (the row, 2.1 before the shells
+  rise, and six of the components film): the largest shift in tone over
+  any twelfth of the picture 0.20 of a grey level, mean difference 0.14
+  to 0.86.
+- **Broken in passing and found by the build:** eight CSS rules lost
+  their selectors to a scripted replacement (catalogue tabs, the
+  drawings' dimension lines, the badge, the plan's lines). The dev server
+  showed nothing; `npm run build` stopped on "invalid empty selector".
+  Restored from the copy of the tree taken before the round.
+- **Not measured:** the production build's pages; a phone.
+
+### F10. Eighth pass: the two later rounds of 2026-10-10 (sections L and M)
+
+Method as F9. "Before" is the tree as it stood before the developer's
+second round that day (after K), copied and served beside the working
+tree. The laptop changed power state inside almost every run that
+evening: where a range is wide the fast-state reading is its low end, and
+the two builds are compared at their low ends and at their medians.
+
+| Where | Before | Now | Draw calls |
+| --- | --- | --- | --- |
+| Hero, opening card at rest | 2.63 [2.52-3.05] | 2.44 [2.39-2.49] | 100 → 117 |
+| Hero, the farm set | 5.31 [5.19-5.43] | 5.52 [5.28-5.84] | 106 → 118 |
+| How it works, 500 sq.ft. | 3.26 [3.15-3.39] | 3.15 [3.10-3.66] | 59 → 59 |
+| How it works, the villa | 3.04 [2.91-3.36] | 3.25 [3.16-3.25] | 62 → 82 |
+| Components, all add-ons on | 4.30 [4.30-4.32] | 4.23 [4.16-4.23] | 228 → 228 |
+| Factory, five stages (low ends) | 5.3, 5.4, 5.3, 5.4, 5.3 | 5.6, 5.7, 5.7, 4.9, 5.5 | 235-281 → 121-198 |
+| Installation, arrival / placement | 4.7 / 4.7 | 4.8 / 4.8 | 131 / 112 → 158 / 144 |
+| The road (new), three frames | none | 4.1 to 4.6 | 104 to 112 |
+
+- **Nothing costs more than about 0.4 ms a frame over what it did.** The
+  hero has the jack piers and three lit-glass copies more (0.2 ms on the
+  farm set, inside the spread). The villa of "How it works" is drawn by
+  more instanced meshes (a shell with a window in its end is another
+  geometry): 0.2 ms. The factory is a different film: nearer its subject,
+  with fewer things drawn (a third fewer draw calls), about 0.3 ms dearer
+  in the fast state at four stages of five. The components film's second
+  burst was not separated from the power-state noise that evening (its
+  medians ran 8.6 to 11.5 ms where the first burst's ran 6.6 to 9.5, both
+  in mixed states): the module's inner parts are drawn there, as they are
+  in 3.2. **Not settled; to be timed again in one power state.**
+- **Parts that first show in mid-film.** The new factory keeps most of
+  itself out of sight until its turn. A steady 1500 px/s scroll through
+  it had 6 to 12 frames over 25 ms (33 to 50 ms, at the moments a part
+  first appeared: its shader compiled and its buffers went up in that
+  frame). `useWarmAll` draws everything once into the warming target when
+  the stage mounts: after it, one long frame in the whole film (34 to
+  52 ms, at its very end, where the road's stage mounts), median 16.7 ms,
+  95th percentile 17.1 to 17.3. The tree before had 5 to 14 such frames.
+- **The road's stage.** With the kit's rolling terrain it took a third of
+  a second to mount, in the middle of the scroll that arrives from the
+  factory (a 300 ms frame). On the stage's own level ground, with the
+  machines' geometry built in idle time (`prepare`), that frame is 34 to
+  52 ms.
+- **Installation**, the same scroll: 3 frames over 25 ms (33 to 35) where
+  the tree before had 29.
+- **Moving against still**, seven poses (the farm set, the villa, the
+  components film's last frame and four of the factory): mean difference
+  0.35 to 1.37 of a grey level (the grain), largest shift in tone of any
+  twelfth of the picture 0.09 to 0.27.
+- **The hold** (M9), driven as a visitor's wheel: the page stopped 48 px
+  into the pinned stage, the film ran 0 to 1 in 4.0 s while every attempt
+  to scroll was put back, the page moved again on the first scroll after
+  it, and a second pass over the section was not held.
+- **Not measured:** GPU memory with the new stage in the page (one more
+  canvas can be mounted between the factory and the installation); a
+  phone; a real touch screen for the hold (emulated only); the production
+  build's pages.
 
 ## G. Decisions made during the build
 
@@ -748,3 +1140,480 @@ screenshots and one forwarded message from the client (Trinath, 2026-10-06
       sun is at 3 degrees: it would run for fifty) and goes as the ground
       comes, because the trees' long shadows would fall across it first.
     - Cost: F6.
+
+## J. Client corrections of 2026-10-09 and how they were carried out
+
+A two-column sheet from the client ("VEE.BUILD website – corrections",
+observations and corrections, read as text: any screenshots in it were
+not seen), relayed by the developer (Jana) with three reference renders of
+a capsule home and, later the same day, the Hemisphere One logo. The
+developer's instructions: do items 1 to 6; leave the factory tour (7) and
+delivery (8) for a later round; decide the open points and note them; the
+texts may be matched with picture and movement of our own.
+
+1. **Menu.** "MOD | POD | FAB  CONTACT. These are the only menu items."
+   Done: three short names in mono, divided by hairlines, and the Contact
+   button. Each link is read out with what it stands for ("MOD: Modular
+   house"), and the mobile menu shows it beside the name. Partnership left
+   the top menu.
+2. **Bottom band.** "Rest we will have at the bottom band. PARTNERSHIP.
+   INVESTORS. TECHNOLOGY. Important: add powered by HEMISPHERE ONE." Done:
+   a band on paper under the ink footer, the three on the left, "Powered
+   by" and the supplied logo on the right. The logo is dark lettering on a
+   clear ground, which is why the band is on paper; it is used as
+   supplied, at 1.9 rem high.
+   **CONFIRM:** Investors and Technology have no page and no content. So
+   as not to add routes unasked, Investors opens the enquiry form and
+   Technology goes to "How it works". Say where they should lead, and
+   whether the logo should link anywhere.
+3. **Opening card.** "One system. Many buildings. is correct. However, the
+   shell plan 1 and 2 is specific only to Modular. Here, we should have 3
+   objects; Modular home, Capsule Home & Prefab Buildings. Make enough
+   space to place all 3 objects." Done: the two shell drawings, the
+   sentence about two precast shells and the "Shell A · 6 m × 3 m × 3 m"
+   label are gone. The house, a 20′ capsule and the G+1 prefab block stand
+   in a row in the studio, to one scale (the block is three times as long
+   as the other two, so it stands 39 m behind them and reads as the
+   third). They are lowered in one after another on load. Each is named
+   on the floor in front of it, under the menu's short name: "MOD /
+   Modular.", "POD / Capsule.", "FAB / Prefab building." (the client's
+   "MODULAR. CAPSULE. PREFAB BUILDING."). The headline stands top left
+   and the three have the foot of the screen from edge to edge.
+   On scroll the card has two parts (it is 1.7 screens long, was 1). In
+   the first third the block's shells are lifted away one by one, then
+   the capsule, as they came, while the camera goes to the house. Then
+   the house's land spreads and its sky comes up exactly as before (I18).
+   Lifting rather than fading: a fade needs every material of the two to
+   be blended, and the sets later show the same buildings being lowered
+   in.
+   On a narrow screen the three stand one behind another, seen from above,
+   the house nearest; the words start lower (63% of the height).
+   For a reader that cannot see the picture, and where there is no
+   script, the card carries the three in words with their lines.
+4. **Headings and texts of the four banners.** "Use statement text for all
+   the headings. We can remove the numerical from heading. We are anyway
+   showing them through objects." and a text for each of the three. Done:
+   "Modular house." / "Factory made insulated concrete homes." /
+   "Installed in one day!"; "Capsule home." / "Luxury spaceship pod." /
+   "Enveloped in concrete!"; "Prefab building." / "Comfort accommodation."
+   / "Built in days!". The second statement of each text is set as the
+   point of the caption, in the accent. The small line over each heading
+   is the menu's name for the line (MOD, POD, FAB · Workforce housing,
+   FAB · Institutional): no lengths, floors or panel sizes there any
+   more; the pods keep their length labels and the panels theirs.
+   The institutional banner had no new text: its brief line is set the
+   same way (E). The claims are in B8, B9, B12.
+5. **"The institutional banner is a bit fast. The 36′ long panels needs to
+   come per scroll. Now we have 3 scrolls, it can be made 6."** Done: the
+   set has 1.25 screens of scroll (was 0.73) and its building goes up
+   over 60% of that (was 45%), about twice the travel; inside it the wall
+   panels follow one another instead of arriving nearly together (each
+   has two thirds of its stretch to itself, was a fifth). The hero is 4.9
+   screens long (was 4.4).
+6. **Capsule.** "Change capsule house to something like the attached
+   image; colouring and texture should match the theme and background we
+   already have" (developer). Done: C9. White hull, charcoal frames, warm
+   lit glazing; used in the hero's capsule set, on the opening card and on
+   `/capsule/`. The page's words are the client's line. The old pod
+   geometry is removed.
+7. **How it works.**
+   - 2.1 "The 2 core shells", "Two standardized shells.", "VEE.BUILD
+     modules are made from these 2 shell frames."
+   - 2.2 (the number was 2.1 twice): "Building as a product.", "VEE have
+     componentized the modules while maintaining complete architectural
+     freedom.", "VEE.BUILD fully finished “LIFT & SHIFT” modules." The
+     small line over it reads "Lift & shift". "You can show an arrow over
+     lifting hooks. We can avoid any call out there": the hook & cleat
+     call-out is gone; an arrow stands over each lifting hook, and as the
+     page scrolls the arrows go up and the two finished shells go up with
+     them, 0.6 m, and are set down again. The lift is ours: it is what the
+     words say. The camera shows the whole of Shell A from its free end.
+   - 2.3 "Single system. Multiple footprints." "Change the colour of
+     number to green as floor config moves close to respective number":
+     the footprint on show is marked in green on the counter's scale; the
+     ones passed are in ink. As a mark with ink text, because the green
+     as text has no contrast on paper (J8).
+     "In multiple modules it is better we maintain one main door": each
+     footprint has one door, on one shell, and the others have windows
+     where their doors were (`mainDoor`).
+     **CONFIRM:** read as one front door for one home. Applied to the six
+     footprints of "How it works" only. The configurator, the catalogue
+     drawings and the stacks (homes of several households) still have a
+     door for each shell, as instructed on 2026-10-07. Say if a home in
+     the configurator should have one too: it changes the decks and steps
+     rule (I16) with it.
+   - 2.4 "Multi-floor. Multiple roofing options." over "Net zero." and "A
+     multi-family house with off-grid capability."; the "Ideal for" line
+     is gone. The picture now shows what the words say: of the villa's two
+     upper shells one has the sloped roof with its solar array, the other
+     a flat roof with the array on frames, beside the open terrace. All
+     from the add-on list. "The Villa" as a name is no longer in the film
+     (it is still the preset's name).
+   - 2.5 "Stack up to 5 floors" over "Mid-rise apartment." with the
+     five-floor block's text and its "Ideal for" line kept ("retain rest
+     of the text"). The two-floor apartment is not shown. The film is 8
+     screens long (was 8.5); the villa has the time the apartment had.
+8. **Green.** The client asked for green twice more (the counter, and
+   "check if white text over green BG will grab attention" on the add-on
+   tags). White on this green measures 1.3 to 1 and cannot be read; ink
+   on it measures about 15 to 1. So: on paper the green is used as a
+   mark, a flat fill under ink text (`--mark`), on the footprint on show,
+   on the add-on that has just come down, and on a key or tag under the
+   pointer. On ink it is still the accent. **CONFIRM** if white on green
+   is wanted regardless.
+9. **Componentized building.**
+   - Heading "Componentized building"; over the first caption
+     "Building-kit-as-parts"; "Foundation. Module. Add-ons."; "This is
+     just like car manufacturing. See how they all connect together."
+   - "A different call-out to show – different colour boxes for
+     foundation, module & add-ons": each layer of the exploded view
+     stands in an outlined box of its own colour and is named on a box of
+     the same colour: concrete grey, panel white, the green. The add-ons
+     are in two places (on the roof and at the door) and have two boxes.
+     The exploded view itself shows more than it did: frame, panels and
+     concrete coat come apart as three layers.
+   - 3.1 "Further adjustments can be done with the jack." "The jack pier
+     has to come where deck post, stair frame land": C2. Six jack piers,
+     four under the deck posts and two under the steps; the posts stand
+     on their heads. The shell sits on the pedestals and the plinth.
+   - 3.2 "Module" / "Insulated concrete shell" and the client's paragraph.
+     The three tags and the three old call-outs are gone. Three parts,
+     each named on a box of its own colour while it goes up: "Structural
+     frame" (black), "Insulated panels" (white; the floor and the roof in
+     segments, as asked for the top), "Micro concrete" (grey): the coat
+     is sprayed on from one end to the other by a portal that travels the
+     length of the shell (C10). No particles. The door and the glass are
+     fitted last.
+   - 3.3 unchanged, but for the tag of the add-on that has just come
+     down (J8).
+10. **Key differences.** "Key differences" over the heading, which stays;
+    "Six points separate a VEE.BUILD building from traditional and other
+    off-site models."; "an animated icon for mouse over, in addition to
+    the colour line": each of the six has a mark drawn in the page's
+    hairline in its cell's corner (a house on its footing, a wall in
+    section, a loop with a leaf, the sun and an array, a shield with a
+    tick, bars coming down). It draws itself as the cell comes in and
+    moves again under the pointer with the accent rule. "Increase the
+    size of text heading in comparison table": "VEE.BUILD" and "Others"
+    are as large as the lines under them.
+11. **Build your own.** "Replace HIGH-RISE with MID-RISE": the preset is
+    "Mid-Rise Apartment", and "high-rise" is nowhere on the site.
+12. **3D tour.** The film after the configurator is headed "3D tour" and
+    numbered 6. "Drag to check top, down, left, right & centre": the hint
+    says so, a hand can tilt the view from ground level to nearly
+    overhead as well as turn it, and the five views are keys too (a
+    cross: top, left, centre, right, down), because on a touch screen a
+    drag up or down is the page's scroll. A key's view is let go when the
+    house is taken hold of or the page scrolls on. The second caption has
+    the client's sentence (E).
+13. **Numbers.** The sheet numbers the sections 5 Build your own, 6 3D
+    tour, 7 The factory, 8 Delivery. The page follows: the rail and the
+    menus list eleven chapters (3D tour and Delivery are chapters of
+    their own; site preparation, the installation and the close belong to
+    Delivery), and the catalogue, gallery and contact are 09, 10 and 11.
+    No section was moved, added or removed.
+14. **Spelling.** -ize throughout (E).
+
+**Not done, by instruction: items 7 and 8 of the sheet.**
+- 7 The factory: "At this point we need to show segment 3D panels at slab
+  level as well" (at the panels); "This is showing concrete filled inside
+  module. It should fill walls and slab."; "We can leave the windows and
+  door as black cut out. The rest of the detailing can come in finishing
+  line." The module's three parts as built for section 3 (C10) are the
+  model to follow there.
+- 8 Delivery: "No changes" to the text. "There is no animation on this
+  screen. It will be nice to see a ride. We can match this with real time
+  drone video masked in the background." Needs the video from the client.
+- Its last line, on the installation or the close, was not matched to a
+  section: ask which screen it means.
+
+**Decisions taken for the client to confirm:** J2 (where Investors and
+Technology lead), J3 (the prefab on the card is the G+1 block; the
+capsule is the 20′), J4 (the institutional line as statements), J7 (one
+main door: footprints only; "Net zero." as the heading of 2.4; the lift
+in 2.2), J8 (ink on green, not white), J9 (the three part colours; jack
+piers in section 3 only, the configurator's foundation unchanged), E
+("Add-ons", "Cast in concrete").
+
+## K. The developer's round of 2026-10-10 and how it was carried out
+
+From the developer (Jana), one message and a correction to it while the
+work was under way.
+
+1. **Componentized building, the opening** ("the current layout is
+   difficult to view, make it easy to view and understand for very common
+   people… the cubes around them making it look complicated… improve the
+   burst mechanism"). The exploded view of 2026-10-09 (every part of the
+   house flying apart, three coloured outlines round the groups) is gone.
+   The film opens on the finished house, whole. It is lifted off its
+   foundation; then its add-ons come off it, the roof and its solar array
+   upwards, the shades forwards, the deck with its steps and jack piers to
+   the side. Three things, each still whole, each named by a green box as
+   it is shown. Nothing inside the shell is drawn there.
+   "The text foundation module add-ons occurs one by one… when we show
+   what is foundation in the burst, we show foundation text": the heading
+   "Foundation. Module. Add-ons." arrives a word at a time with the
+   picture, the word that has just come in the green. Without script the
+   heading stands whole.
+2. **Green.** First read as "green everywhere instead of orange" and
+   built that way (chips behind the numbers, a marker stroke under the
+   hero's headline, green buttons and dimension lines); the developer
+   stopped it: "not as background, a text colour, and not everywhere,
+   only in titles like 01, 1.1, 2.2 (those small texts)". As it stands:
+   the small titles are green text (`--title`): the chapter's number, the
+   small line over each caption, the three codes on the opening card, the
+   footprint on show on the counter, and with them the rail's marker
+   ("side scroll bar") and a film's step ticks. On ink that is the green
+   itself. On paper the green itself cannot be read as text (1.2 to 1
+   against the page), so there it is a deep tone of the same hue
+   (`#4f7000`, 5 to 1). Everything else is as it was: vermilion on paper,
+   the green on ink. **CONFIRM:** the deep tone on light sections; the
+   bright green there would be the same colour to the letter and could
+   not be read.
+   "In 3, change the colour to green": every call-out box of that film is
+   the green with ink on it (they had three colours since 2026-10-09: D).
+3. **3.1 Foundation, the jack piers** ("we don't install jack pier in the
+   starting, we include that when adding add-ons"; "the jack pier for
+   steps is not properly arranged"). C2. The foundation step sets plug
+   footings and L plinths only and its caption says the jack comes with
+   the add-ons. In 3.3 a pier is set under each deck post just before the
+   posts come down, and one under each stringer of the steps just before
+   the steps; then each jack is turned up to its load. The steps' piers
+   stand under the stringers where their heads meet them, not at the
+   foot, where they came through the timber. The ground stays to the end
+   so that all of it stands on something.
+4. **3.2 Structural frame** ("we don't have side bars in top, we have it
+   in only bottom"). C10, D.
+5. **3.2 Door and windows** ("make the door and windows as same as in the
+   common design"). The module had openings of its own (two small windows,
+   a plain door). It now has the standard shell's, cut through panels and
+   concrete, and the standard joinery (`joineryGeometry`, shared with
+   `moduleGeometry`).
+6. **Build your own** ("foundation adjustment option after setting the
+   plot"; "2 column for the available designs"). The panel reads Start
+   from, Plot, Foundation, Add-ons, Finish; the eight designs are two to
+   a row.
+7. **Opening card** ("move the capsule pod a little right, giving
+   uniform spaces"). The capsule stands 1.25 m farther along the row; the
+   gaps either side of it now look alike (the block's light staircase
+   reads as part of the gap on its side).
+8. **"While scrolling to your build I can feel a little lag."** F9: films
+   are mounted ahead of time in a quiet moment. Left as it was: the
+   configurator's foundation (jack heads on the pedestals), which the
+   round did not ask about.
+9. **"Fix the 2.1 two core shells, where the bottom of the 2 cores is
+   breaking until the block arises."** Before they rise, the two shells
+   were drawn pressed flat on the floor, in the plane of the floor's
+   shadow and of the grid, and flickered through them. Until they rise
+   they are now a speck (still drawn, so their shaders are compiled with
+   the first frame), and the grid is always drawn after the shadow.
+
+## L. The developer's second round of 2026-10-10 and how it was carried out
+
+"Quick fixes", one message with a screenshot of the earlier exploded view,
+and two corrections on colour while the work was under way.
+
+1. **Opening card, the capsule** ("a little to the right, make it look
+   uniform"). The three stand in three columns: seen from the card's
+   camera the capsule's middle is half-way between the house's and the
+   block's, and each name hangs under the middle of its own building
+   (`rowOf` in `kit/sets.tsx`). On a phone the capsule was cut by the
+   screen's edge: moved in.
+2. **The prefab building's steps** ("side ways as in every place"). The
+   block's staircase is the dog-leg every stacked building has, against
+   its flank, taken from the access rule itself (`layoutAddOns(...).stairs`,
+   drawn by `stairGeometryOf`), not a straight flight placed by hand.
+   The block keeps its own gallery on posts; the rule's lies in the same
+   place.
+3. **Colour**, in three tries.
+   - Asked: "use fluorescent green, replace the normal one… the whole
+     title like 01 — Modular precast construction system… unique and
+     uniform… the oranges can be green (only if it makes sense), don't
+     mix orange and green". First built as ink labels behind the small
+     titles on paper, with what had been vermilion turned to ink there.
+     Refused at once: "why does the black come? why background colour?
+     why the oranges are black? I asked you to make it green".
+   - Second: the bright green as plain text on paper too. It measures
+     1.2 to 1 against the page and could hardly be seen; said so.
+   - Settled: "if the white background doesn't support the green, use
+     orange only there… which should uniquely identify the text". So:
+     **vermilion on paper, the fluorescent green on ink, one accent to a
+     ground, the whole small title in it, nothing ever put behind it.**
+     The deep green of K2 (`#4f7000`) is gone. The favicon's small square
+     is the green, on its ink square. tokens.css has the rule.
+4. **Componentized building, a second burst** ("after fully bursting, we
+   can burst further, like module, add-ons, foundation, like it is in
+   previously but easy for normal people to see"). After the three have
+   come apart, each comes apart into its own parts in turn. The module is
+   drawn apart upwards into three whole boxes: frame, panels, concrete.
+   Opened outwards first, the near walls hid the frame. The film is a
+   screen longer (9, phone 8) and its times are on a clock of its own
+   (`componentsClock.ts`), the opening having more scroll than its share.
+   On a phone the second burst was drawn black: the camera stands twice as
+   far there, beyond the studio's fog. The fog now stands back with the
+   camera.
+5. **Jack piers** ("should hold the staircase, not let it down"). The
+   steps hang from the deck at their head and their frame ends in a level
+   sole on a jack pier's head at the foot; before, the stringers ran into
+   the ground and the piers stood under their middle. Riser, sole and pad
+   sizes are ours (C2).
+6. **The frame's top** ("top steel bar in structural frame, only 4 sides,
+   not in centre"). A ring round the top between the columns' heads,
+   nothing across. That morning's "no bars in top" (K4) had taken the
+   ring away with the cross beam (D).
+7. **Build your own** ("show current sq feet, add-ons and other details
+   separately in below space"). Under the 3D view: the area large, then
+   shells, floors, footprint, plot, foundation, the finishes as swatches,
+   and the add-ons as chips. The view keeps its height.
+8. **Found in passing.** The configurator's "Rotate" was ink on ink (a
+   rule in the wrong order). The frame's steel all but vanished on the
+   dark stage: it is a painted black now (`mat.frameSteel`).
+
+## M. The client's brief of 2026-10-10 (evening) and how it was carried out
+
+Fifteen items, with two photographs (a truck seen from its front corner
+on a road; a shell hanging from a crane by a four-point lifting frame).
+"Follow the requirements precisely; use your own judgment where creative
+freedom is given."
+
+1. **Hero: tab and text together.** A caption came a ninth of a screen
+   after the cut to its set and then took a second to arrive, while the
+   step's mark changed at once. The captions now change on the cut itself
+   (`film/heroTimeline.ts`, one number for the scene and the copy), and
+   the words that go, the words that come and the mark move together:
+   0.38 s, one curve, no delay. Read back from the page: the step, its
+   mark and the header's theme change in the same frame at 0.153, 0.449
+   and 0.745. **CONFIRM:** "tab" was read as the step's mark and its
+   caption; the top menu's MOD | POD | FAB does not follow the film.
+2. **Prefab: Coming soon.** The prefab page had the tag; the main page's
+   two prefab captions did not. A tag beside the kicker (the pill and dot
+   of the sub-pages' badge, in the kicker's colour), "Prefab — coming
+   soon" on their link, and "FAB · Coming soon" under the block on the
+   opening card. The capsule, which said so only in its link, has the
+   same.
+3. **2.3, doors and windows.**
+   - One main door, kept on one shell: it used to pass to the Shell B
+     that joins the row at 700 sq.ft. and back at 800 (`mainDoor`: a
+     Shell A before a Shell B).
+   - Windows: with one door to the home, a row of shells turned end-on
+     showed blank ends to the street. Such an end now has the shell's own
+     two-pane window (`streetEnds`; `moduleGeometry(type, door, true)`).
+     The single shell is as the client's model has it.
+   - Net zero: one main door a floor (ground, and the upper floor's from
+     its gallery), and on the upper shell beside the terrace a door onto
+     the terrace (`floorDoors`). That shell's one door is the terrace
+     door, so no shell has two. Only main doors have a gallery and the
+     staircase led to them. The villa is now seen from its terrace side,
+     where that door is; its staircase stands against the far flank and
+     shows its foot and landing past the corner. **CONFIRM:** "balcony"
+     was read as the open terrace; and that the terrace door needs no way
+     to the staircase.
+   - Mid-rise: unchanged.
+4. **Section 3: add-on tags.** "Add-on" over the name, in the film's green
+   box, on the deck, the steps and the sloped roof as each lands, staying
+   to the end. The caption says they are chosen for each building.
+5. **Jack piers on the hero's house.** One under each joist of the
+   landing near its front, the joist in the jack's head, and one under
+   the sole of each stringer of the steps (`modelhome.tsx`), set just
+   before the landing comes down. On the opening card they stand in full
+   view; in the meadow the grass stands in front of the landing's.
+   **CONFIRM:** where they stand (under what comes down beside the shell,
+   as in section 3, not under the shell, which has its footings).
+6. **Powered by Hemisphere One.** Under the wordmark, the width of the
+   lockup, in the header, the footer and the loading screen (text: the
+   logo is dark on clear and the header stands on both grounds). On the
+   opening card with the logo, opposite the card's small title; under the
+   statement on a phone.
+7. **Affordable.** The bars getting shorter under a falling line are a
+   price tag with its price coming down ("keeps the cost down").
+8. **The factory.** C8, D. One bay; the order of film/factoryTimeline.ts.
+   - 8.1: the yard is 62 m by 55 on three walls where it was 98 by 76,
+     and what is seen of it is about a third: the camera stands 24 to
+     31 m from the shell, 22 to 31 degrees up, 29 to 47 round from its
+     front. The title card opens onto the whole yard, then the film goes
+     in. The gates, the bay that lit up and the second shell in its
+     formwork (the green box) are gone.
+   - 8.2: "Structural frame – core shell". The frame is section 3's
+     (`kit/shell.ts`): floor ring and joists, columns, top ring on four
+     sides, a hook on each column, named in the picture.
+   - 8.3: floor, four walls with their openings, then the roof panel.
+   - 8.4: the concrete is the walls (and the roof slab): it rises between
+     the boards and the panels and is laid over the roof from the hose's
+     end. What shows of the walls' pour is little (a 35 mm rim behind the
+     boards); the proof that the inside is clear is the next stage.
+     The pump is a trailer pump standing by the bay, its line run up the
+     boards and over. **CONFIRM:** 35 mm is section 3's coat; a cast wall
+     would be thicker.
+   - 8.5: the walers come off, each board is eased back and lifted away,
+     round the shell in turn. The openings are empty: the inside is drawn
+     as a room in shadow, the panels' reveal white round each opening.
+   - 8.6: doors and windows pushed home; then a spray gantry rolls along
+     the shell in the same bay and the finish follows it (the visitor's
+     own colour). Sprayed, it is the finished module of every other film.
+   - 8.7, 8.8: `kit/machines.tsx`, redrawn: a carrier on outriggers with
+     a slewing superstructure, counterweight, ram and a boom in four
+     sections that slide; a hook block on two falls; the four-point
+     lifting frame after the photograph. A cab-over tractor on three
+     axles with a flatbed the length of one shell, wheels that turn. The
+     shell is lifted straight up, carried to the trailer without turning
+     (the trailer stands along it) and set down; the frame lifts off it
+     only then; the truck pulls away and is still in the picture, at the
+     gate, when the film ends.
+   - 8.9: three things standing still: a shell with its frame up and
+     panels going on, one cast, six finished in the shed.
+   - Not done: figures, a second moving line, sound.
+9. **The journey.** `Transit.tsx`, `TransitScene.tsx`, in place of the
+   drawn truck on a line. One shot of 4 s: the truck comes down the road
+   with the shell, is seen as in the photograph at about a third, passes
+   an arm's length from the eye and drives off towards the evening sky.
+   A wider lens than the other films (46 degrees, 60 upright). It plays
+   by itself, once, when a visitor scrolls down onto it, and the page is
+   held meanwhile (`film/hold.ts`): wheel, touch and keys do nothing, the
+   page is put back if anything else moves it, and the hold ends by the
+   film's clock, by its own timer 1.2 s later whatever happened, on
+   Escape, and when the page is hidden. It starts only for a scroll the
+   visitor is making (a link's glide and the scrollbar do not start it)
+   and only if its picture is up; reduced motion never holds. "Replay"
+   afterwards. F10 has the test. **CONFIRM:** 4 s; and the truck at about
+   110 km/h for the look of it.
+10. **Installation.** `film/installTimeline.ts`.
+    - "Placed on the foundation." in place of "Lifted onto the piers."
+    - The truck comes in with one shell (the scroll). Past 0.3 of the
+      film the rest runs on a clock: the lifting frame comes down on the
+      four hooks, the shell is carried just clear of the trailer and set
+      on its footings (2.8 s), the frame lets go, the truck leaves, the
+      remaining shells come down by themselves one after another (at
+      most 2.6 s apart from first to last), the add-ons land, and the
+      lights come up (1.3 s). Two shells: 7 s in all. Scrolling back
+      above the trigger runs it back at three times the speed.
+    - The windows are dark on the trailer, in the air and while the
+      building goes up. The film is 4.4 screens where it was 6.
+    - With reduced motion each caption shows its own stage finished.
+    - **CONFIRM:** the truck brings a ground-floor Shell A where there is
+      one (the lifting frame is A's length); the further shells are
+      lowered in without the crane.
+11. **Opening card, lights.** Each of the three is dark while it is
+    lowered in and lights up 0.35 s after it stands, over about a second;
+    the porch lamp with the house. The capsule homes of the hero's second
+    set and of `/capsule/` the same.
+12. **Catalogue.** Hidden by `shown.catalogue` in `src/data/site.ts`:
+    not rendered, its code and data untouched, the numbers counted from
+    the list (Photo gallery is 09, Contact 10), the rail, the menus, the
+    footer and the three sentences that pointed at it following the flag.
+13. **We → VEE.** "How is VEE different?", "VEE delivers everything…",
+    "See how VEE manufactures it.", "VEE.BUILD is looking for
+    partners…", "Partner with VEE". Left: "Tell us…" and "so we can
+    respond", which are spoken to the visitor. **CONFIRM:** singular
+    ("VEE delivers"); the client's own sentence in 2.2 reads "VEE have
+    componentized" and was left as written.
+14. **Performance.** F10.
+15. **Verification.** Each of the brief's fifteen checks was looked at in
+    captures at 1280 × 720 and 390 × 844 on the dev server; the build
+    passes; no console errors. Not verified: below.
+
+**Not verified in this round.** A real phone or touch screen (the hold
+above all); Safari and Firefox; tablet widths; the catalogue switched
+back on; the configurator and the 3D tour after the kit's changes (looked
+at only in passing); the second burst's cost (F10); the header's links
+over the new factory picture on a phone, where the back of the yard is
+under the chapter's line.

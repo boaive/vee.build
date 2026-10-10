@@ -1,6 +1,7 @@
 ---
 import { Image } from 'astro:assets';
 import { gallery } from '../../data/gallery';
+import { numberOf } from '../../data/site';
 
 const photos = gallery.filter((g) => g.kind === 'photo').length;
 ---
@@ -8,7 +9,7 @@ const photos = gallery.filter((g) => g.kind === 'photo').length;
 <section class="section gallery theme-light" id="gallery" data-theme="light" data-chapter="gallery" aria-labelledby="gallery-heading">
   <div class="wrap">
     <header class="intro">
-      <p class="eyebrow"><b>08</b> Photo gallery</p>
+      <p class="eyebrow"><b>{numberOf('gallery')}</b> Photo gallery</p>
       <h2 class="t-h2" id="gallery-heading" data-reveal>Photo gallery</h2>
       <p class="t-lead" data-reveal style="--i:1">
         The real-world sequence: modules in transit, crane installations and completed handovers.

@@ -4,14 +4,18 @@
  * and is reused on the Capsule and Prefab pages.
  */
 import { useFrame } from '@react-three/fiber';
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { EdgesGeometry, ExtrudeGeometry, Object3D, Shape, type Group, type InstancedMesh, type Material, type Mesh } from 'three';
+import { layoutAddOns, type Stair, type Unit } from '../../build/model';
+import type { Turn } from '../../data/build';
 import type { DoorFace, ModuleType, Placement } from '../../data/system';
 import { clamp01, ease, stagger, win } from '../../film/timeline';
 import { UNIT_BOX, box, memo, merge, planCentre, pose, setInst } from './geometry';
 import type { Look } from './looks';
-import { instanced, mat, moduleMats } from './materials';
-import { moduleGeometry, podGeometry, railGeometry, stairGeometry, wallPanel36Geometry } from './parts';
+import { instanced, litGlass, mat, moduleMats } from './materials';
+import { POD, POD_STEPS, capsuleGeometry } from './capsule';
+import { stairGeometryOf } from './house';
+import { moduleGeometry, railGeometry, stairGeometry, wallPanel36Geometry } from './parts';
 
 export type Label = (id: string, x: number, y: number, z: number, opacity: number) => void;
 
@@ -21,6 +25,11 @@ export interface BuildingProps {
   label?: Label;
   /** 0–1 multiplier for this building's labels (1 when it is the one in shot). */
   getShow?: () => number;
+  /**
+   * 0–1: its lights. Dark while it is put together, on once it stands
+   * (client, 2026-10-10). Not given: lit throughout, as the look has them.
+   */
+  getLit?: () => number;
   look: Look;
 }
 
@@ -181,49 +190,74 @@ const POD_GAP = 2.4;
 const POD_LEN = POD_FEET.map((f) => f * FT);
 const POD_SPAN = POD_LEN.reduce((s, l) => s + l, 0) + POD_GAP * 2;
 const POD_X = POD_LEN.map((l, i) => -POD_SPAN / 2 + POD_LEN.slice(0, i).reduce((s, v) => s + v + POD_GAP, 0) + l / 2);
+/** The dimension line runs along the ground in front of the steps. */
+const POD_DIM_Z = POD.D / 2 + POD_STEPS + 0.3;
 
+/** capsuleGeometry's groups: shell, dark metal, glazing (lit at dusk, with its light lines), timber steps. */
+const capsuleMats = (look: Look): Material[] => [mat.pod, mat.fascia, look.windows === 'dusk' ? mat.glassLit : mat.glass, mat.deck];
+
+interface CapsuleProps {
+  feet: number;
+  /** 0–1: the capsule is lowered onto its legs. */
+  getT: () => number;
+  look: Look;
+  position?: [number, number, number];
+  rotation?: number;
+  /** Height it comes down from. */
+  drop?: number;
+  /** 0–1: its lights, where the scene brings them up itself (BuildingProps). */
+  getLit?: () => number;
+}
+
+/** One capsule home, set down in place. */
+export function Capsule({ feet, getT, look, position = [0, 0, 0], rotation = 0, drop = 5, getLit }: CapsuleProps) {
+  const ref = useRef<Mesh>(null);
+  const last = useRef(-1);
+  const glow = useMemo(() => (getLit && look.windows === 'dusk' ? litGlass() : null), [getLit, look]);
+  useEffect(() => () => glow?.dispose(), [glow]);
+  const mats = useMemo(() => {
+    const m = capsuleMats(look);
+    return glow ? [m[0], m[1], glow.material, m[3]] : m;
+  }, [look, glow]);
+  const base = position[1];
+  useFrame(() => {
+    if (glow && getLit) glow.set(getLit());
+    const m = ref.current;
+    const t = getT();
+    if (!m || t === last.current) return;
+    last.current = t;
+    // Never hidden, only made very small: a mesh first shown in mid-film would compile its shaders on that frame.
+    m.position.y = base + (1 - ease.outQuart(t)) * drop;
+    m.scale.setScalar(Math.max(0.0001, Math.min(1, t * 7)));
+  });
+  return <mesh ref={ref} geometry={capsuleGeometry(feet)} material={mats} position={position} rotation-y={rotation} castShadow receiveShadow />;
+}
 
 export function CapsulePods({ x = 0, getA, label, getShow, look }: BuildingProps) {
-  const pods = useRef<(Mesh | null)[]>([]);
   const dims = useRef<Group>(null);
-  const podMats = useMemo(() => [mat.panel, look.windows === 'dusk' ? mat.glassLit : mat.glass, mat.steel], [look]);
+  const drops = useMemo(() => POD_FEET.map((_, i) => () => stagger(win(getA(), 0, 0.85, ease.linear), i, 3, 0.55)), [getA]);
+  // The pods light up together once the last of them stands.
+  const lit = useMemo(() => () => win(getA(), 0.86, 0.97, ease.inOut), [getA]);
 
   useFrame(() => {
-    const a = getA();
-    POD_LEN.forEach((_, i) => {
-      const m = pods.current[i];
-      if (!m) return;
-      const t = stagger(win(a, 0, 0.85, ease.linear), i, 3, 0.55);
-      m.position.y = GROUND + (1 - ease.outQuart(t)) * 5;
-      m.scale.setScalar(t <= 0 ? 0.0001 : Math.min(1, t * 7));
-    });
-    const d = win(a, 0.8, 1, ease.out);
+    const d = win(getA(), 0.8, 1, ease.out);
     if (dims.current) dims.current.scale.set(Math.max(0.0001, d), 1, 1);
     const show = d * (getShow?.() ?? 1);
-    if (label) POD_X.forEach((px, i) => label(`pod-${POD_FEET[i]}`, x + px, GROUND + 0.02, 2.25, show));
+    if (label) POD_X.forEach((px, i) => label(`pod-${POD_FEET[i]}`, x + px, GROUND + 0.02, POD_DIM_Z, show));
   });
 
   return (
     <group position-x={x}>
-      {POD_LEN.map((len, i) => (
-        <mesh
-          key={len}
-          ref={(m) => {
-            pods.current[i] = m;
-          }}
-          geometry={podGeometry(len)}
-          material={podMats}
-          position={[POD_X[i], GROUND, 0]}
-          castShadow
-          receiveShadow
-        />
+      {POD_FEET.map((feet, i) => (
+        <Capsule key={feet} feet={feet} look={look} position={[POD_X[i], GROUND, 0]} getT={drops[i]} getLit={lit} />
       ))}
+      {/* The pods are only ever seen at blue hour, a dark picture: their dimension lines take the dark ground's accent. */}
       <group ref={dims}>
         {POD_LEN.map((len, i) => (
-          <group key={len} position={[POD_X[i], GROUND + 0.03, 2.25]}>
-            <mesh geometry={UNIT_BOX} material={mat.accent} scale={[len, 0.025, 0.025]} />
-            <mesh geometry={UNIT_BOX} material={mat.accent} scale={[0.025, 0.025, 0.36]} position-x={-len / 2} />
-            <mesh geometry={UNIT_BOX} material={mat.accent} scale={[0.025, 0.025, 0.36]} position-x={len / 2} />
+          <group key={len} position={[POD_X[i], GROUND + 0.03, POD_DIM_Z]}>
+            <mesh geometry={UNIT_BOX} material={mat.accentInk} scale={[len, 0.025, 0.025]} />
+            <mesh geometry={UNIT_BOX} material={mat.accentInk} scale={[0.025, 0.025, 0.36]} position-x={-len / 2} />
+            <mesh geometry={UNIT_BOX} material={mat.accentInk} scale={[0.025, 0.025, 0.36]} position-x={len / 2} />
           </group>
         ))}
       </group>
@@ -239,8 +273,31 @@ const WORK_BAYS = 6;
 const WORK = [0, 1].flatMap((y) => Array.from({ length: WORK_BAYS }, (_, i) => A(i, 0, y, 1)));
 const WORK_C = planCentre(WORK);
 const WORK_LAST = WORK.length - 1;
+/** Every shell but the one the crane brings. */
+const WORK_SET = WORK.slice(0, WORK_LAST);
 const WORK_W = WORK_BAYS * 3;
 const HOOK_Y = 16.5;
+/** The gallery's floor above the block's own ground line. */
+const WORK_GALLERY = 3;
+
+/**
+ * The block's outer staircase: the dog-leg every stacked building has,
+ * beside the building and against its flank (client, 2026-10-07), where the
+ * access rule puts it for these shells (build/model.ts, layoutAccess): at
+ * the end of the gallery, its landing at the front corner. A straight
+ * flight stood out from that end before (developer, 2026-10-10: "side ways,
+ * as in every place"). The rule's gallery lies where the block's own does,
+ * so the landing is set at the block's level.
+ */
+let workStair: Stair | null | undefined;
+function workStairOf() {
+  if (workStair === undefined) {
+    const units: Unit[] = WORK.map((p, i) => ({ id: i + 1, t: p.t, x: p.x, z: p.z, y: p.y, r: (p.r ?? 0) as Turn }));
+    const stair = layoutAddOns(units, new Set(), 0, [], 0).stairs[0];
+    workStair = stair ? { ...stair, levels: [WORK_GALLERY] } : null;
+  }
+  return workStair;
+}
 
 
 function Crane({ tip, getHookY }: { tip: [number, number, number]; getHookY: () => number }) {
@@ -299,11 +356,21 @@ function Crane({ tip, getHookY }: { tip: [number, number, number]; getHookY: () 
   );
 }
 
-export function WorkforceBlock({ x = 0, getA, look }: BuildingProps) {
+/**
+ * `crane`: the mobile crane stands by with the last shell on its hook (the
+ * hero's set and the Prefab page). Without it the block is simply lowered
+ * in, every shell and then its gallery: one of the three on the opening card.
+ */
+export function WorkforceBlock({ x = 0, getA, getLit, look, crane = true }: BuildingProps & { crane?: boolean }) {
   const last = useRef<Mesh>(null);
   const extras = useRef<Group>(null);
   const hookY = useRef(HOOK_Y);
-  const mats = moduleMats(undefined, look.windows);
+  const glow = useMemo(() => (getLit && look.windows === 'dusk' ? litGlass() : null), [getLit, look]);
+  useEffect(() => () => glow?.dispose(), [glow]);
+  const mats = useMemo(() => {
+    const m = moduleMats(undefined, look.windows);
+    return glow ? [m[0], m[1], glow.material, m[3], m[4]] : m;
+  }, [look, glow]);
   const [lx, ly, lz, lry] = pose(WORK[WORK_LAST], WORK_C[0], WORK_C[1]);
   const front = 3;
   const rail = railGeometry('work-gallery', [
@@ -311,10 +378,15 @@ export function WorkforceBlock({ x = 0, getA, look }: BuildingProps) {
     [WORK_W / 2, front + 1.5],
     [WORK_W / 2, front],
   ]);
-  const stair = stairGeometry('work', 1.2, 3, 4.6, 16);
+  const stair = workStairOf();
+  // Landings and treads, frames and stringers, rails.
+  const stairMats = useMemo(() => [mat.concrete, mat.trim, mat.steel], []);
+  // The gallery's posts, as one mesh.
+  const posts = memo('work-posts', () => merge(Array.from({ length: WORK_BAYS + 1 }, (_, i) => box(0.12, 2.86, 0.12, -WORK_W / 2 + i * 3, 1.43, front + 1.42))));
 
   useFrame(() => {
     const a = getA();
+    if (glow && getLit) glow.set(getLit());
     // The crane holds the last module above its slot, then lowers it.
     const t = win(a, 0.66, 1, ease.inOut);
     const y = GROUND + ly + (1 - t) * 6.5;
@@ -325,26 +397,25 @@ export function WorkforceBlock({ x = 0, getA, look }: BuildingProps) {
     hookY.current = a > 0.3 ? y + 3.1 : HOOK_Y - 1.5;
     const g = extras.current;
     if (g) {
-      const e = win(a, 0.42, 0.66, ease.out);
+      const e = crane ? win(a, 0.42, 0.66, ease.out) : win(a, 0.7, 1, ease.out);
       g.scale.set(1, Math.max(0.0001, e), 1);
     }
   });
 
   return (
     <group position-x={x}>
-      <DropModules type="A" door="left" list={WORK.slice(0, WORK_LAST)} centre={WORK_C} base={GROUND} materials={mats} getT={() => win(getA(), 0, 0.6, ease.linear)} overlap={0.72} />
-      <mesh ref={last} geometry={moduleGeometry('A', 'left')} material={mats} position={[lx, GROUND + ly, lz]} rotation-y={lry} castShadow receiveShadow />
+      <DropModules type="A" door="left" list={crane ? WORK_SET : WORK} centre={WORK_C} base={GROUND} materials={mats} getT={() => win(getA(), 0, crane ? 0.6 : 0.78, ease.linear)} overlap={0.72} />
+      {crane && <mesh ref={last} geometry={moduleGeometry('A', 'left')} material={mats} position={[lx, GROUND + ly, lz]} rotation-y={lry} castShadow receiveShadow />}
 
       <group ref={extras} position-y={GROUND}>
-        <mesh geometry={UNIT_BOX} material={mat.concrete} scale={[WORK_W + 0.1, 0.14, 1.5]} position={[0, 3 - 0.07, front + 0.75]} castShadow receiveShadow />
-        {Array.from({ length: WORK_BAYS + 1 }, (_, i) => (
-          <mesh key={i} geometry={UNIT_BOX} material={mat.trim} scale={[0.12, 2.86, 0.12]} position={[-WORK_W / 2 + i * 3, 1.43, front + 1.42]} castShadow />
-        ))}
-        <mesh geometry={rail} material={mat.steel} position-y={3} castShadow />
-        <mesh geometry={stair} material={[mat.concrete, mat.trim]} position={[-WORK_W / 2 - 4.6, 0, front + 0.75]} castShadow receiveShadow />
+        <mesh geometry={UNIT_BOX} material={mat.concrete} scale={[WORK_W + 0.1, 0.14, 1.5]} position={[0, WORK_GALLERY - 0.07, front + 0.75]} castShadow receiveShadow />
+        <mesh geometry={posts} material={mat.trim} castShadow />
+        <mesh geometry={rail} material={mat.steel} position-y={WORK_GALLERY} castShadow />
+        {/* The rule works in the plot's own coordinates: the block is drawn about its centre. */}
+        {stair && <mesh geometry={stairGeometryOf(stair)} material={stairMats} position={[-WORK_C[0], 0, -WORK_C[1]]} castShadow receiveShadow />}
       </group>
 
-      <Crane tip={[lx, HOOK_Y, lz]} getHookY={() => hookY.current} />
+      {crane && <Crane tip={[lx, HOOK_Y, lz]} getHookY={() => hookY.current} />}
     </group>
   );
 }
@@ -409,18 +480,19 @@ export function InstitutionalBlock({ x = 0, getA, label, getShow, look }: Buildi
     // Frame rises floor by floor.
     slabs.current.forEach((m, i) => {
       if (!m) return;
-      const t = stagger(win(a, 0, 0.4, ease.linear), i, 4, 0.5);
+      const t = stagger(win(a, 0, 0.3, ease.linear), i, 4, 0.5);
       m.position.y = GROUND + i * FLOOR - 0.15 + (i === 0 ? 0.3 : 0) + (1 - ease.outQuart(t)) * 8;
       m.scale.set(INST_W + 0.3, 0.3, t <= 0 ? 0.0001 : INST_D + 0.3);
     });
-    if (frame.current) frame.current.scale.y = Math.max(0.0001, win(a, 0.04, 0.4, ease.out));
+    if (frame.current) frame.current.scale.y = Math.max(0.0001, win(a, 0.03, 0.3, ease.out));
 
     const m = panels.current;
     if (m) {
       const fixed = INST_PANELS.length - 2;
       INST_PANELS.forEach((s, i) => {
         if (s.glide === undefined) {
-          const t = stagger(win(a, 0.3, 0.8, ease.linear), i, fixed, 0.82);
+          // One wall panel after another: each has most of its own stretch of the scroll (client, 2026-10-09).
+          const t = stagger(win(a, 0.22, 0.84, ease.linear), i, fixed, 0.66);
           const e = ease.outQuart(t);
           const out = (1 - e) * 5;
           setInst(m, i, s.x + Math.sin(s.ry) * out, GROUND + s.y, s.z + Math.cos(s.ry) * out, s.ry, 1, t <= 0 ? 0.0001 : 1, 1);

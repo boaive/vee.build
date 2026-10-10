@@ -83,6 +83,8 @@ export const mat = {
   },
   /** Insulation / wall panel white (EPS cores in the factory). */
   panel: std('#f1efea', 0.82),
+  /** The capsule's shell: the same white, a satin coat, so its rounded corners take a soft highlight. */
+  pod: std('#f1efea', 0.6),
   /** Fascia, base recess, spandrels. */
   trim: std('#55585b', 0.7, 0.15),
   /** Module roof fascia: near-black painted metal, as the render. */
@@ -91,6 +93,12 @@ export const mat = {
   frame: std('#f4f2ee', 0.42),
   /** Structural steel, handrails: dark powder coat. */
   steel: std('#2a2c2f', 0.42, 0.7),
+  /**
+   * The shell's structural frame: the kit's black, as a coat of paint rather
+   * than bare metal. Standing alone, on a dark stage or a light one, a
+   * metal has little to reflect and the frame all but vanished.
+   */
+  frameSteel: std('#2e3136', 0.55, 0.05),
   /** Galvanised fittings (hooks, cleats). */
   galv: std('#c9ccce', 0.38, 0.85),
   /** Glazing by day: clear, catching the sky. */
@@ -105,9 +113,9 @@ export const mat = {
   plate: std('#d8d5ce', 0.97),
   /** Pale maquette vegetation (light studio). */
   foliage: std('#d3d0c8', 1),
-  /** Measurement and highlight. */
+  /** Measurement and highlight on a light stage: the paper's accent, vermilion (tokens.css). */
   accent: std('#e2491d', 0.55),
-  /** The same, on a dark stage: hi-vis green (tokens.css, the accent follows its ground). */
+  /** The same on a dark stage: the fluorescent green. The accent follows its ground. */
   accentInk: std('#c8f031', 0.55),
   /** Ghosted plant and options. */
   ghost: std('#c3c8cc', 1, 0, { transparent: true, opacity: 0.4, depthWrite: false }),
@@ -235,6 +243,31 @@ export function moduleMats(shellHex: string = shellFinishes[0].hex, windows: 'da
   return set;
 }
 const moduleSets = new Map<string, Material[]>();
+
+/**
+ * Glazing lit from inside whose light can be brought up: a copy of the
+ * dusk glazing with a brightness of its own, for a building that is put
+ * together in view. Its windows are dark while it is lowered in and come on
+ * once it stands (client, 2026-10-10: "the lights turn on before the house
+ * has been placed"). `set` takes 0 to 1; `material` goes where the dusk
+ * glazing went, and its copy for instanced meshes follows it.
+ */
+export function litGlass() {
+  const material = mat.glassLit.clone();
+  const full = material.emissiveIntensity;
+  material.emissiveIntensity = 0;
+  const twin = instanced(material);
+  return {
+    material,
+    set(v: number) {
+      material.emissiveIntensity = twin.emissiveIntensity = full * v;
+    },
+    dispose() {
+      material.dispose();
+      twin.dispose();
+    },
+  };
+}
 
 /** Translucent ghost for the configurator's placement preview. */
 export const ghostMat = std('#ffffff', 0.6, 0, { transparent: true, opacity: 0.45, depthWrite: false });

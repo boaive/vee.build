@@ -71,7 +71,7 @@ button {
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-line);
   outline-offset: 3px;
 }
 
@@ -163,7 +163,7 @@ button {
   color: var(--mute);
 }
 
-/* Chapter label: number in accent, name in the theme's quiet colour. */
+/* Chapter label: its number, a rule and its name, all of it in the titles' colour. */
 .eyebrow {
   display: inline-flex;
   align-items: center;
@@ -172,11 +172,9 @@ button {
   font-size: 0.72rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--mute);
 }
 .eyebrow b {
   font-weight: 500;
-  color: var(--accent-ink);
 }
 .eyebrow b::after {
   content: '';
@@ -185,7 +183,24 @@ button {
   height: 1px;
   margin-left: 0.75rem;
   vertical-align: middle;
-  background: var(--line-strong);
+  background: currentColor;
+  opacity: 0.6;
+}
+
+/*
+ * The small titles: a chapter's line ("01 — Modular precast construction
+ * system"), the line over a caption ("2.1 — The 2 core shells"). The whole
+ * line is in the accent of its ground (tokens.css, --title): the
+ * fluorescent green on ink, vermilion on paper. A colour of text: no label
+ * and no background behind it.
+ */
+.eyebrow,
+.film__head,
+.film__kicker,
+.prelude__kicker,
+.section-head__index {
+  color: var(--title);
+  font-weight: 500;
 }
 
 /* ---------- Layout ---------- */
@@ -225,9 +240,6 @@ button {
   display: grid;
   gap: 1.4rem;
   margin-bottom: clamp(3rem, 6vw, 5.5rem);
-}
-.section-head__index {
-  color: var(--mute);
 }
 .section-head__lead {
   max-width: 40rem;
@@ -383,11 +395,31 @@ button {
   backdrop-filter: none;
 }
 
+/*
+ * The mark and the wordmark on one line and, under the two of them, who the
+ * site is powered by (client, 2026-10-10: "beneath the VEE.BUILD logo
+ * throughout the website"). Set small and quiet, the width of the lockup,
+ * so that it belongs to the name without competing with it.
+ */
 .brand {
-  display: inline-flex;
+  display: inline-grid;
+  grid-template-columns: auto auto;
   align-items: center;
-  gap: 0.65rem;
+  align-content: center;
+  justify-content: start;
+  gap: 0.34rem 0.65rem;
   min-height: 2.75rem;
+}
+.brand__by {
+  grid-column: 1 / -1;
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  font-weight: 500;
+  letter-spacing: 0.115em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0.66;
 }
 .brand__mark {
   width: 1.75rem;
@@ -406,7 +438,7 @@ button {
 }
 .brand__word i {
   font-style: normal;
-  color: var(--accent);
+  color: var(--accent-line);
 }
 
 .hdr__nav {
@@ -446,7 +478,34 @@ button {
   transform: scaleX(1);
 }
 .hdr__link[aria-current='page']::after {
-  background: var(--accent);
+  background: var(--accent-line);
+}
+/* The three product lines, as the client writes them: MOD | POD | FAB. */
+.hdr__lines {
+  display: flex;
+  align-items: center;
+}
+.hdr__link--line {
+  padding-inline: clamp(0.8rem, 1.5vw, 1.25rem);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+}
+.hdr__link--line::after {
+  left: clamp(0.8rem, 1.5vw, 1.25rem);
+  /* The letter-spacing leaves a gap after the last letter: the rule stops at the letter. */
+  right: calc(clamp(0.8rem, 1.5vw, 1.25rem) + 0.16em);
+}
+.hdr__link--line + .hdr__link--line::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 1px;
+  height: 0.8rem;
+  margin-top: -0.4rem;
+  background: var(--line-strong);
 }
 .hdr__link--cta {
   min-height: 2.2rem;
@@ -676,6 +735,7 @@ button {
 .rail.is-dark a.is-current {
   color: #f2f0eb;
 }
+/* The rail's marker is in the accent of what it stands over (tokens.css): vermilion over paper, the green over ink. */
 .rail a.is-current::after {
   width: 1.5rem;
   height: 2px;
@@ -738,6 +798,14 @@ button {
   border-top: 1px solid var(--line);
   color: var(--mute);
 }
+.ftr__col a .ftr__code {
+  display: inline-block;
+  min-width: 2.9rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+}
 @media (min-width: 900px) {
   .ftr__top {
     grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr);
@@ -745,6 +813,72 @@ button {
   .ftr__cols {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
+
+/* The bottom band: on paper under the ink footer, so the supplied logo stands as it was drawn. */
+.ftr {
+  padding-bottom: 0;
+}
+.ftr > .wrap {
+  padding-bottom: 2rem;
+}
+.band {
+  border-top: 1px solid var(--line);
+}
+.band__in {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 2.5rem;
+  padding-block: 1.1rem;
+}
+.band__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem clamp(1.25rem, 3vw, 2.75rem);
+}
+.band__nav a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  transition: color 0.2s var(--ease);
+}
+.band__nav a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0.16em;
+  bottom: 0.7rem;
+  height: 1px;
+  background: var(--accent-line);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.35s var(--ease-out);
+}
+.band__nav a:hover {
+  color: var(--text);
+}
+.band__nav a:hover::after {
+  transform: scaleX(1);
+}
+.band__by {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  color: var(--mute);
+}
+.band__by img {
+  display: block;
+  width: auto;
+  height: 1.9rem;
 }
 
 /* ---------- Boot screen ---------- */
@@ -820,6 +954,14 @@ button {
 .boot__word i {
   font-style: normal;
   color: #d9431b;
+}
+.boot__by {
+  margin-top: -0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6b6e74;
 }
 .boot__bar {
   width: 100%;

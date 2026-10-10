@@ -14,12 +14,27 @@ export interface Difference {
   marks?: string[];
 }
 
+/**
+ * The section's own words (client, 2026-10-09): "Key differences" over the
+ * heading, and the sentence under it. The comparison's two columns are
+ * named as the client names them. The heading read "How are we different?"
+ * until 2026-10-10: where "we" stands for the company the client wants its
+ * name ("We → VEE").
+ */
+export const differenceCopy = {
+  eyebrow: 'Key differences',
+  title: ['How is VEE', 'different?'],
+  lead: 'Six points separate a VEE.BUILD building from traditional and other off-site models.',
+  ours: 'VEE.BUILD',
+  others: 'Others',
+} as const;
+
 export const differences: Difference[] = [
   {
     id: 'end-to-end',
     word: 'End-to-end',
     claim: 'Foundation to finish under a single, unified workflow.',
-    detail: 'We deliver everything, from the footing in the ground to the last coat of paint.',
+    detail: 'VEE delivers everything, from the footing in the ground to the last coat of paint.',
     other: 'Fragmented subcontractors',
   },
   {
@@ -34,13 +49,13 @@ export const differences: Difference[] = [
     word: 'Sustainable',
     // CONFIRM: no figures supplied for water or site energy (notes B6).
     claim: 'Modern Methods of Construction, built off-site.',
-    detail: 'Radically less water, minimal site energy, reusable materials and minimised fossil fuel dependency.',
+    detail: 'Radically less water, minimal site energy, reusable materials and minimized fossil fuel dependency.',
   },
   {
     id: 'energy',
     word: 'Energy efficient',
     claim: 'Ready for complete off-grid solar and power.',
-    detail: 'Fully optimised structures that can be configured with roof solar arrays and off-grid power.',
+    detail: 'Fully optimized structures that can be configured with roof solar arrays and off-grid power.',
   },
   {
     id: 'code',

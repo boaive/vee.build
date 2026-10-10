@@ -20,6 +20,8 @@ const queue: (() => Promise<unknown>)[] = [
   () => import('../three/scenes/RevealScene'),
   () => import('../components/sections/FactoryTour'),
   () => import('../three/scenes/FactoryScene'),
+  () => import('../components/sections/Transit'),
+  () => import('../three/scenes/TransitScene'),
   () => import('../components/sections/Installation'),
   () => import('../three/scenes/InstallScene'),
 ];

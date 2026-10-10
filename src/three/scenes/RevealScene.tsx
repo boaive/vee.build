@@ -14,7 +14,9 @@ import { House } from '../kit/house';
  * arrives and leaves showing its doors; the visitor can take hold of it and
  * turn it right round by hand.
  * A turn made by hand is added to the scroll's and let go as the page
- * scrolls on, so each caption still arrives on its own view.
+ * scrolls on, so each caption still arrives on its own view. The five
+ * views of the pad beside it (top, down, left, right, centre: client,
+ * 2026-10-09) are turns of the same kind, made for the visitor.
  *
  * The camera goes round a house that stands still: nothing that casts a
  * shadow moves, so the shadow map is drawn once.
@@ -34,6 +36,22 @@ const AZ = [
   [0.86, 0.16],
   [1, 0.06],
 ] as const;
+
+/**
+ * The pad's views, in the order of narrative.ts, revealViews: the camera's
+ * bearing from square on to the front (radians, positive towards the
+ * house's right) and its height above level. `down` is as low as the floor
+ * allows.
+ */
+const VIEWS = [
+  { az: 0, el: 1.2 },
+  { az: 0, el: -0.2 },
+  { az: -1.1, el: 0.36 },
+  { az: 1.1, el: 0.36 },
+  { az: 0, el: 0.22 },
+] as const;
+/** How far up a hand can tilt the view, and how near the floor the camera may come (metres). */
+const TILT = { up: 1.25, down: -0.2, floor: 1.1 };
 
 function Reveal({ progress, rig, reduced }: SceneProps & { rig: Rig }) {
   const state = useBuild((s) => s);
@@ -68,6 +86,8 @@ function Reveal({ progress, rig, reduced }: SceneProps & { rig: Rig }) {
     el.style.cursor = 'grab';
     const down = (e: PointerEvent) => {
       if (e.button !== 0) return;
+      // Taking hold of it lets go of a view asked for on the pad.
+      progress.focus = -1;
       hand.drag = { x: e.clientX, y: e.clientY, id: e.pointerId };
       el.setPointerCapture(e.pointerId);
       el.style.cursor = 'grabbing';
@@ -76,7 +96,7 @@ function Reveal({ progress, rig, reduced }: SceneProps & { rig: Rig }) {
       const d = hand.drag;
       if (!d || d.id !== e.pointerId) return;
       hand.az -= (e.clientX - d.x) * 0.0062;
-      if (e.pointerType !== 'touch') hand.el = Math.min(0.85, Math.max(-0.14, hand.el + (e.clientY - d.y) * 0.004));
+      if (e.pointerType !== 'touch') hand.el = Math.min(TILT.up, Math.max(TILT.down, hand.el + (e.clientY - d.y) * 0.004));
       d.x = e.clientX;
       d.y = e.clientY;
       invalidate();
@@ -97,24 +117,39 @@ function Reveal({ progress, rig, reduced }: SceneProps & { rig: Rig }) {
       el.removeEventListener('pointercancel', up);
       el.style.cursor = '';
     };
-  }, [gl, invalidate, hand]);
+  }, [gl, invalidate, hand, progress]);
 
-  useFrame(() => {
+  useFrame((_, dt) => {
     const raw = progress.value;
     // Scrolling on hands the house back to the film.
     if (hand.at >= 0 && raw !== hand.at && !hand.drag) {
       const keep = reduced ? 0 : Math.exp(-Math.abs(raw - hand.at) * 16);
       hand.az *= keep;
       hand.el *= keep;
+      progress.focus = -1;
     }
     hand.at = raw;
     const p = ease.inOut(raw);
-    const az = track(raw, AZ) + hand.az;
-    const el = lerp(0.34, 0.2, p) + hand.el;
+    const az0 = track(raw, AZ);
+    const el0 = lerp(0.34, 0.2, p);
+    // A view asked for on the pad: the hand's turn goes to it, and frames are asked for until it is there.
+    const want = progress.focus >= 0 ? VIEWS[progress.focus] : null;
+    if (want && !hand.drag) {
+      const k = reduced ? 1 : 1 - Math.exp(-Math.min(dt, 0.05) * 6.5);
+      const da = want.az - az0 - hand.az;
+      const de = want.el - el0 - hand.el;
+      hand.az += da * k;
+      hand.el += de * k;
+      if (Math.abs(da) + Math.abs(de) > 0.002) invalidate();
+    }
+    const az = az0 + hand.az;
+    const el = el0 + hand.el;
     // Square on, a wide house is at its widest: it stays far enough back to keep clear of the caption.
     const dist = fit.reach * lerp(3.45, 3.25, p);
     const look = [0, fit.h * 0.42, 0];
-    aim(camera, [Math.sin(az) * Math.cos(el) * dist, look[1] + Math.sin(el) * dist, Math.cos(az) * Math.cos(el) * dist], look, size.width / size.height, 1.5, 0.75);
+    // Never under the studio's floor: from below level the camera slides along it.
+    const y = Math.max(TILT.floor, look[1] + Math.sin(el) * dist);
+    aim(camera, [Math.sin(az) * Math.cos(el) * dist, y, Math.cos(az) * Math.cos(el) * dist], look, size.width / size.height, 1.5, 0.75);
     rig.lightTarget.set(0, 0, 0);
   });
 

@@ -38,12 +38,16 @@ export interface Opening {
  * against, in which case it moves to a free face (build/model.ts,
  * doorFaces): an end takes the door with a small window beside it, the
  * back takes it in line with where it stood on the front.
+ *
+ * `streetEnd`: Shell A's blank −x end takes the shell's two-pane window,
+ * for a shell that stands end-on to the street and has its door elsewhere
+ * (build/model.ts, streetEnds).
  */
 const WINDOW = { sill: 0.94, h: 1.1 };
 const DOOR = { w: 0.81, sill: 0.2, h: 1.84, door: true };
 const HIGH = { sill: 2.06, h: 0.38 };
 
-export function moduleOpenings(type: ModuleType, door: DoorFace = 'front'): Opening[] {
+export function moduleOpenings(type: ModuleType, door: DoorFace = 'front', streetEnd = false): Opening[] {
   const at = DOOR_AT[type];
   const o: Opening[] = [];
   if (type === 'A') {
@@ -54,6 +58,7 @@ export function moduleOpenings(type: ModuleType, door: DoorFace = 'front'): Open
     o.push({ face: 'back', u: -0.6, w: 1.28, sill: 0.96, h: 1.08 }, { face: 'back', u: -2.325, w: 0.43, sill: 1.56, h: 0.53 });
     if (door === 'back') o.push({ face: 'back', u: at.back, ...DOOR });
     if (door === 'left') o.push({ face: 'left', u: at.left, ...DOOR }, { face: 'left', u: 0.75, w: 0.7, ...WINDOW });
+    else if (streetEnd) o.push({ face: 'left', u: 0, w: 1.38, ...WINDOW });
     if (door === 'right') o.push({ face: 'right', u: at.right, ...DOOR }, { face: 'right', u: -0.75, w: 0.7, ...WINDOW });
     else o.push({ face: 'right', u: -0.4, w: 1.28, ...HIGH });
     return o;
@@ -68,16 +73,121 @@ export function moduleOpenings(type: ModuleType, door: DoorFace = 'front'): Open
   return o;
 }
 
+/** A box on a face of a shell whose faces stand at ±xf and ±zf: (along, up, out) in face coordinates → the shell's own. */
+type OnFace = (f: Face, u: number, y: number, out: number, w: number, h: number, t: number) => BufferGeometry;
+const faceBox =
+  (xf: number, zf: number): OnFace =>
+  (f, u, y, out, w, h, t) => {
+    if (f === 'front') return box(w, h, t, u, y, zf + out);
+    if (f === 'back') return box(w, h, t, u, y, -zf - out);
+    if (f === 'right') return box(t, h, w, xf + out, y, u);
+    return box(t, h, w, -xf - out, y, u);
+  };
+
+/** What fills one opening: its frame and, by kind, a door leaf, a pane, glazing bars. Added to the three lists. */
+function joinery(o: Opening, onFace: OnFace, dark: BufferGeometry[], glass: BufferGeometry[], frames: BufferGeometry[]) {
+  const FT = 0.06; // frame bar
+  const cy = o.sill + o.h / 2;
+  const bar = (u: number, y: number, w: number, h: number, out = 0.022) => frames.push(onFace(o.face, u, y, out, w, h, 0.05));
+  bar(o.u, o.sill + o.h + FT / 2, o.w + FT * 2, FT);
+  bar(o.u, o.sill - FT / 2, o.w + FT * 2, FT);
+  bar(o.u - o.w / 2 - FT / 2, cy, FT, o.h);
+  bar(o.u + o.w / 2 + FT / 2, cy, FT, o.h);
+  if (o.door) {
+    // Leaf: glazed upper half, a letterbox under it, two raised panels below (H8).
+    frames.push(onFace(o.face, o.u, cy, 0.012, o.w, o.h, 0.03));
+    glass.push(onFace(o.face, o.u, o.sill + o.h * 0.7, 0.03, o.w * 0.7, o.h * 0.5, 0.012));
+    dark.push(onFace(o.face, o.u, o.sill + o.h * 0.385, 0.031, 0.26, 0.04, 0.012));
+    for (const side of [-1, 1]) frames.push(onFace(o.face, o.u + side * o.w * 0.19, o.sill + o.h * 0.19, 0.034, o.w * 0.27, o.h * 0.27, 0.012));
+    dark.push(onFace(o.face, o.u + o.w * 0.4, o.sill + 0.98, 0.05, 0.03, 0.17, 0.04));
+  } else {
+    glass.push(onFace(o.face, o.u, cy, 0.006, o.w, o.h, 0.012));
+    if (o.w > 1.1) bar(o.u, cy, FT * 0.7, o.h);
+    // Tall sidelights carry glazing bars (H6).
+    if (o.w < 0.5 && o.h > 1.5) {
+      for (let k = 1; k < 5; k++) bar(o.u, o.sill + (o.h * k) / 5, o.w, 0.02, 0.016);
+      bar(o.u, cy, 0.02, o.h, 0.016);
+    }
+  }
+}
+
+/**
+ * The joinery of one face of a shell, by itself: the same frames, door,
+ * panes and bars as moduleGeometry draws, for a scene that puts a shell
+ * together part by part ("Componentized building"). `xf`, `zf`: where that
+ * scene's faces stand. Origin as the shell's: underside at y = 0.
+ * Groups: 0 dark (letterbox, pull), 1 glass, 2 frames and leaf. Null where
+ * the face has no opening.
+ */
+export function joineryGeometry(type: ModuleType, door: DoorFace, face: Face, xf: number, zf: number): BufferGeometry | null {
+  const list = moduleOpenings(type, door).filter((o) => o.face === face);
+  if (!list.length) return null;
+  return memo(`joinery-${type}-${door}-${face}-${xf}-${zf}`, () => {
+    const dark: BufferGeometry[] = [];
+    const glass: BufferGeometry[] = [];
+    const frames: BufferGeometry[] = [];
+    const onFace = faceBox(xf, zf);
+    for (const o of list) joinery(o, onFace, dark, glass, frames);
+    // A face with no door has nothing dark: a speck inside the wall keeps the three groups in their places.
+    if (!dark.length) dark.push(onFace(face, list[0].u, list[0].sill, -0.05, 0.002, 0.002, 0.002));
+    return mergeGroups([dark, glass, frames]);
+  });
+}
+
+/** An opening in a wall panel, in the panel's own coordinates: x from its centre, y from its foot. */
+export interface Hole {
+  x0: number;
+  x1: number;
+  y0: number;
+  y1: number;
+}
+
+/**
+ * A wall panel with any number of rectangular openings, which may run off
+ * its edges (an opening wider than a bay is shared by its neighbours).
+ * Origin bottom-centre, thickness along z. UVs in metres.
+ */
+export function wallGeometry(w: number, h: number, t: number, holes: Hole[]): BufferGeometry {
+  const key = `wall-${w.toFixed(3)}-${h.toFixed(3)}-${t}-${holes.map((o) => [o.x0, o.x1, o.y0, o.y1].map((n) => n.toFixed(3)).join(',')).join('|')}`;
+  return memo(key, () => {
+    const xs = [-w / 2, w / 2];
+    for (const o of holes) for (const x of [o.x0, o.x1]) if (x > -w / 2 + 1e-4 && x < w / 2 - 1e-4) xs.push(x);
+    xs.sort((a, b) => a - b);
+    const parts: BufferGeometry[] = [];
+    for (let i = 0; i < xs.length - 1; i++) {
+      const xa = xs[i];
+      const xb = xs[i + 1];
+      if (xb - xa < 1e-4) continue;
+      const mid = (xa + xb) / 2;
+      const cuts = holes
+        .filter((o) => o.x0 < mid && o.x1 > mid)
+        .map((o) => [Math.max(0, o.y0), Math.min(h, o.y1)] as const)
+        .filter(([a, b]) => b > a)
+        .sort((p, q) => p[0] - q[0]);
+      let y = 0;
+      for (const [a, b] of cuts) {
+        if (a > y + 1e-4) parts.push(box(xb - xa, a - y, t, mid, (y + a) / 2, 0));
+        y = Math.max(y, b);
+      }
+      if (h > y + 1e-4) parts.push(box(xb - xa, h - y, t, mid, (y + h) / 2, 0));
+    }
+    if (!parts.length) parts.push(box(0.001, 0.001, 0.001, 0, h / 2, 0));
+    const g = merge(parts);
+    boxUV(g, 1);
+    return g;
+  });
+}
+
 /**
  * Finished module. Origin: centre of the footprint, underside at y = 0.
  * Groups: 0 shell, 1 fascia (base recess, roof band, handles), 2 glass,
  * 3 frames, door leaves and glazing bars, 4 galvanised fittings (hook &
  * cleat: a lifting lug at each top corner and cleats along the long roof
  * edges, after the client's model, notes H4). `door` is the face that
- * carries the shell's one door.
+ * carries the shell's one door; `streetEnd`, see moduleOpenings.
  */
-export function moduleGeometry(type: ModuleType, door: DoorFace = 'front'): BufferGeometry {
-  return memo(`module-v4-${type}-${door}`, () => {
+export function moduleGeometry(type: ModuleType, door: DoorFace = 'front', streetEnd = false): BufferGeometry {
+  return memo(`module-v4-${type}-${door}${streetEnd ? '-end' : ''}`, () => {
     const L = type === 'A' ? 6 : 3;
     const D = 3;
     const { H, base, fascia: F, inset } = MODULE;
@@ -96,39 +206,8 @@ export function moduleGeometry(type: ModuleType, door: DoorFace = 'front'): Buff
     const frames: BufferGeometry[] = [];
     const fittings: BufferGeometry[] = [];
 
-    // A box on a face: (along, up, out) in face coordinates → world.
-    const onFace = (f: Face, u: number, y: number, out: number, w: number, h: number, t: number) => {
-      if (f === 'front') return box(w, h, t, u, y, zf + out);
-      if (f === 'back') return box(w, h, t, u, y, -zf - out);
-      if (f === 'right') return box(t, h, w, xf + out, y, u);
-      return box(t, h, w, -xf - out, y, u);
-    };
-
-    const FT = 0.06; // frame bar
-    for (const o of moduleOpenings(type, door)) {
-      const cy = o.sill + o.h / 2;
-      const bar = (u: number, y: number, w: number, h: number, out = 0.022) => frames.push(onFace(o.face, u, y, out, w, h, 0.05));
-      bar(o.u, o.sill + o.h + FT / 2, o.w + FT * 2, FT);
-      bar(o.u, o.sill - FT / 2, o.w + FT * 2, FT);
-      bar(o.u - o.w / 2 - FT / 2, cy, FT, o.h);
-      bar(o.u + o.w / 2 + FT / 2, cy, FT, o.h);
-      if (o.door) {
-        // Leaf: glazed upper half, a letterbox under it, two raised panels below (H8).
-        frames.push(onFace(o.face, o.u, cy, 0.012, o.w, o.h, 0.03));
-        glass.push(onFace(o.face, o.u, o.sill + o.h * 0.7, 0.03, o.w * 0.7, o.h * 0.5, 0.012));
-        dark.push(onFace(o.face, o.u, o.sill + o.h * 0.385, 0.031, 0.26, 0.04, 0.012));
-        for (const side of [-1, 1]) frames.push(onFace(o.face, o.u + side * o.w * 0.19, o.sill + o.h * 0.19, 0.034, o.w * 0.27, o.h * 0.27, 0.012));
-        dark.push(onFace(o.face, o.u + o.w * 0.4, o.sill + 0.98, 0.05, 0.03, 0.17, 0.04));
-      } else {
-        glass.push(onFace(o.face, o.u, cy, 0.006, o.w, o.h, 0.012));
-        if (o.w > 1.1) bar(o.u, cy, FT * 0.7, o.h);
-        // Tall sidelights carry glazing bars (H6).
-        if (o.w < 0.5 && o.h > 1.5) {
-          for (let k = 1; k < 5; k++) bar(o.u, o.sill + (o.h * k) / 5, o.w, 0.02, 0.016);
-          bar(o.u, cy, 0.02, o.h, 0.016);
-        }
-      }
-    }
+    const onFace = faceBox(xf, zf);
+    for (const o of moduleOpenings(type, door, streetEnd)) joinery(o, onFace, dark, glass, frames);
 
     // Hook: a tapered lug with an oblong eye, set diagonally on each top corner.
     const lug = lugGeometry();
@@ -237,6 +316,49 @@ export function stairGeometry(key: string, width: number, rise: number, run: num
     });
     return mergeGroups([treads, stringers]);
   });
+}
+
+/**
+ * A flight that does not come down to the ground: its frame is carried at
+ * the foot, each stringer ending in a level sole `seat` metres above the
+ * ground, for a jack pier's head to stand under (client, 2026-10-09: "the
+ * jack pier has to come where … stair frame land"). Climbs along +x from
+ * the origin, the last tread level with the top. Where the sole lies, for
+ * whoever sets the pier: `carriedStair`. Groups: 0 treads, 1 stringers.
+ */
+export function carriedStairGeometry(key: string, width: number, rise: number, run: number, steps: number, seat: number): BufferGeometry {
+  return memo(`stair-carried-${key}`, () => {
+    const treads: BufferGeometry[] = [];
+    const dr = rise / steps;
+    const dx = run / steps;
+    // The treads run through the stringers and show on their faces: seen from the side, a closed flight still reads as steps.
+    for (let i = 0; i < steps; i++) treads.push(box(dx * 0.92, 0.045, width + 0.09, dx * (i + 0.5), dr * (i + 1) - 0.0225, 0));
+    const { slope, top, depth, nose, soleTo } = carriedStair(rise, run, steps, seat);
+    // The stringer in profile: a level sole at the foot, a level cut where it meets the top, a plumb end against it.
+    const s = new Shape();
+    s.moveTo(nose, seat);
+    s.lineTo(soleTo, seat);
+    s.lineTo(run, slope * run + top - depth);
+    s.lineTo(run, rise);
+    s.lineTo((rise - top) / slope, rise);
+    s.lineTo(nose, slope * nose + top);
+    s.closePath();
+    const stringers = [-1, 1].map((side) => {
+      const g = new ExtrudeGeometry(s, { depth: 0.05, bevelEnabled: false });
+      g.translate(0, 0, (side * width) / 2 - 0.025);
+      return g;
+    });
+    return mergeGroups([treads, stringers]);
+  });
+}
+
+/** The stringer of a carried flight: its upper edge is `top` above the line through the nosings at x = 0, it is `depth` deep, and its sole runs from `nose` to `soleTo`. */
+export function carriedStair(rise: number, run: number, steps: number, seat: number) {
+  const slope = rise / run;
+  const top = rise / steps + 0.03;
+  // Deep enough to take the back of each tread.
+  const depth = rise / steps + 0.085;
+  return { slope, top, depth, nose: -0.02, soleTo: (seat + depth - top) / slope };
 }
 
 /** Maquette tree: a ball on a stick, about 1 unit tall. Scale per instance. */
@@ -428,6 +550,25 @@ export function jackScrewGeometry(): BufferGeometry {
   });
 }
 
+/**
+ * A jack pier at rest, added to two lists (its precast pad; its jack): at
+ * (x, z) on the ground, the jack's head `top` metres above it, turned `ry`
+ * (the head is a channel along its own x). The pad is what is left under
+ * the jack's 100 mm. For a scene that shows piers standing; one that sets
+ * them in view builds them from the three parts below.
+ */
+export function addJackPier(pads: BufferGeometry[], jacks: BufferGeometry[], x: number, z: number, top: number, ry = 0, pad = 0.34) {
+  const h = top - FOUNDATION.jack;
+  const put = (g: BufferGeometry, y: number) => {
+    const c = g.clone();
+    c.rotateY(ry);
+    c.translate(x, y, z);
+    return c;
+  };
+  pads.push(box(pad, h, pad, x, h / 2, z));
+  jacks.push(put(jackBaseGeometry(), h), put(jackNutGeometry(), h + 0.055), put(jackScrewGeometry(), top));
+}
+
 /** Screw jack nut with its two turning handles. Origin at its centre. */
 export function jackNutGeometry(): BufferGeometry {
   return memo('jack-nut-v2', () => {
@@ -512,46 +653,6 @@ export function wallPanel36Geometry(): BufferGeometry {
     const glass: BufferGeometry[] = [];
     for (let i = 0; i < 4; i++) glass.push(box(1.9, 1.75, 0.03, -W / 2 + 1.55 + i * 2.6, 1.95, 0.115));
     return mergeGroups([[box(W, H, 0.22, 0, H / 2, 0)], glass]);
-  });
-}
-
-/* ------------------------------------------------------------------ */
-/* Capsule pod                                                         */
-/* ------------------------------------------------------------------ */
-
-/** Flat pane with rounded corners in the x–y plane, 0.07 thick, front face at z = +0.07. */
-function roundedPane(w: number, h: number, r: number): BufferGeometry {
-  const s = new Shape();
-  const x = -w / 2;
-  const y = -h / 2;
-  s.moveTo(x + r, y);
-  s.lineTo(x + w - r, y);
-  s.quadraticCurveTo(x + w, y, x + w, y + r);
-  s.lineTo(x + w, y + h - r);
-  s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  s.lineTo(x + r, y + h);
-  s.quadraticCurveTo(x, y + h, x, y + h - r);
-  s.lineTo(x, y + r);
-  s.quadraticCurveTo(x, y, x + r, y);
-  return new ExtrudeGeometry(s, { depth: 0.07, bevelEnabled: false, curveSegments: 6 });
-}
-
-/** Capsule pod body of a given length. Origin bottom-centre. Groups: 0 body, 1 glass, 2 feet. */
-export function podGeometry(length: number): BufferGeometry {
-  return memo(`pod-${length}`, () => {
-    const H = 2.55;
-    const D = 2.7;
-    const body = new RoundedBoxGeometry(length, H, D, 6, 0.62);
-    body.translate(0, 0.3 + H / 2, 0);
-    const win = roundedPane(Math.max(1.2, length * 0.56), 1.08, 0.22);
-    win.translate(0, 0.3 + H / 2, D / 2 - 0.05);
-    const port = roundedPane(1.2, 1.0, 0.22);
-    port.rotateY(Math.PI / 2);
-    port.translate(length / 2 - 0.05, 0.3 + H / 2, 0);
-    const feet = [-1, 1].flatMap((sx) =>
-      [-1, 1].map((sz) => cyl(0.07, 0.09, 0.34, 10, sx * (length / 2 - 0.75), 0.17, sz * (D / 2 - 0.55))),
-    );
-    return mergeGroups([[body], [win, port], feet]);
   });
 }
 

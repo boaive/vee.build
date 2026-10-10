@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import { shown } from '../data/site';
 ---
 
 <Base title="Page not found">
@@ -7,7 +8,7 @@ import Base from '../layouts/Base.astro';
     <p class="t-label mute">404</p>
     <h1 class="t-display">This page is not part of the build.</h1>
     <p class="t-lead">
-      The address may have changed. The system, the catalogue and the contact form are all on the main page.
+      The address may have changed. {shown.catalogue ? 'The system, the catalogue and the contact form' : 'The system and the contact form'} are all on the main page.
     </p>
     <p><a class="btn" href="/">Back to the modular system</a></p>
   </section>

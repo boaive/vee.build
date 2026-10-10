@@ -1,24 +1,27 @@
-import { lazy, useMemo } from 'react';
-import { useBuild } from '../../build/store';
+import { lazy } from 'react';
 import { factorySteps, factoryTitle } from '../../data/narrative';
 import Film, { type FilmLabel, type Prelude } from '../../film/Film';
 
 const Scene = lazy(() => import('../../three/scenes/FactoryScene'));
 
-const stations: FilmLabel[] = [
-  { id: 'pier', text: 'Adjustable pier' },
-  { id: 'core', text: 'Core shell' },
-  { id: 'insulation', text: 'Insulation panels' },
-  { id: 'formwork', text: 'Formwork boards' },
-  { id: 'pour', text: 'Mix delivered by hose' },
-  { id: 'smooth', text: 'Smooth concrete' },
+/* The call-outs in the picture: what each thing is, where it is. */
+const labels: FilmLabel[] = [
+  { id: 'frame', text: 'Structural frame' },
+  { id: 'hook', text: 'Lifting hook, one a corner' },
+  { id: 'panels', text: 'Insulation panels' },
+  { id: 'formwork', text: 'Formwork' },
+  { id: 'pour', text: 'Concrete, cast as walls' },
+  { id: 'openings', text: 'Openings, left empty' },
+  { id: 'joinery', text: 'Doors and windows' },
   { id: 'spray', text: 'Spray finish' },
+  { id: 'rig', text: 'Lifted by its four hooks' },
 ];
 
 /**
  * The tour's title screen. After "your house" it takes the whole screen in
  * ink with one line; scrolling opens it from the middle of the picture onto
- * the yard seen from above, where the tour begins.
+ * the whole yard, seen on the diagonal, and the film then goes in to the
+ * one bay where a shell is made from its frame to its finish.
  */
 const opening: Prelude = {
   length: 1,
@@ -44,18 +47,21 @@ const opening: Prelude = {
   ),
 };
 
-/** Section 6, part 1: the factory, from the gates to the truck, seen from above throughout. */
+/** Section 7: the factory. One shell, from its steel frame to the truck. */
 export default function FactoryTour() {
-  const built = useBuild((s) => s.units.length > 0);
-  const labels = useMemo<FilmLabel[]>(() => [...stations, { id: 'your-build', text: built ? 'Your build' : 'Sample build' }], [built]);
   return (
     <Film
       id="factory"
-      index="06"
-      heading="From the factory"
+      index="07"
+      heading="The factory"
       variant="factory"
       theme="light"
       chapter="factory"
+      /*
+       * The film before this one is only two screens long: by the time the page has stood still inside it, a
+       * visitor scrolling on is already here. So the yard is mounted while they are still at the configurator.
+       */
+      reach={2.8}
       captions="slide"
       steps={factorySteps}
       length={10}

@@ -16,7 +16,6 @@ const labels: FilmLabel[] = [
   { id: 'dim-b-l', text: '3 m', kind: 'dim' },
   { id: 'dim-b-d', text: '3 m', kind: 'dim' },
   { id: 'dim-b-h', text: '3 m', kind: 'dim' },
-  { id: 'hook-cleat', text: 'Hook & cleat', kind: 'call' },
 ];
 
 const areas = footprints.map((f) => sqm(f.slots.filter((s) => s !== null)));
@@ -47,7 +46,11 @@ function Counter() {
       s.index = c.index;
       if (recipe.current) recipe.current.textContent = footprints[c.index].recipe;
       if (area.current) area.current.textContent = `${areas[c.index]} m²`;
-      scale.current?.childNodes.forEach((n, i) => (n as HTMLElement).classList.toggle('is-on', i <= c.index));
+      // Every footprint the row has passed stays marked; the one on show takes the green (client, 2026-10-09).
+      scale.current?.childNodes.forEach((n, i) => {
+        (n as HTMLElement).classList.toggle('is-on', i <= c.index);
+        (n as HTMLElement).classList.toggle('is-now', i === c.index);
+      });
     }
   });
 
@@ -79,8 +82,8 @@ export default function HowItWorks() {
       theme="light"
       captions="wipe"
       steps={systemSteps}
-      length={8.5}
-      lengthCompact={7.5}
+      length={8}
+      lengthCompact={7}
       Scene={Scene}
       labels={labels}
     >

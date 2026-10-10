@@ -4,13 +4,14 @@
  * panels kept on top. Rendered walls, a two-pane window, a glazed door
  * between two gridded sidelights, a clerestory on the end, a low landing
  * with a lattice deck, a black rail of rectangular loops and timber steps,
- * and a precast footing under each corner.
+ * a precast footing under each corner of the shell, and a jack pier under
+ * each joist of the landing and under the foot of the steps.
  *
  * Used by the hero only. Every other scene keeps the kit's own shell
  * (parts.ts) and its rule-based add-ons (house.tsx).
  */
 import { useFrame } from '@react-three/fiber';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { DoubleSide, MeshStandardMaterial, type BufferGeometry, type Group, type Mesh } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { baseOf, type Unit } from '../../build/model';
@@ -19,8 +20,8 @@ import { ease, win } from '../../film/timeline';
 import type { BuildingProps } from './buildings';
 import { box, memo, merge, mergeGroups } from './geometry';
 import { FoundationParts } from './house';
-import { deckMat, mat, shellMat, trimMat } from './materials';
-import { MODULE, slopedRoofGeometry, stairGeometry } from './parts';
+import { deckMat, litGlass, mat, shellMat, trimMat } from './materials';
+import { MODULE, addJackPier, carriedStair, carriedStairGeometry, slopedRoofGeometry } from './parts';
 import { latticeCard, tile } from './pbr';
 import { boxUV } from './textures';
 
@@ -154,7 +155,8 @@ function homeShellGeometry(): BufferGeometry {
 const LAND = { x0: -0.1, x1: 3.14, z0: D / 2 + 0.02, z1: D / 2 + 1.07, bay: 1.08 };
 const DECK_Y = UNDERSIDE + DOOR.y0 - 0.02;
 const RAIL_H = 0.95;
-const STEP = { w: 0.9, run: 0.62, risers: 3 };
+/** `seat`: the stringers do not run into the ground; each ends in a level sole this far above it, on a jack pier. */
+const STEP = { w: 0.9, run: 0.62, risers: 3, seat: 0.16 };
 /** Where the steps meet the ground, for the path. */
 export const HOME_STEP_FOOT: [number, number] = [LAND.x1 - LAND.bay / 2, LAND.z1 + STEP.run];
 /** Everything the landing covers on plan, steps included. */
@@ -162,7 +164,7 @@ export const HOME_LANDING = { x0: LAND.x0, x1: LAND.x1, z0: LAND.z0, z1: LAND.z1
 
 /** Timber: the deck frame and the steps. Origin on the ground under the shell's centre. */
 function landingTimberGeometry(): BufferGeometry {
-  return memo('model-home-landing-timber-v2', () => {
+  return memo('model-home-landing-timber-v3', () => {
     const { x0, x1, z0, z1, bay } = LAND;
     const y = DECK_Y - 0.07;
     const cz = (z0 + z1) / 2;
@@ -170,7 +172,7 @@ function landingTimberGeometry(): BufferGeometry {
     const parts: BufferGeometry[] = [box(x1 - x0, 0.14, 0.07, (x0 + x1) / 2, y, z0 + 0.035), box(x1 - x0, 0.14, 0.07, (x0 + x1) / 2, y, z1 - 0.035)];
     for (let x = x0; x <= x1 + 1e-6; x += bay) parts.push(box(0.07, 0.14, d - 0.14, Math.min(x1 - 0.035, Math.max(x0 + 0.035, x)), y, cz));
     const frame = merge(parts);
-    const steps = stairGeometry('model-home-steps-v2', STEP.w, DECK_Y, STEP.run, STEP.risers).clone();
+    const steps = carriedStairGeometry('model-home-steps-v3', STEP.w, DECK_Y, STEP.run, STEP.risers, STEP.seat).clone();
     steps.clearGroups();
     // The flight climbs along its own +x: turn it to climb towards the house.
     steps.rotateY(Math.PI / 2);
@@ -178,6 +180,33 @@ function landingTimberGeometry(): BufferGeometry {
     const g = merge([frame, steps]);
     boxUV(g, 1);
     return g;
+  });
+}
+
+/** How far behind the landing's front edge its piers stand: the pad is flush behind the front beam. */
+const PIER_IN = 0.2;
+
+/**
+ * Jack piers (client, 2026-10-10: "add jack piers to the modular house").
+ * They stand where "Componentized building" sets them: under what comes
+ * down to the ground beside the shell, not under the shell, which has its
+ * footings. One under each joist of the landing near its front, the joist
+ * in the jack's head, and one under the level sole of each stringer of the
+ * steps. Sizes are ours (illustrative, notes C2).
+ * Groups: 0 the precast pads, 1 the jacks.
+ */
+function landingPiersGeometry(): BufferGeometry {
+  return memo('model-home-piers-v1', () => {
+    const { x0, x1, z1, bay } = LAND;
+    const pads: BufferGeometry[] = [];
+    const jacks: BufferGeometry[] = [];
+    // The joists run front to back and so do the stringers: the jacks' heads are turned to take them.
+    const turn = Math.PI / 2;
+    for (let x = x0; x <= x1 + 1e-6; x += bay) addJackPier(pads, jacks, Math.min(x1 - 0.035, Math.max(x0 + 0.035, x)), z1 - PIER_IN, DECK_Y - 0.14, turn);
+    const sole = carriedStair(DECK_Y, STEP.run, STEP.risers, STEP.seat);
+    const bear = (sole.nose + sole.soleTo) / 2;
+    for (const s of [-1, 1]) addJackPier(pads, jacks, HOME_STEP_FOOT[0] + (s * STEP.w) / 2, HOME_STEP_FOOT[1] - bear, STEP.seat, turn);
+    return mergeGroups([pads, jacks]);
   });
 }
 
@@ -302,18 +331,26 @@ export interface ModelHomeProps extends Omit<BuildingProps, 'x' | 'label' | 'get
 
 /**
  * `getA` 0–1: the footings are in the ground, the shell is lowered onto
- * them, the roof and panels follow, then the landing.
+ * them, the roof and panels follow, the jack piers are set, then the
+ * landing comes down on them. `getLit` 0–1: its windows, dark until it
+ * stands (given: the scene says when; not given: lit as the look has them).
  */
-export function ModelHome({ getA, look, shellHex, deckHex, trimHex }: ModelHomeProps) {
+export function ModelHome({ getA, getLit, look, shellHex, deckHex, trimHex }: ModelHomeProps) {
   const shell = useRef<Mesh>(null);
   const top = useRef<Group>(null);
+  const piers = useRef<Group>(null);
   const landing = useRef<Group>(null);
-  const shellMats = useMemo(() => [shellMat(shellHex), trimMat(trimHex), look.windows === 'dusk' ? mat.glassLit : mat.glass, mat.frame], [shellHex, trimHex, look]);
+  const dusk = look.windows === 'dusk';
+  const glow = useMemo(() => (dusk && getLit ? litGlass() : null), [dusk, getLit]);
+  useEffect(() => () => glow?.dispose(), [glow]);
+  const shellMats = useMemo(() => [shellMat(shellHex), trimMat(trimHex), glow ? glow.material : dusk ? mat.glassLit : mat.glass, mat.frame], [shellHex, trimHex, dusk, glow]);
+  const pierMats = useMemo(() => [mat.concrete, mat.galv], []);
   const timber = deckMat(deckHex);
   const trim = trimMat(trimHex);
 
   useFrame(() => {
     const a = getA();
+    if (glow && getLit) glow.set(getLit());
     const s = shell.current;
     if (s) {
       const t = win(a, 0, 0.6, ease.linear);
@@ -327,6 +364,8 @@ export function ModelHome({ getA, look, shellHex, deckHex, trimHex }: ModelHomeP
       g.position.y = (1 - t) * drop;
     };
     arrive(top.current, 0.56, 0.84, 2.6);
+    // The piers are set just before what lands on them.
+    arrive(piers.current, 0.6, 0.76, 0.9);
     arrive(landing.current, 0.72, 1, 1.8);
   });
 
@@ -341,6 +380,9 @@ export function ModelHome({ getA, look, shellHex, deckHex, trimHex }: ModelHomeP
           <mesh geometry={roofGeometry()} material={trim} castShadow receiveShadow />
           <mesh geometry={solarGeometry()} material={[mat.solar, mat.galv]} castShadow />
         </group>
+      </group>
+      <group ref={piers}>
+        <mesh geometry={landingPiersGeometry()} material={pierMats} castShadow receiveShadow />
       </group>
       <group ref={landing}>
         <mesh geometry={landingTimberGeometry()} material={timber} castShadow receiveShadow />

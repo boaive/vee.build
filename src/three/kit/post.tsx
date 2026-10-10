@@ -457,6 +457,8 @@ class Finish {
   private timer = 0;
   private lastMoving = 0;
   private glow: Texture | null = null;
+  /** The last moving frame reused the glow of the frame before it. */
+  private glowStale = false;
   private tick = 0;
   private raf = 0;
   private settledAt = 0;
@@ -637,7 +639,9 @@ class Finish {
     this.behind(sky, target.texture);
     this.occlude(target.texture);
     // The glow is several pixels wide at its tightest: refreshed on alternate frames, reused in between.
-    if (!this.glow || this.tick++ % 2 === 0) this.glow = this.bloomOf(target);
+    const fresh = !this.glow || this.tick++ % 2 === 0;
+    if (fresh) this.glow = this.bloomOf(target);
+    this.glowStale = !fresh;
     const glow = this.glow;
     this.shared.tBloom.value = glow ?? target.texture;
     this.shared.uBloom.value = glow ? this.opts.bloom * BLOOM_GAIN : 0;
@@ -680,6 +684,14 @@ class Finish {
     gl.setRenderTarget(rest);
     gl.render(this.scene, this.camera);
     gl.shadowMap.autoUpdate = auto;
+    // The glow is the last moving frame's own. If that frame reused the one before's, it is made now: after a
+    // jump of the page (a link, a key, reduced motion's snap) the frame before was another pose altogether,
+    // and its glow stood in this picture as a ghost of the lamps and windows of that one.
+    if (this.glowStale && this.glow) {
+      this.glow = this.bloomOf(this.motion);
+      this.shared.tBloom.value = this.glow ?? this.motion.texture;
+      this.glowStale = false;
+    }
     // The same sky and the same occlusion as the last moving frame had. Both are drawn again
     // rather than trusted to still be that frame's: it is a millisecond, once.
     this.behind(sky, rest.texture);

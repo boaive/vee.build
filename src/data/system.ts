@@ -73,14 +73,18 @@ export const footprints: Footprint[] = [
 /**
  * Brief, step 2.3: three stacked configurations. Massing studies, not designs.
  * Ground floor is the 800 sq.ft. footprint so the stack grows out of step 2.2.
+ * All three are presets of the configurator. "How it works" shows two of
+ * them (client, 2026-10-09: "let us remove The Apartment", and the
+ * five-floor block is a mid-rise, not a high-rise): `film`.
  */
 export interface Stack {
-  id: 'villa' | 'apartment' | 'highrise';
+  id: 'villa' | 'apartment' | 'midrise';
   name: string;
   floors: string;
   description: string;
   idealFor: string;
   modules: Placement[];
+  film: boolean;
 }
 
 const row = (y: number, from = 0, to = 4) =>
@@ -94,6 +98,7 @@ export const stacks: Stack[] = [
     description: 'One roofed residential floor and an expansive flat open terrace.',
     idealFor: 'Vacation home seekers, suburb living and farmhouses.',
     modules: [...row(0), ...row(1, 0, 2)],
+    film: true,
   },
   {
     id: 'apartment',
@@ -102,10 +107,11 @@ export const stacks: Stack[] = [
     description: 'A two-floor apartment with a stair lobby module and a shared upper terrace.',
     idealFor: 'Urban infill, multi-family investors and co-living spaces.',
     modules: [...row(0), ...row(1), B(4, 0, 0), B(4, 0, 1), B(4, 0, 2)],
+    film: false,
   },
   {
-    id: 'highrise',
-    name: 'High-Rise Block',
+    id: 'midrise',
+    name: 'Mid-Rise Apartment',
     floors: '5 floors',
     description: 'A five-floor complex with lobbies, cantilevered balconies and a penthouse terrace.',
     idealFor: 'Commercial developers, student housing and high-density real estate.',
@@ -121,5 +127,9 @@ export const stacks: Stack[] = [
       B(4, 0, 3),
       B(4, 0, 4),
     ],
+    film: true,
   },
 ];
+
+/** The stacks "How it works" shows, in the order it shows them. */
+export const filmStacks = stacks.filter((s) => s.film);

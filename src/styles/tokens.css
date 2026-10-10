@@ -28,12 +28,34 @@
  * picks its theme with .theme-light or .theme-dark, so the same component
  * works on either.
  *
- * The accent follows the ground it stands on: vermilion on paper, hi-vis
- * green on ink (the client's suggestion of 2026-10-06, taken where he saw
- * it working: "as the page moves into darker colour the green will
- * elevate"). The green is the yellow-green of site safety wear, used flat:
- * a mark, a rule, a number. No glow and no gradient.
+ * The accent follows the ground it stands on, and each ground has one
+ * accent only: the two are never mixed on one ground.
+ *
+ *   - On ink: the fluorescent yellow-green of site safety wear (--green),
+ *     the client's choice. Used flat: no glow, no gradient.
+ *   - On paper: vermilion. The green cannot be read there (as text it
+ *     measures 1.2 to 1 against the page), and nothing is put behind it
+ *     to carry it: no label, no box, no darker tone of it. Tried on
+ *     2026-10-10 and settled by the developer the same day: "if the white
+ *     background doesn't support the green, use orange only there".
+ *
+ * It is a colour of text, of a rule, of a dot. As a fill it carries text:
+ * white on the vermilion, ink on the green (--on-accent, --on-mark).
+ *
+ * The small titles (the whole line of a chapter, "01 — Modular precast
+ * construction system"; the line over a caption, "2.1 — The 2 core
+ * shells"; the three codes of the opening card) are in the accent of
+ * their ground: --title. On paper that is the vermilion's text tone (5 to
+ * 1); before 2026-10-10 it was a deep green there, beside the vermilion.
+ *
+ * --accent-line is the accent where it is a hairline, a dot or a stroke
+ * rather than text or a fill.
  */
+:root {
+  --green: #c8f031;
+  --ink: #0a0b0d;
+}
+
 :root,
 .theme-light {
   --bg: #f2f0eb;
@@ -51,6 +73,8 @@
   --btn-text: #f7f5f0;
   --accent: #d9431b;
   --accent-ink: #b5370f;
+  --accent-line: #d9431b;
+  --title: #b5370f;
   /* Text and icons on a fill of the accent. */
   --on-accent: #fff;
   --error: #b8320c;
@@ -72,9 +96,11 @@
   --scrim: 10 11 13;
   --btn: #f2f0eb;
   --btn-text: #0a0b0d;
-  --accent: #c8f031;
-  --accent-ink: #c8f031;
-  --on-accent: #0a0b0d;
+  --accent: var(--green);
+  --accent-ink: var(--green);
+  --accent-line: var(--green);
+  --title: var(--green);
+  --on-accent: var(--ink);
   --error: #ff9d7d;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 24px 60px -24px rgba(0, 0, 0, 0.7);
   color-scheme: dark;
@@ -87,6 +113,14 @@
 }
 
 :root {
+  /*
+   * The green as a mark: a flat fill with ink on it, for a thing in play
+   * (the add-on that has just landed, a call-out box, a key under the
+   * pointer). The same on either theme.
+   */
+  --mark: var(--green);
+  --on-mark: var(--ink);
+
   /* Type */
   --font-sans: 'Archivo Variable', 'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --font-mono: 'DM Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;

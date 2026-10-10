@@ -1,17 +1,19 @@
 ---
+import { shown } from '../../data/site';
+
 /**
  * Section 6, close: the system in four numbers from the brief, then the
  * invitation to design one.
  */
 const facts = [
   { n: '2', unit: 'shells', text: 'Shell A, 6 m × 3 m × 3 m, and Shell B, 3 m × 3 m × 3 m.' },
-  { n: '5', unit: 'floors', text: 'Stacked from the ground up to the High-Rise Block, G+4.' },
+  { n: '5', unit: 'floors', text: 'Stacked from the ground up to the Mid-Rise Apartment, G+4.' },
   { n: '3', unit: 'foundation parts', text: 'Plug footing, L plinth and jack pier.' },
   { n: '8', unit: 'add-ons', text: 'From the deck platform to roof solar arrays.' },
 ];
 ---
 
-<section class="section arrival theme-dark" id="build-yours" data-theme="dark" data-chapter="factory" aria-labelledby="arrival-heading">
+<section class="section arrival theme-dark" id="build-yours" data-theme="dark" data-chapter="delivery" aria-labelledby="arrival-heading">
   <div class="wrap">
     <ul class="arrival__facts">
       {
@@ -31,7 +33,7 @@ const facts = [
       <h2 class="t-display" id="arrival-heading" data-reveal>Now design yours.</h2>
       <div class="arrival__actions" data-reveal style="--i:1">
         <a class="btn btn--light" href="#configure">Build your own</a>
-        <a class="link" href="#catalogue">Browse the catalogue</a>
+        {shown.catalogue && <a class="link" href="#catalogue">Browse the catalogue</a>}
       </div>
     </div>
   </div>

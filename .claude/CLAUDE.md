@@ -26,6 +26,32 @@ source. Never resolve a conflict by inventing a third value.
 - Public brand is **VEE.BUILD**. "Wieldy", "Wieldly", its logo, tagline,
   email, phone, pricing and testimonials must never appear in `src/` or
   `public/`. `assets/` is client source material and is not shipped.
+- The top menu is **MOD | POD | FAB** and **Contact**, nothing else (client,
+  2026-10-09). Partnership, Investors and Technology are in the bottom
+  band under the footer, with "Powered by" and the Hemisphere One logo as
+  supplied (`src/assets/brand/hemisphere-one.png`; it is dark on clear, so
+  the band is on paper: do not put it on ink, recolour it or redraw it).
+  Menu and band are `primaryNav` and `bandNav` in `src/data/site.ts`.
+  CONFIRM: Investors and Technology have no pages; they lead to the
+  enquiry form and to "How it works" (notes J2).
+- The three kinds of building are **Modular house**, **Capsule home** and
+  **Prefab building**, with the client's line for each (`kinds` in
+  `src/data/narrative.ts`). The two shells belong to the modular line
+  only: they are not shown or named on the opening card. The capsule and
+  the prefab building are not on sale yet and carry a **Coming soon** tag
+  wherever they are shown (`soon` in `kinds`; client, 2026-10-10).
+- Where the company is the subject it is named: **VEE** or **VEE.BUILD**,
+  not "we" ("How is VEE different?", "See how VEE manufactures it.";
+  client, 2026-10-10). An ordinary "we" or "us" in a sentence spoken to
+  the visitor ("Tell us what you want to build") stays.
+- **Powered by Hemisphere One** stands under the wordmark wherever the
+  wordmark does (header, footer, loading screen: text, small, in the
+  wordmark's own colour) and on the opening card with the logo as
+  supplied (client, 2026-10-10). The logo itself only ever on paper.
+- The capsule's form follows the client's three reference renders of
+  2026-10-09 (`src/three/kit/capsule.ts`). Its lengths are the brief's
+  10′, 16′ and 20′; nothing else about it is supplied (notes C5, C9). No
+  mark, name or figure from those renders.
 - No invented projects, customers, testimonials, certifications, prices,
   timelines or engineering specifications. Missing facts get a neutral
   presentation plus an entry in `vee-build-notes.md`.
@@ -38,13 +64,59 @@ source. Never resolve a conflict by inventing a third value.
   in one place, `doorFaces` in `src/build/model.ts`, and every scene draws
   the shell through `moduleGeometry(type, door)`. Never add a second door to
   a shell to make a row or a stack read better.
+- A footprint of "How it works" is one home and has one main door (client,
+  2026-10-09): `mainDoor` in the same file keeps one of the doors that
+  `doorFaces` gives and makes the other shells `none`. It stays on one
+  shell as the row grows (a Shell A before a Shell B). The villa ("Net
+  zero") has one main door a floor and, on the shell beside its terrace,
+  a door onto the terrace (`floorDoors`). A shell that stands end-on to
+  the street without the door shows a window there, never a blank end
+  (`streetEnds`; client, 2026-10-10). CONFIRM: the configurator, the
+  catalogue and the mid-rise still have a door for each shell (notes J7).
+- The module is made of three parts, named and coloured as the client
+  names them (2026-10-09): **structural frame** (steel, black: a ring at
+  the floor with its joists, a column at each corner with a lifting hook
+  on its head, and a ring round the top on the four sides with nothing
+  across the middle; developer, 2026-10-10), **insulated panels** (EPS,
+  white, in segments: walls, floor and roof), **micro concrete** (grey,
+  over them: a wall's thickness round the shell, never a solid inside).
+  Its door, windows and sidelights are the standard shell's
+  (`joineryGeometry`, `moduleOpenings` in `kit/parts.ts`): never a set of
+  openings of the film's own. The shell in its three parts is described
+  once, in `kit/shell.ts`: "Componentized building" and the factory both
+  draw from it (client, 2026-10-10: sections 3.2 and 3.3 are the source of
+  truth for the frame). Do not give either a frame of its own.
+- A jack pier stands where a deck post or the steps come down to the
+  ground, not under the shell, and it is set with the add-on that lands on
+  it, not with the foundation (developer, 2026-10-10). It carries what
+  stands on it: the steps do not run on into the ground, their frame ends
+  in a level sole on the pier's head (`carriedStairGeometry`). The hero's
+  house has them too, under its landing and its steps (client, the same
+  day).
+- The deck, the steps and the sloped roof are add-ons, not standard parts,
+  and are tagged "Add-on" in the picture when they land in section 3
+  (client, 2026-10-10).
+- A shell is lifted by its four hooks: from the crane's hook four slings
+  to the corners of a lifting frame the size of its roof, and a sling
+  plumb down from each corner to a hook (client's photograph, 2026-10-10;
+  `liftRigGeometry` in `kit/machines.tsx`). In the factory and on site
+  alike. It keeps the way it lies while it is in the air where the trailer
+  can stand along it.
+- A building's lights come on when it stands, never while it is being
+  lowered in, carried or put together (client, 2026-10-10): the hero's
+  three, the capsule homes, the installation. `litGlass()` in
+  `kit/materials.ts`.
+- "How it works" shows two stacks, the villa and the five-floor
+  **Mid-Rise Apartment** ("high-rise" is not used anywhere). The two-floor
+  apartment is a preset of the configurator only (`film` in
+  `src/data/system.ts`).
 - A building with an upper floor has one outer staircase, never two: a
   dog-leg (one U-bend a floor) standing beside the building, against its
   flank, not across its front (client, 2026-10-07). Where it stands and the
   galleries that lead to it are decided in one place, `layoutAccess` in
   `src/build/model.ts`, for the configurator and for every scene that shows
-  a stacked building ("How it works" included). Do not place stairs,
-  galleries or balconies by hand in a scene.
+  a stacked building ("How it works" included, and the prefab block of the
+  hero). Do not place stairs, galleries or balconies by hand in a scene.
 - No door opens onto a drop. With the deck add-on on, every ground-floor
   door has a deck outside it, along that side of its shell, and each
   stretch of deck has one flight of steps, at a door (`layoutAddOns`). A
@@ -66,12 +138,25 @@ Astro (static HTML per route) + React islands + React Three Fiber.
 | 3D | `src/three/` | `kit/` reusable geometry, `scenes/` one file per scene, `Stage.tsx` the only `<Canvas>`. |
 
 - A scene is a pure function of one damped progress value (0–1). No scene
-  owns scroll listeners; `src/film/Film.tsx` does.
+  owns scroll listeners; `src/film/Film.tsx` does. Two films also run on
+  time, both on the client's instruction of 2026-10-10. The truck's drive
+  (`Transit.tsx`) plays by itself, once: its progress is seconds, and the
+  page is held while it plays (`play` in `Film.tsx`, `film/hold.ts`).
+  The installation has a clock of its own that the scroll starts and runs
+  back (`film/installTimeline.ts`). Each is still drawn by one function
+  of its numbers, and with reduced motion each shows settled poses and
+  holds nothing. Do not hold the page anywhere else.
 - Text never lives in WebGL. Captions and callouts are DOM, positioned by
   projecting anchors (`src/film/labels.ts`).
 - All dimensions in scenes are metres. Module A = 6 × 3 × 3, Module B = 3 × 3 × 3.
-- Only one `<Canvas>` is mounted near the viewport at a time; off-screen
-  canvases unmount (context released). Frameloop is `demand`.
+- A film's `<Canvas>` is mounted while the film is within a screen of
+  the viewport, and unmounts (context released) when it is not. It may be
+  mounted ahead of time, in a quiet moment, while the film is still up to
+  `REACH` screens below the viewport, so the work of mounting is not done
+  in the middle of the scroll that reaches it (`src/film/Film.tsx`; the
+  factory film reaches farther, `reach`). Do not widen that: a mounted
+  stage holds 300 to 500 MB of GPU memory (notes F9). Frameloop is
+  `demand`; a stage out of sight draws nothing.
 - What is drawn besides the scene belongs to the stage and the finish, not
   to scenes: the sky (drawn on its own and put behind the scene), the shadow
   map (redrawn only when the light or a caster has moved, or after
@@ -86,6 +171,11 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   compiled in only while one is open (a shader that can discard gives up
   early depth rejection), so every land material has two programs: warm
   both.
+- A film that keeps parts out of sight until their turn sends all of them
+  to the GPU when it mounts (`useWarmAll` in `Stage.tsx`), and builds its
+  geometry in idle time before that (a `prepare` list exported by the
+  scene, `film/prefetch.ts`). Otherwise each part costs a long frame the
+  first time it shows.
 - No drei, no GSAP, no smooth-scroll library. Add a dependency only if it
   materially improves the product; note why in `vee-build-notes.md`.
 
@@ -96,10 +186,27 @@ Astro (static HTML per route) + React islands + React Three Fiber.
 - Palette: warm concrete paper and charcoal ink. One accent, for measurement
   and interaction only, and it follows its ground: vermilion on paper,
   hi-vis green (`#c8f031`) on ink (`.theme-dark`, `.on-ink`; tokens.css).
-  The green is used flat: no glow, no gradient. Formwork green exists only
-  inside the factory scene.
-  CONFIRM: the client suggested (2026-10-06) fluorescent green instead of
-  orange throughout; it is applied on dark surfaces only (notes I5).
+  The two are never mixed on one ground. The green is used flat: no glow,
+  no gradient. Formwork green exists only inside the factory scene.
+  The small titles are in the accent of their ground, the whole line
+  (developer, 2026-10-10): a chapter's line ("01 — Modular precast
+  construction system"), the small line over a caption ("2.1 — The 2 core
+  shells", "MOD"), the codes of the opening card, and with them the rail's
+  marker and a film's step ticks (`--title`). A colour of text. Never a
+  black label, plate or background behind a title, and never ink where
+  the accent was: both were tried that day and refused. On paper the
+  green itself cannot be read as text (1.2 to 1), which is why paper keeps
+  the vermilion (the developer: "if the white background doesn't support
+  the green, use orange only there").
+  As a fill with ink text on it (`--mark`) the green is used on the dark
+  films only, for a thing in play: the add-on that has just landed, a key
+  or tag under the pointer, and every call-out box of "Componentized
+  building". Never white text on it (1.3 to 1).
+  In 3D the same: `mat.accent` (vermilion) on a light stage,
+  `mat.accentInk` (green) on a dark one.
+  CONFIRM: the client suggested (2026-10-06, again 2026-10-09) green
+  instead of orange throughout; it is the accent on dark surfaces only
+  (notes I5, J8, K2, L3).
 - Captions over a 3D picture are plain text (client, 2026-10-07): no wash
   in the page colour over the picture (it reads as haze), no box behind the
   text, no frosted header band over a film. Legibility comes from the
@@ -116,14 +223,63 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   own opacity; it never lies on the house at rest, and it is gone
   (`display: none`) once the card has opened, so the film itself is never
   under it. Do not use it anywhere else without asking.
-- The hero opens on the product alone (client, 2026-10-07): the house in a
-  studio, no land and no sky, which arrive as the page scrolls. The studio
-  is CSS behind the canvas (the canvas is clear wherever the scene has
-  drawn nothing). At rest the land is not drawn at all.
-- The factory tour is seen from above throughout, at the angle it opens on
-  (client, 2026-10-07): the camera moves between stations, it does not come
-  down to the ground. Lay the yard out for that view: the side of the line
-  under the captions stays clear.
+- The hero opens on the three kinds of building in a row (client,
+  2026-10-09): the modular house, a capsule home and a prefab building in
+  a studio, to one scale, each named on the floor in front of it, no land
+  and no sky. Scrolling lifts the capsule and the prefab block away as
+  they were lowered in, goes to the house, and then brings its land and
+  sky in as before (client, 2026-10-07). Each of the three is dark while
+  it is lowered in, and its lights come on once it stands. The three
+  stand in three columns, their middles evenly spaced, each name under
+  the middle of its building. The studio is CSS behind the
+  canvas (the canvas is clear wherever the scene has drawn nothing). At
+  rest the land is not drawn at all. On a narrow screen the three stand
+  one behind another and are seen from above (`ROW`, `ROW_COMPACT` in
+  `kit/sets.tsx`). Things leave a picture by being lifted or by the camera
+  moving on, never by fading: a faded object needs a blended material.
+- "Componentized building" opens on the finished house, whole, which
+  comes apart twice (developer, 2026-10-10: "easy to understand for very
+  common people", then "after fully bursting, we can burst further").
+  First into the three things it is made of, each still whole: lifted off
+  its foundation, then its add-ons off it. Then each of the three into
+  its own parts, in turn: the footings and plinth stand apart; the module
+  is drawn apart upwards into three whole boxes, the steel frame, the
+  white panels over it and the concrete over them, with the door and the
+  glass in front (opened outwards, the near walls hid the frame); the
+  add-ons piece by piece. Each is named as it is shown, by a green box in
+  the picture and by its word of the heading ("Foundation. Module.
+  Add-ons."), which arrive one at a time with the picture; in the second
+  burst the green goes to the word whose thing is coming apart. No
+  outlines round the groups. The film's times are on a clock of its own
+  (`film/componentsClock.ts`): the opening has more scroll than its share.
+- A film's cut and its caption go together: the hero's captions change on
+  the cut between sets itself (`film/heroTimeline.ts`), in one move with
+  the step's mark, nothing delayed (client, 2026-10-10).
+- The factory makes one shell in one bay, start to finish, in the
+  client's order (2026-10-10; `film/factoryTimeline.ts`): structural
+  frame with its hooks ("Structural frame – core shell"), insulation
+  panels (walls, then the top), formwork, concrete cast as walls (the
+  inside stays clear), de-shuttering that leaves the openings empty, doors
+  and windows, spray finish in the same bay, then the crane lifts it by
+  its four hooks onto the truck, lets go only once it is down, and the
+  truck leaves. No green box standing by, no gate sequence. It is seen on
+  the diagonal, from above and from the side, with the shell as the
+  subject (the same instruction; from 2026-10-07 until then it was seen
+  from above throughout); the picture's left, under the captions, is open
+  slab. What else stands in the yard stands still (a shell with its
+  panels going on, one cast, the finished ones in the shed). The plant is
+  drawn as the real machines are (`kit/machines.tsx`): no toy trucks or
+  cranes.
+- The journey is one shot of a few seconds: the truck comes down the road
+  at the viewer and passes out of the picture (client, 2026-10-10, with a
+  photograph for the angle). It plays once, by itself, and holds the page
+  while it does; it can never keep it (`film/hold.ts` lets go on a timer,
+  on Escape, when the page is hidden). It only ever holds a scroll the
+  visitor is making: a link gliding past does not start it.
+- The installation: the truck arrives with one shell; scrolling on places
+  it on the foundation ("Placed on the foundation"); the rest of the
+  building then comes together by itself, its add-ons land, and its
+  lights come on last (client, 2026-10-10).
 - 3D look, as built: every stage goes through one photographic finish (sun
   shadows, ambient occlusion, bloom on the sun and lit glass, filmic tone
   mapping, a light grade). Studio stages stand on the page colour with a
@@ -145,17 +301,38 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   reduced motion gets), and shows "How are we different?" standing still,
   nothing hidden. `?go=<section-id>:<0-1>` jumps a film to a progress value on the
   dev server (the value counts a title card's scroll too).
+- A change to anything 3D is not finished until it has been measured:
+  GPU time of a moving frame against the tree before the change, a
+  moving frame against the settled one at the same pose, and a steady
+  scroll. The rules of the pipeline and how to measure are in
+  `vee-build-notes.md`, F8; the last numbers are in F7. More than about
+  half a millisecond a frame needs a reason, stated.
+- A grid on the ground is one flat sheet whose shader finds the lines, not
+  line segments: line segments cost 12 ms a frame in "How it works"
+  (notes F7).
 - Routes: `/` (main page, the factory tour included), `/capsule/`,
   `/prefab/`, `/partnership/`, `404`. Do not move a section to a route of
   its own, or add or remove one, without asking first.
+- The catalogue is built but not shown (client, 2026-10-10: "hide without
+  removing"): `shown` in `src/data/site.ts`. The chapters' numbers, the
+  rail, the menus and the links to it follow that flag; do not delete the
+  section or its components.
+- A film with a clock of its own reads it before anything in the frame
+  that depends on it (`useFrame(..., -1)`): children are drawn from their
+  own places in the frame, ahead of the parent's.
 - After changing copy or data, run `npm run check` and `npm run build`, then
-  search `src/`, `public/` and `dist/` for the legacy brand name.
+  search `src/`, `public/` and `dist/` for the legacy brand name. After
+  changing CSS too: the dev server serves a stylesheet with a broken rule
+  in it without a word, and the build stops on it (2026-10-10).
 - `?noboot` skips the boot screen. `?q=1` shows the one emergency
   resolution step, `?q=0` rules it out.
 - Frame timing and 3D screenshots: a headless Edge on the same GPU (the
   app's browser pane does not draw frames while hidden). Details in
   `vee-build-progress.md`, QA aids.
 - `node scripts/og-image.mjs` regenerates `public/og.png`.
+- In a scripted edit, a replacement passed as a function does not expand
+  `$1`: it is written into the file as text. Eight CSS rules lost their
+  heads that way on 2026-10-10.
 - Scripted multi-line edits: write a script file and run it. Inline shell
   heredocs containing an apostrophe fail in this environment. Files in
   `src/` are a mix of CRLF and LF: match on LF and write back in the file's

@@ -100,7 +100,7 @@
 /* The accent rule that marks the point under the pointer. */
 .diff__cell::after {
   height: 2px;
-  background: var(--accent);
+  background: var(--accent-line);
   transform: scaleX(0);
   transition: transform 0.55s var(--ease-out);
 }
@@ -110,6 +110,69 @@
 .diff__n {
   color: var(--mute);
   transition: color 0.3s var(--ease);
+}
+/*
+ * Each point's mark, in the cell's top corner opposite its number. Drawn in
+ * the page's hairline; it draws itself as the cell comes in and moves again
+ * under the pointer, with the accent rule.
+ */
+.diff__icon {
+  position: absolute;
+  top: clamp(1.1rem, 2vw, 1.7rem);
+  right: clamp(1.25rem, 2.6vw, 2.5rem);
+  width: clamp(2.5rem, 1.6rem + 2vw, 3.5rem);
+  height: auto;
+  overflow: visible;
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 0.3s var(--ease);
+}
+.diff__cell:nth-child(3n) .diff__icon {
+  right: 0;
+}
+.diff__cell.is-hot .diff__icon {
+  stroke: var(--accent-ink);
+}
+.diff__icon .i-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 1.2s var(--ease-out) calc(0.35s + var(--i, 0) * 90ms);
+}
+.diff__icon .i-turn,
+.diff__icon .i-move {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  transition: transform 0.9s var(--ease-out);
+}
+.diff__icon circle.i-move {
+  fill: var(--bg-2);
+}
+/* Under the pointer: the stroke is drawn again, the loop turns, the marker travels. */
+.diff__cell.is-hot .i-draw {
+  animation: diff-draw 1s var(--ease-out);
+}
+.diff__cell.is-hot .i-turn {
+  transform: rotate(180deg);
+}
+.diff__cell.is-hot .i-rays {
+  transform: rotate(45deg) scale(1.18);
+}
+.diff__cell[data-id='end-to-end'].is-hot .i-move {
+  transform: translateX(26px);
+}
+.diff__cell[data-id='affordable'].is-hot .i-move {
+  transform: translateY(3.5px);
+}
+@keyframes diff-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 .diff__cell.is-hot .diff__n {
   color: var(--accent-ink);
@@ -168,6 +231,14 @@
   padding-bottom: 0.95rem;
   border-bottom: 1px solid var(--text);
 }
+/* The two columns' names, as large as what stands under them (client, 2026-10-09). */
+.diff__vs-head p {
+  font-size: clamp(1.3rem, 0.95rem + 1.25vw, 2.1rem);
+  font-weight: 660;
+  font-stretch: 108%;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
 .diff__vs-head p:last-child {
   color: var(--mute);
 }
@@ -223,6 +294,9 @@
 .diff.is-armed .diff__cell:not(.is-in)::before {
   transform: scaleX(0);
 }
+.diff.is-armed .diff__cell:not(.is-in) .i-draw {
+  stroke-dashoffset: 1;
+}
 .diff.is-armed .diff__row:not(.is-in) .diff__struck {
   background-size: 0 0.07em;
 }
@@ -264,6 +338,13 @@
   .diff__word {
     margin-top: 1.5rem;
   }
+  .diff__cell .diff__icon,
+  .diff__cell:nth-child(3n) .diff__icon {
+    right: 1.25rem;
+  }
+  .diff__cell:nth-child(even) .diff__icon {
+    right: 0;
+  }
   .diff__vs-head {
     display: none;
   }
@@ -297,6 +378,10 @@
   .diff__cell:last-child {
     border-bottom: 1px solid var(--line);
   }
+  .diff__cell .diff__icon,
+  .diff__cell:nth-child(3n) .diff__icon {
+    right: 0;
+  }
   .diff__word {
     margin-top: 0.9rem;
   }
@@ -306,8 +391,12 @@
   .diff__ln > span,
   .diff__cell::before,
   .diff__cell::after,
+  .diff__icon .i-draw,
+  .diff__icon .i-turn,
+  .diff__icon .i-move,
   .diff__struck {
     transition: none;
+    animation: none !important;
   }
 }
 
@@ -346,7 +435,7 @@
   right: 0.9rem;
   bottom: -1px;
   height: 2px;
-  background: var(--accent);
+  background: var(--accent-line);
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.45s var(--ease-out);
@@ -491,7 +580,7 @@
 }
 .draw__dim polyline {
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--accent-line);
   stroke-width: 1;
 }
 .draw__dim text {
@@ -785,8 +874,8 @@
 .field input:focus-visible,
 .field textarea:focus-visible {
   outline: none;
-  border-bottom-color: var(--accent);
-  box-shadow: 0 1px 0 var(--accent);
+  border-bottom-color: var(--accent-line);
+  box-shadow: 0 1px 0 var(--accent-line);
 }
 .field.has-error input,
 .field.has-error textarea {
@@ -858,7 +947,7 @@
   border-color: var(--accent);
 }
 .choice__opt input:focus-visible + span {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-line);
   outline-offset: 3px;
 }
 
@@ -931,7 +1020,7 @@
   width: 0.45rem;
   height: 0.45rem;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--accent-line);
 }
 .page-hero__lead {
   max-width: 36rem;
@@ -1066,7 +1155,7 @@
   width: 0.4rem;
   height: 0.4rem;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--accent-line);
   transform: translateY(-0.1rem);
 }
 .partner__brings-title {

@@ -1,5 +1,5 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { SceneProps } from '../film/progress';
@@ -620,6 +620,16 @@ export default function Stage(props: StageProps) {
           }}
           onReady={() => {
             rig.holding = false;
+            /*
+             * Mounted ahead of time, out of sight (Film.tsx): nothing asks it for a frame, so its geometry,
+             * textures and shadow map would still be sent to the GPU on the first frame the visitor sees.
+             * One draw into the warming target does that now, in idle time.
+             */
+            if (!active) {
+              const warm = () => rig.warm(() => () => {});
+              if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(warm, { timeout: 1500 });
+              else window.setTimeout(warm, 200);
+            }
           }}
         />
       )}
@@ -661,6 +671,56 @@ export function aim(
   );
   camera.lookAt(look[0], look[1], look[2]);
   camera.updateMatrixWorld();
+}
+
+/**
+ * Sends everything under `root` to the GPU ahead of time, shown or not.
+ * A film that keeps its parts out of sight until their turn (the factory's
+ * boards, its concrete, its doors, the crane's load; the installation's
+ * add-ons) would otherwise compile a shader and upload buffers in the frame
+ * each first appears, in the middle of the scroll. Once, when the stage's
+ * own shaders are in and the page is idle; drawn into the warming target,
+ * so nothing of it is seen.
+ */
+export function useWarmAll(rig: Rig, root: RefObject<THREE.Object3D | null>) {
+  useEffect(() => {
+    let alive = true;
+    let timer = 0;
+    const run = () => {
+      const top = root.current;
+      if (!alive || !top) return;
+      rig.warm(() => {
+        const hidden: THREE.Object3D[] = [];
+        const culled: THREE.Object3D[] = [];
+        top.traverse((o) => {
+          if (!o.visible) {
+            hidden.push(o);
+            o.visible = true;
+          }
+          // Out of shot is not drawn either: for this one draw, everything is.
+          if (o.frustumCulled) {
+            culled.push(o);
+            o.frustumCulled = false;
+          }
+        });
+        return () => {
+          for (const o of hidden) o.visible = false;
+          for (const o of culled) o.frustumCulled = true;
+        };
+      });
+    };
+    const wait = () => {
+      if (!alive) return;
+      if (rig.holding) timer = window.setTimeout(wait, 200);
+      else if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(run, { timeout: 1500 });
+      else timer = window.setTimeout(run, 200);
+    };
+    wait();
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [rig, root]);
 }
 
 /** Returns a function that places a DOM label at a world position. */

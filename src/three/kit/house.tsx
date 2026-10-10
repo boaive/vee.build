@@ -175,6 +175,33 @@ function stairParts(t: Stair, deck: BufferGeometry[], trim: BufferGeometry[], tr
     }
 }
 
+const stairsBuilt = new WeakMap<Stair, BufferGeometry>();
+/**
+ * The outer staircase by itself, as one piece, for a building that draws
+ * its own gallery (the prefab block of the hero): the same dog-leg as
+ * everywhere else, where the rule put it. Groups: 0 landings and treads,
+ * 1 frames, posts and stringers, 2 rails.
+ */
+export function stairGeometryOf(t: Stair): BufferGeometry {
+  let g = stairsBuilt.get(t);
+  if (!g) {
+    const deck: BufferGeometry[] = [];
+    const trim: BufferGeometry[] = [];
+    const treads: BufferGeometry[] = [];
+    const stringers: BufferGeometry[] = [];
+    const rails: BufferGeometry[] = [];
+    stairParts(t, deck, trim, treads, stringers, rails);
+    g = mergeGroups([
+      [...deck, ...treads],
+      [...trim, ...stringers],
+      rails,
+    ]);
+    boxUV(g, 1);
+    stairsBuilt.set(t, g);
+  }
+  return g;
+}
+
 interface AddOnMeshes {
   deck: BufferGeometry | null;
   trim: BufferGeometry | null;
@@ -461,6 +488,8 @@ export interface HouseProps {
   addOnT?: () => number;
   /** The plot, where there is one: the outer staircase keeps inside it when it can. */
   plot?: Plot;
+  /** Glazing of the scene's own, in place of the look's: for a house whose lights the scene brings up itself (materials.ts, litGlass). */
+  glass?: Material;
 }
 
 function UnitsOf({ list, type, door, mats, pose, base }: { list: Unit[]; type: ShellType; door: DoorFace; mats: Material[]; pose?: HouseProps['pose']; base: number }) {
@@ -523,9 +552,13 @@ export function House({
   pose,
   addOnT,
   plot,
+  glass,
 }: HouseProps) {
   const base = baseOf(foundation);
-  const mats = moduleMats(shellHex, look.windows, trimHex);
+  const mats = useMemo(() => {
+    const m = moduleMats(shellHex, look.windows, trimHex);
+    return glass ? [m[0], m[1], glass, m[3], m[4]] : m;
+  }, [shellHex, look.windows, trimHex, glass]);
   const pools = useMemo(() => shellPools(units), [units]);
   const layout = useMemo(() => layoutAddOns(units, new Set(addOns), deckSide, manual, base, plot), [units, addOns, deckSide, manual, base, plot]);
   const skirting = addOns.includes('spandrel');
