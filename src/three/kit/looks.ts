@@ -265,6 +265,35 @@ export const LOOKS = {
     land: '#88875f',
     grade: GRADE_DAY,
   },
+  /*
+   * The hero's opening card: the three in a photographer's studio (client,
+   * 2026-10-11: "semi-realistic to highly realistic, premium"). A large soft
+   * key from high on the left, in front; a cool fill from the right; the
+   * studio's own room in every reflection; the lights inside them warm. As
+   * the land comes in the scene goes over to the sunset (Stage, mixLook).
+   */
+  card: {
+    sky: null,
+    fog: null,
+    hemi: { sky: '#f7f3ec', ground: '#b9b2a6', intensity: 0.34 },
+    sun: { color: '#fff2e2', intensity: 2.05, dir: sunAt(-42, 52) },
+    fill: { color: '#dfe8f4', intensity: 0.3, dir: [0.75, 0.32, 0.58] },
+    env: 0.42,
+    exposure: 0.9,
+    shadow: { color: '#2a241e', opacity: 0.3 },
+    windows: 'dusk',
+    flora: 'gold',
+    grade: {
+      vignette: 0.14,
+      saturation: 1.04,
+      contrast: 1.05,
+      shadows: [0.99, 0.99, 1.02],
+      highlights: [1.02, 1.0, 0.98],
+      grain: 0.012,
+      aberration: 0.0006,
+    },
+    lamps: 1,
+  },
   studioDark: {
     sky: null,
     fog: { color: '#0a0b0d', near: 26, far: 70 },

@@ -14,6 +14,15 @@ import { CampusSet, PodSet, SETS, WorkSet, type SetName } from '../kit/sets';
 export type ShowcaseKind = 'capsule' | 'workforce' | 'institutional';
 
 const SET: Record<ShowcaseKind, SetName> = { capsule: 'pods', workforce: 'work', institutional: 'campus' };
+/**
+ * The capsule page frames its three on their own (client, 2026-10-11: "too
+ * small, like toy houses"): near and at about eye level, so that they read
+ * at their real size, the row across most of the stage. The hero's capsule
+ * set looks off to one side for its caption; this stage has none.
+ */
+const FRAME: Partial<Record<ShowcaseKind, Pick<(typeof SETS)[SetName], 'from' | 'to'>>> = {
+  capsule: { from: { pos: [6.2, 1.95, 18.6], look: [0, 1.62, 0] }, to: { pos: [-6.2, 1.9, 18.6], look: [0, 1.6, 0] } },
+};
 const SECONDS: Record<ShowcaseKind, number> = { capsule: 2.4, workforce: 3.2, institutional: 3.6 };
 
 function Model({ kind, progress, place, reduced, rig }: SceneProps & { kind: ShowcaseKind; rig: Rig }) {
@@ -22,7 +31,7 @@ function Model({ kind, progress, place, reduced, rig }: SceneProps & { kind: Sho
   const invalidate = useThree((s) => s.invalidate);
   const label = useLabel(place);
   const state = useMemo(() => ({ t: reduced ? 1 : 0, yaw: 0.5 }), [reduced]);
-  const set = SETS[SET[kind]];
+  const set = FRAME[kind] ?? SETS[SET[kind]];
   const look = rig.look;
 
   useFrame((_, dt) => {

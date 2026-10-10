@@ -1,0 +1,32 @@
+---
+/**
+ * The wordmark and, under it, who the site is powered by, with the
+ * Hemisphere One logo (client, 2026-10-11: "the Powered by Hemisphere
+ * branding must include the Hemisphere logo", beneath the VEE.BUILD logo,
+ * everywhere). The logo as supplied on paper; on ink the reversed one
+ * derived from it (scripts/logo-reversed.mjs), whichever ground the lockup
+ * stands on (the header changes ground with the chapter under it).
+ */
+import { Image } from 'astro:assets';
+import hemisphereOne from '../../assets/brand/hemisphere-one.png';
+import hemisphereOneInk from '../../assets/brand/hemisphere-one-reversed.png';
+import { site } from '../../data/site';
+
+interface Props {
+  class?: string;
+}
+const { class: extra } = Astro.props;
+---
+
+<a class:list={['brand', extra]} href="/" aria-label={`${site.name}, powered by ${site.poweredBy} — home`}>
+  <svg class="brand__mark" viewBox="0 0 34.5 12" aria-hidden="true">
+    <rect x="0.75" y="0.75" width="21" height="10.5"></rect>
+    <rect x="23.25" y="0.75" width="10.5" height="10.5"></rect>
+  </svg>
+  <span class="brand__word">VEE<i>.</i>BUILD</span>
+  <span class="brand__by" aria-hidden="true">
+    <span class="brand__by-word">Powered by</span>
+    <Image class="brand__logo brand__logo--paper" src={hemisphereOne} alt="" height={20} densities={[1, 2, 3]} loading="eager" decoding="async" />
+    <Image class="brand__logo brand__logo--ink" src={hemisphereOneInk} alt="" height={20} densities={[1, 2, 3]} loading="eager" decoding="async" />
+  </span>
+</a>

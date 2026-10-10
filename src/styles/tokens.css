@@ -128,7 +128,8 @@
   /* Layout */
   --gutter: clamp(1rem, 4vw, 4rem);
   --max: 90rem;
-  --hdr: 3.5rem;
+  /* Tall enough for the wordmark with "Powered by" and the logo under it (Brand.astro). */
+  --hdr: 4.25rem;
   --radius: clamp(1.1rem, 2vw, 1.75rem);
   --radius-sm: 0.875rem;
   --ease: cubic-bezier(0.22, 0.61, 0.21, 1);
@@ -137,6 +138,6 @@
 
 @media (max-width: 860px) {
   :root {
-    --hdr: 3.25rem;
+    --hdr: 3.75rem;
   }
 }

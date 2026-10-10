@@ -6,7 +6,7 @@
 import { BufferGeometry, ExtrudeGeometry, Float32BufferAttribute, Shape, SphereGeometry, TorusGeometry } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { DOOR_AT, type DoorFace, type ModuleType } from '../../data/system';
-import { box, cyl, memo, merge, mergeGroups } from './geometry';
+import { box, cyl, memo, merge, mergeGroups, withRoom } from './geometry';
 import { boxUV } from './textures';
 
 /* ------------------------------------------------------------------ */
@@ -230,7 +230,9 @@ export function moduleGeometry(type: ModuleType, door: DoorFace = 'front', stree
         fittings.push(g);
       }
 
-    return mergeGroups([shell, dark, glass, frames, fittings]);
+    // The room behind its glass: inside the walls, from the floor over the base to the ceiling under the fascia.
+    const r = inset + 0.11;
+    return withRoom(mergeGroups([shell, dark, glass, frames, fittings]), [-L / 2 + r, base + 0.1, -D / 2 + r], [L / 2 - r, H - F - 0.06, D / 2 - r]);
   });
 }
 

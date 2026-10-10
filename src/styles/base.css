@@ -397,29 +397,64 @@ button {
 
 /*
  * The mark and the wordmark on one line and, under the two of them, who the
- * site is powered by (client, 2026-10-10: "beneath the VEE.BUILD logo
- * throughout the website"). Set small and quiet, the width of the lockup,
- * so that it belongs to the name without competing with it.
+ * site is powered by, with the Hemisphere One logo (client, 2026-10-10 and
+ * 2026-10-11: "beneath the VEE.BUILD logo throughout the website", "must
+ * include the Hemisphere logo"). The second line is about the width of the
+ * first, so that it belongs to the name without competing with it. The logo
+ * as supplied on paper; on ink its reversed copy (Brand.astro).
  */
 .brand {
+  --by-h: 1.08rem;
   display: inline-grid;
   grid-template-columns: auto auto;
   align-items: center;
   align-content: center;
   justify-content: start;
-  gap: 0.34rem 0.65rem;
+  gap: 0.42rem 0.65rem;
   min-height: 2.75rem;
 }
 .brand__by {
   grid-column: 1 / -1;
-  font-family: var(--font-mono);
-  font-size: 0.5rem;
-  font-weight: 500;
-  letter-spacing: 0.115em;
-  line-height: 1;
-  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-left: 0.08rem;
   white-space: nowrap;
-  opacity: 0.66;
+}
+.brand__by-word {
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  opacity: 0.72;
+}
+.brand__logo {
+  display: block;
+  width: auto;
+  height: var(--by-h);
+}
+.brand__logo--ink,
+.theme-dark .brand__logo--paper,
+.on-ink .brand__logo--paper {
+  display: none;
+}
+.theme-dark .brand__logo--ink,
+.on-ink .brand__logo--ink {
+  display: block;
+}
+/* In the footer, larger. */
+.brand--lg {
+  --by-h: 1.3rem;
+  gap: 0.55rem 0.8rem;
+}
+.brand--lg .brand__mark {
+  width: 2.1rem;
+}
+.brand--lg .brand__word {
+  font-size: 1.18rem;
+}
+.brand--lg .brand__by-word {
+  font-size: 0.76rem;
 }
 .brand__mark {
   width: 1.75rem;
@@ -955,13 +990,20 @@ button {
   font-style: normal;
   color: #d9431b;
 }
+/* Who the site is powered by, with the logo as supplied: the loading screen is paper. */
 .boot__by {
-  margin-top: -0.55rem;
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: -0.45rem;
+  font-size: 0.74rem;
+  font-weight: 500;
   color: #6b6e74;
+}
+.boot__by img {
+  display: block;
+  width: auto;
+  height: 1.3rem;
 }
 .boot__bar {
   width: 100%;

@@ -2,6 +2,7 @@
 import { Image } from 'astro:assets';
 import hemisphereOne from '../../assets/brand/hemisphere-one.png';
 import { bandNav, primaryNav, sections, site } from '../../data/site';
+import Brand from './Brand.astro';
 const year = new Date().getFullYear();
 const { email, phone, address, legalName } = site.contact;
 const hasContact = email || phone || address;
@@ -12,14 +13,7 @@ const products = primaryNav.filter((n) => n.label !== 'Contact');
   <div class="wrap">
     <div class="ftr__top">
       <div>
-        <a class="brand" href="/" aria-label={`${site.name}, powered by ${site.poweredBy} — home`}>
-          <svg class="brand__mark" viewBox="0 0 34.5 12" aria-hidden="true">
-            <rect x="0.75" y="0.75" width="21" height="10.5"></rect>
-            <rect x="23.25" y="0.75" width="10.5" height="10.5"></rect>
-          </svg>
-          <span class="brand__word">VEE<i>.</i>BUILD</span>
-          <span class="brand__by" aria-hidden="true">Powered by {site.poweredBy}</span>
-        </a>
+        <Brand class="brand--lg" />
         <p class="ftr__statement">One system. Many buildings. Modular houses, capsule homes and prefab buildings, made in a factory and set on your site.</p>
       </div>
 

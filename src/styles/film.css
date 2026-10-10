@@ -1000,37 +1000,6 @@ button.film__tag:focus-visible::before {
   bottom: clamp(1.25rem, 3.6svh, 2.25rem);
 }
 
-/*
- * Who the site is powered by, on the opening card (client, 2026-10-10):
- * opposite the card's small title, in the clear upper right, the logo as
- * supplied on the card's paper. It goes with the card's words.
- */
-.prelude__by {
-  position: absolute;
-  top: calc(var(--hdr) + clamp(2.5rem, 11svh, 6.5rem) - 0.55rem);
-  right: var(--gutter);
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  color: var(--mute);
-  transition: opacity 0.8s var(--ease) 0.45s;
-}
-
-.prelude__by img {
-  display: block;
-  width: auto;
-  height: clamp(1.45rem, 1.1rem + 0.9vw, 2rem);
-}
-
-.is-booting .prelude__by {
-  opacity: 0;
-}
-
-.no-js .prelude__by {
-  position: static;
-  margin-top: 1.5rem;
-}
-
 /* The three in words. With the picture up they are named in it: this list is for a reader that cannot see it. */
 .js .prelude__kinds {
   position: absolute;
@@ -1382,9 +1351,9 @@ button.film__tag:focus-visible::before {
 
   .film__mist i:nth-child(1)::before {
     background:
-      radial-gradient(ellipse 62% 5% at 50% 50%, rgb(var(--mist) / 0.94), rgb(var(--mist) / 0) 72%),
-      radial-gradient(ellipse 30% 5% at 2% 48%, rgb(var(--mist) / 0.8), rgb(var(--mist) / 0) 72%),
-      radial-gradient(ellipse 30% 5% at 98% 49%, rgb(var(--mist) / 0.8), rgb(var(--mist) / 0) 72%);
+      radial-gradient(ellipse 62% 4% at 50% 79%, rgb(var(--mist) / 0.94), rgb(var(--mist) / 0) 72%),
+      radial-gradient(ellipse 30% 4% at 2% 78%, rgb(var(--mist) / 0.8), rgb(var(--mist) / 0) 72%),
+      radial-gradient(ellipse 30% 4% at 98% 78%, rgb(var(--mist) / 0.8), rgb(var(--mist) / 0) 72%);
   }
 
   .film__mist i:nth-child(3)::before {
@@ -1393,14 +1362,15 @@ button.film__tag:focus-visible::before {
       radial-gradient(ellipse 28% 7% at -2% 40%, rgb(var(--mist) / 0.45), rgb(var(--mist) / 0) 70%);
   }
 
+  /* The words stand at the foot of the card; the picture has everything above them (HeroScene fits the row to it). */
   .film--hero .prelude {
-    justify-content: flex-start;
+    justify-content: flex-end;
     padding-top: 0;
+    padding-bottom: clamp(2rem, 7svh, 4rem);
   }
 
-  /* The three stand one behind another here, and take more of the screen's height than one house did. */
   .film--hero .prelude__top {
-    padding-top: 63svh;
+    padding-top: 0;
   }
 
   /* The bank lies at the feet of the nearest of the three, and comes up to the house's own as the camera comes down to it. */
@@ -1410,12 +1380,6 @@ button.film__tag:focus-visible::before {
 
   .film--hero .film__note {
     font-size: clamp(1.3rem, 6vw, 1.7rem);
-  }
-
-  /* On a narrow screen the picture has the top of the card: "Powered by" goes under the statement. */
-  .prelude__by {
-    position: static;
-    margin-top: 1.1rem;
   }
 
   .film--hero .film__prelude-cue {

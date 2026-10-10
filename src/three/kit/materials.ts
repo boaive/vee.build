@@ -24,6 +24,204 @@ function glowMap() {
   return t;
 }
 
+/* ------------------------------------------------------------------ */
+/* Lit glazing with a room behind it                                   */
+/* ------------------------------------------------------------------ */
+
+const ROOM_PARS_VERTEX = /* glsl */ `
+#ifdef VEE_ROOM
+attribute vec3 roomLo;
+attribute vec3 roomHi;
+varying vec3 vRoomPos;
+varying vec3 vRoomEye;
+flat varying vec3 vRoomLo;
+flat varying vec3 vRoomHi;
+flat varying float vRoomSeed;
+#endif
+`;
+
+const ROOM_VERTEX = /* glsl */ `
+#ifdef VEE_ROOM
+  vRoomPos = transformed;
+  mat4 roomModel = modelMatrix;
+  #ifdef USE_INSTANCING
+    roomModel = modelMatrix * instanceMatrix;
+  #endif
+  vRoomEye = ( inverse( roomModel ) * vec4( cameraPosition, 1.0 ) ).xyz;
+  vRoomLo = roomLo;
+  vRoomHi = roomHi;
+  vRoomSeed = fract( sin( dot( roomModel[ 3 ].xyz, vec3( 12.9898, 78.233, 37.719 ) ) ) * 43758.5453 );
+#endif
+`;
+
+/*
+ * The room: a box (the building's inside, in its own space), entered through
+ * the glass. The ray from the eye through this point of the pane is followed
+ * to whatever it meets first: a wall, the floor, the ceiling, or one of a few
+ * pieces of furniture standing against the wall opposite the window. Each
+ * room is a living room or a bedroom, its colours picked by a number of its
+ * own (from where it stands), and lit by a light under the ceiling and a
+ * lamp. What comes back is the room's light, which the glazing's own glow
+ * colour and brightness scale (so it is dark until the building is lit).
+ */
+const ROOM_PARS_FRAGMENT = /* glsl */ `
+#ifdef VEE_ROOM
+varying vec3 vRoomPos;
+varying vec3 vRoomEye;
+flat varying vec3 vRoomLo;
+flat varying vec3 vRoomHi;
+flat varying float vRoomSeed;
+
+void roomHit( vec3 ro, vec3 inv, vec3 bmin, vec3 bmax, float id, inout float t, inout vec3 n, inout float hid ) {
+  vec3 t0 = ( bmin - ro ) * inv;
+  vec3 t1 = ( bmax - ro ) * inv;
+  vec3 tn = min( t0, t1 );
+  vec3 tf = max( t0, t1 );
+  float a = max( max( tn.x, tn.y ), tn.z );
+  float b = min( min( tf.x, tf.y ), tf.z );
+  if ( a < b && a > 0.0 && a < t ) {
+    t = a;
+    n = - sign( inv ) * step( tn.yzx, tn ) * step( tn.zxy, tn );
+    hid = id;
+  }
+}
+
+// A piece of furniture: across the room from its middle (l0, l1), up from the floor (u0, u1), out from the far wall (d0, d1).
+void roomPiece( vec3 ro, vec3 inv, bool alongX, float into, float back, float mid, float floorY, vec4 lu, vec2 dd, float id, inout float t, inout vec3 n, inout float hid ) {
+  float c0 = back - into * dd.y;
+  float c1 = back - into * dd.x;
+  vec3 bmin = alongX ? vec3( min( c0, c1 ), floorY + lu.z, mid + lu.x ) : vec3( mid + lu.x, floorY + lu.z, min( c0, c1 ) );
+  vec3 bmax = alongX ? vec3( max( c0, c1 ), floorY + lu.w, mid + lu.y ) : vec3( mid + lu.y, floorY + lu.w, max( c0, c1 ) );
+  roomHit( ro, inv, bmin, bmax, id, t, n, hid );
+}
+
+vec3 roomLight( vec3 p, vec3 rd, vec3 lo, vec3 hi, float seed ) {
+  rd += vec3( 1e-5 ) * ( 1.0 - step( 1e-5, abs( rd ) ) );
+  vec3 inv = 1.0 / rd;
+  vec3 t0 = ( lo - p ) * inv;
+  vec3 t1 = ( hi - p ) * inv;
+  vec3 tn = min( t0, t1 );
+  vec3 tf = max( t0, t1 );
+  vec3 axisIn = step( tn.yzx, tn ) * step( tn.zxy, tn );
+  float t = min( min( tf.x, tf.y ), tf.z );
+  vec3 n = - sign( rd ) * step( tf, tf.yzx ) * step( tf, tf.zxy );
+  float hid = 0.0;
+
+  // The way into the room is the horizontal axis the glass faces; across is the other one.
+  bool alongX = axisIn.x > 0.5 || ( axisIn.y > 0.5 && abs( rd.x ) > abs( rd.z ) );
+  float into = alongX ? sign( rd.x ) : sign( rd.z );
+  float back = alongX ? ( into > 0.0 ? hi.x : lo.x ) : ( into > 0.0 ? hi.z : lo.z );
+  float a0 = alongX ? lo.z : lo.x;
+  float a1 = alongX ? hi.z : hi.x;
+  float depth = alongX ? hi.x - lo.x : hi.z - lo.z;
+  float width = a1 - a0;
+  float s2 = fract( seed * 7.13 );
+  float s3 = fract( seed * 13.71 );
+  float mid = 0.5 * ( a0 + a1 ) + ( s2 - 0.5 ) * max( 0.0, width - 3.0 ) * 0.8;
+  float f = lo.y;
+  bool bed = seed > 0.62;
+  float side = s3 > 0.5 ? 1.0 : -1.0;
+  // The lamp: beside the bed, or a floor lamp at the end of the sofa.
+  float lampAt = bed ? 1.05 : 1.42;
+  vec3 lamp = vec3( 0.0, f + ( bed ? 0.68 : 1.45 ), 0.0 );
+  lamp += alongX ? vec3( back - into * ( bed ? 0.22 : 0.27 ), 0.0, mid + side * lampAt ) : vec3( mid + side * lampAt, 0.0, back - into * ( bed ? 0.22 : 0.27 ) );
+  // One box round all of the furniture first: a ray that misses it misses every piece, and most do.
+  float reach = bed ? min( 2.05, depth - 0.45 ) : min( 1.85, depth - 0.5 );
+  float tb = t;
+  vec3 nb = n;
+  float hb = 0.0;
+  roomPiece( p, inv, alongX, into, back, mid, f, bed ? vec4( -1.3, 1.3, 0.0, 1.0 ) : vec4( -1.65, 1.65, 0.0, 1.62 ), vec2( 0.0, reach ), 1.0, tb, nb, hb );
+  if ( hb > 0.5 ) {
+    if ( bed ) {
+      roomPiece( p, inv, alongX, into, back, mid, f, vec4( -0.82, 0.82, 0.0, 0.5 ), vec2( 0.06, reach ), 5.0, t, n, hid );
+      roomPiece( p, inv, alongX, into, back, mid, f, vec4( -0.86, 0.86, 0.0, 1.0 ), vec2( 0.0, 0.08 ), 6.0, t, n, hid );
+      roomPiece( p, inv, alongX, into, back, mid, f, vec4( -0.7, 0.7, 0.5, 0.62 ), vec2( 0.12, 0.5 ), 7.0, t, n, hid );
+      roomPiece( p, inv, alongX, into, back, mid, f, vec4( side * 1.05 - 0.22, side * 1.05 + 0.22, 0.0, 0.52 ), vec2( 0.02, 0.42 ), 2.0, t, n, hid );
+      roomPiece( p, inv, alongX, into, back, mid, f, vec4( side * 1.05 - 0.13, side * 1.05 + 0.13, 0.52, 0.8 ), vec2( 0.09, 0.35 ), 4.0, t, n, hid );
+    } else {
+      roomPiece( p, inv, alongX, into, back, mid, f, vec4( -1.05, 1.05, 0.0, 0.44 ), vec2( 0.04, 0.96 ), 1.0, t, n, hid );
+      roomPiece( p, inv, alongX, into, back, mid, f, vec4( -1.05, 1.05, 0.0, 0.86 ), vec2( 0.04, 0.28 ), 1.0, t, n, hid );
+      roomPiece( p, inv, alongX, into, back, mid, f, vec4( -1.05, -0.86, 0.0, 0.6 ), vec2( 0.04, 0.96 ), 1.0, t, n, hid );
+      roomPiece( p, inv, alongX, into, back, mid, f, vec4( 0.86, 1.05, 0.0, 0.6 ), vec2( 0.04, 0.96 ), 1.0, t, n, hid );
+      roomPiece( p, inv, alongX, into, back, mid, f, vec4( -0.5, 0.5, 0.0, 0.4 ), vec2( 1.3, reach ), 2.0, t, n, hid );
+      roomPiece( p, inv, alongX, into, back, mid, f, vec4( side * 1.42 - 0.025, side * 1.42 + 0.025, 0.0, 1.38 ), vec2( 0.24, 0.29 ), 3.0, t, n, hid );
+      roomPiece( p, inv, alongX, into, back, mid, f, vec4( side * 1.42 - 0.19, side * 1.42 + 0.19, 1.3, 1.6 ), vec2( 0.08, 0.45 ), 4.0, t, n, hid );
+    }
+  }
+
+  vec3 h = p + rd * t;
+  float across = alongX ? h.z : h.x;
+  float away = ( back - ( alongX ? h.x : h.z ) ) * into;
+  vec3 c = vec3( 0.0 );
+  if ( hid < 0.5 ) {
+    if ( n.y > 0.5 ) {
+      // Floor: boards across the room, and a rug in front of the sofa or beside the bed.
+      float board = fract( away / 0.19 );
+      c = mix( vec3( 0.42, 0.29, 0.18 ), vec3( 0.5, 0.36, 0.23 ), fract( floor( away / 0.19 ) * 0.618 + seed ) ) * ( 0.82 + 0.18 * smoothstep( 0.0, 0.06, min( board, 1.0 - board ) ) );
+      if ( abs( across - mid ) < 1.35 && away > 0.45 && away < 2.3 ) c = mix( vec3( 0.66, 0.62, 0.55 ), vec3( 0.52, 0.47, 0.42 ), s2 );
+    } else if ( n.y < -0.5 ) c = vec3( 0.86, 0.83, 0.78 );
+    else {
+      c = mix( vec3( 0.8, 0.75, 0.67 ), vec3( 0.7, 0.67, 0.62 ), s3 );
+      // A picture on the far wall, over the sofa or the bed.
+      if ( abs( away ) < 0.02 && abs( across - mid ) < 0.55 && h.y > f + 1.15 && h.y < f + 1.85 ) c = abs( across - mid ) < 0.5 && h.y > f + 1.2 && h.y < f + 1.8 ? mix( vec3( 0.2, 0.28, 0.32 ), vec3( 0.55, 0.38, 0.24 ), s2 ) : vec3( 0.08 );
+    }
+    // The room's corners take less light.
+    vec3 q = min( h - lo, hi - h );
+    vec3 m = mix( q, vec3( 9.0 ), abs( n ) );
+    c *= mix( 0.55, 1.0, smoothstep( 0.0, 0.5, min( min( m.x, m.y ), m.z ) ) );
+  } else if ( hid < 1.5 ) c = seed < 0.2 ? vec3( 0.55, 0.5, 0.42 ) : seed < 0.4 ? vec3( 0.3, 0.35, 0.29 ) : vec3( 0.48, 0.27, 0.19 );
+  else if ( hid < 2.5 ) c = vec3( 0.2, 0.13, 0.08 );
+  else if ( hid < 3.5 ) c = vec3( 0.04 );
+  else if ( hid < 4.5 ) c = vec3( 2.6, 2.2, 1.6 );
+  else if ( hid < 5.5 ) c = vec3( 0.86, 0.85, 0.8 );
+  else if ( hid < 6.5 ) c = vec3( 0.34, 0.23, 0.15 );
+  else c = vec3( 0.95, 0.94, 0.9 );
+
+  // A light under the middle of the ceiling and the lamp.
+  vec3 top = vec3( 0.5 * ( lo.x + hi.x ), hi.y - 0.25, 0.5 * ( lo.z + hi.z ) );
+  vec3 l1 = top - h;
+  float d1 = length( l1 );
+  vec3 l2 = lamp - h;
+  float d2 = length( l2 );
+  float e = 0.2 + 1.2 * max( dot( n, l1 / d1 ), 0.0 ) / ( 1.0 + 0.32 * d1 * d1 ) + 1.1 * max( dot( n, l2 / d2 ), 0.0 ) / ( 1.0 + 2.2 * d2 * d2 );
+  // The lamp's shade glows by itself.
+  return hid > 3.5 && hid < 4.5 ? c : c * e;
+}
+#endif
+`;
+
+const ROOM_FRAGMENT = /* glsl */ `
+#include <emissivemap_fragment>
+#ifdef VEE_ROOM
+  if ( vRoomHi.x > vRoomLo.x + 0.05 ) totalEmissiveRadiance = emissive * roomLight( vRoomPos, normalize( vRoomPos - vRoomEye ), vRoomLo, vRoomHi, vRoomSeed );
+#endif
+`;
+
+/**
+ * Lit glazing with a room behind it (client, 2026-10-11: realistic,
+ * premium). Where a building's geometry gives the box of its inside
+ * (geometry.ts, withRoom), its lit windows show a room in it instead of a
+ * flat glow, at the cost of a few box tests for each pixel of glass. Where
+ * it does not, the glow is as it was. The material is changed in place;
+ * a copy of it (litGlass, instanced) is given the same again.
+ */
+export function interiorGlass<M extends Material>(m: M): M {
+  const d = m as unknown as { defines?: Record<string, string>; defaultAttributeValues?: Record<string, number[]> };
+  d.defines = { ...(d.defines ?? {}), VEE_ROOM: '' };
+  d.defaultAttributeValues = { roomLo: [0, 0, 0], roomHi: [0, 0, 0] };
+  m.userData.interior = true;
+  m.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>\n${ROOM_PARS_VERTEX}`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>\n${ROOM_VERTEX}`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>\n${ROOM_PARS_FRAGMENT}`)
+      .replace('#include <emissivemap_fragment>', ROOM_FRAGMENT);
+  };
+  m.customProgramCacheKey = () => 'vee-room-v1';
+  return m;
+}
+
 /** Made on first use and kept. */
 const once = <T>(make: () => T) => {
   let made: T | undefined;
@@ -66,7 +264,7 @@ const textured = {
     return std('#d9c2a4', 1, 0, { map: tile(s.map, 2), normalMap: tile(s.normalMap, 2) });
   }),
   sheeting: once(() => std('#c3c7c9', 0.45, 0.55, { side: DoubleSide, normalMap: tile(ribSet().normalMap, 1) })),
-  glassLit: once(() => std('#1d1915', 0.12, 0, { emissive: '#ffc887', emissiveIntensity: 2.1, emissiveMap: glowMap(), envMapIntensity: 1.4 })),
+  glassLit: once(() => interiorGlass(std('#1d1915', 0.12, 0, { emissive: '#ffc887', emissiveIntensity: 2.1, emissiveMap: glowMap(), envMapIntensity: 1.4 }))),
 };
 
 /**
@@ -155,6 +353,8 @@ export const mat = {
     return textured.soil();
   },
   lawn: std('#8f9c6e', 1),
+  /** Freshly dug earth, plain: a footing's pit before it is backfilled (no texture to draw on the main thread). */
+  earth: std('#3e3127', 1),
   /** Vehicles and plant. */
   paint: std('#ecebe6', 0.32, 0.1),
   paintDark: std('#33363a', 0.4, 0.3),
@@ -194,7 +394,12 @@ export function instanced(m: Material | Material[]): Material | Material[] {
     return set;
   }
   let copy = instancedOf.get(m);
-  if (!copy) instancedOf.set(m, (copy = m.clone()));
+  if (!copy) {
+    copy = m.clone();
+    // A clone keeps the material's settings but not what it does to its shader.
+    if (m.userData.interior) interiorGlass(copy);
+    instancedOf.set(m, copy);
+  }
   return copy;
 }
 
@@ -253,7 +458,7 @@ const moduleSets = new Map<string, Material[]>();
  * glazing went, and its copy for instanced meshes follows it.
  */
 export function litGlass() {
-  const material = mat.glassLit.clone();
+  const material = interiorGlass(mat.glassLit.clone());
   const full = material.emissiveIntensity;
   material.emissiveIntensity = 0;
   const twin = instanced(material);

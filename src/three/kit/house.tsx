@@ -17,9 +17,11 @@ import {
   type Group,
   type InstancedMesh,
   type Material,
+  type Mesh,
 } from 'three';
 import { DEFAULT_FOUNDATION, FOUNDATION_HEIGHTS, trimFinishes, type AddOnId, type DeckSide, type Foundation, type ManualAddOn, type Plot, type ShellType } from '../../data/build';
 import type { DoorFace } from '../../data/system';
+import { ease, stagger } from '../../film/timeline';
 import { CELL, FRONT, JACK, STAIR, baseOf, doorFaces, foundationLayout, layoutAddOns, placeOf, stepRun, type AddOnLayout, type Seg, type Stair, type Unit } from '../../build/model';
 import { UNIT_BOX, merge, mergeGroups } from './geometry';
 import type { Look } from './looks';
@@ -425,36 +427,88 @@ function foundationMeshes(units: readonly Unit[], f: Foundation): FoundationMesh
   return { footings: [...groups.values()], plinths, jacks: layout.footings.map((s) => [s.x, s.z]), above };
 }
 
-function Instances({ geo, material, spots, y = 0 }: { geo: BufferGeometry; material: Material; spots: [number, number][]; y?: number }) {
+/**
+ * The same piece at several spots. `arrive`: each spot's own 0–1 (lowered in
+ * from above as it goes from 0 to 1, a speck before that); called every
+ * frame when given.
+ */
+function Instances({ geo, material, spots, y = 0, arrive }: { geo: BufferGeometry; material: Material; spots: [number, number][]; y?: number; arrive?: (x: number, z: number) => number }) {
   const ref = useRef<InstancedMesh>(null);
-  useLayoutEffect(() => {
+  const last = useRef('');
+  const place = () => {
     const m = ref.current;
     if (!m) return;
+    let key = '';
     spots.forEach(([x, z], i) => {
-      _m.makeTranslation(x, y, z);
+      const t = arrive ? arrive(x, z) : 1;
+      key += t.toFixed(4);
+      if (t <= 0) _m.makeScale(0.0001, 0.0001, 0.0001).setPosition(x, y, z);
+      else _m.makeTranslation(x, y + (1 - ease.outQuart(t)) * 1.6, z);
       m.setMatrixAt(i, _m);
     });
+    if (key === last.current) return;
+    last.current = key;
     m.instanceMatrix.needsUpdate = true;
-  }, [spots, y]);
+  };
+  useLayoutEffect(place);
+  useFrame(() => {
+    if (arrive) place();
+  });
   if (!spots.length) return null;
   return <instancedMesh key={spots.length} ref={ref} args={[geo, instanced(material), spots.length]} castShadow receiveShadow frustumCulled={false} />;
 }
 
-/** Footings, L plinths and jacks under the ground floor (client's model, notes H1–H2). */
-export function FoundationParts({ units, foundation = DEFAULT_FOUNDATION, jacks = true }: { units: readonly Unit[]; foundation?: Foundation; jacks?: boolean }) {
+/**
+ * Footings, L plinths and jacks under the ground floor (client's model,
+ * notes H1–H2). `getFootings`, `getPlinths`: 0–1, for a scene that shows
+ * the foundation being set (the installation, 2026-10-11): the footings are
+ * lowered in one after another, front corner first, each with its jack,
+ * and then the plinth runs. Not given: all in place.
+ */
+export function FoundationParts({
+  units,
+  foundation = DEFAULT_FOUNDATION,
+  jacks = true,
+  getFootings,
+  getPlinths,
+}: {
+  units: readonly Unit[];
+  foundation?: Foundation;
+  jacks?: boolean;
+  getFootings?: () => number;
+  getPlinths?: () => number;
+}) {
   const m = useMemo(() => foundationMeshes(units, foundation), [units, foundation]);
   useLayoutEffect(() => () => m.plinths?.dispose(), [m]);
+  const plinths = useRef<Mesh>(null);
+  // The order the footings go in: from the front (the street) back, left to right.
+  const rank = useMemo(() => {
+    const order = [...m.jacks].sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+    return new Map(order.map(([x, z], i) => [`${x},${z}`, i]));
+  }, [m]);
+  const arrive = useMemo(
+    () => (getFootings ? (x: number, z: number) => stagger(getFootings(), rank.get(`${x},${z}`) ?? 0, Math.max(1, rank.size), 0.55) : undefined),
+    [getFootings, rank],
+  );
+  useFrame(() => {
+    const p = plinths.current;
+    if (!p || !getPlinths) return;
+    const t = getPlinths();
+    // Never hidden: before its turn it waits under the ground, so it is drawn (and on the GPU) from the start.
+    p.visible = true;
+    p.position.y = t <= 0.001 ? -3 : (1 - ease.outQuart(t)) * 1.2;
+  });
   return (
     <>
       {m.footings.map((f, i) => (
-        <Instances key={i} geo={f.geo} material={mat.concrete} spots={f.spots} />
+        <Instances key={i} geo={f.geo} material={mat.concrete} spots={f.spots} arrive={arrive} />
       ))}
-      {m.plinths && <mesh geometry={m.plinths} material={mat.concrete} castShadow receiveShadow />}
+      {m.plinths && <mesh ref={plinths} geometry={m.plinths} material={mat.concrete} castShadow receiveShadow />}
       {jacks && (
         <>
-          <Instances geo={jackBaseGeometry()} material={mat.galv} spots={m.jacks} y={m.above} />
-          <Instances geo={jackScrewGeometry()} material={mat.galv} spots={m.jacks} y={m.above + JACK} />
-          <Instances geo={jackNutGeometry()} material={mat.steel} spots={m.jacks} y={m.above + 0.055} />
+          <Instances geo={jackBaseGeometry()} material={mat.galv} spots={m.jacks} y={m.above} arrive={arrive} />
+          <Instances geo={jackScrewGeometry()} material={mat.galv} spots={m.jacks} y={m.above + JACK} arrive={arrive} />
+          <Instances geo={jackNutGeometry()} material={mat.steel} spots={m.jacks} y={m.above + 0.055} arrive={arrive} />
         </>
       )}
     </>

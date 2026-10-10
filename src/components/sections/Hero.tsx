@@ -1,7 +1,5 @@
 import { lazy } from 'react';
-import hemisphereOne from '../../assets/brand/hemisphere-one.png';
 import { heroSteps, kinds } from '../../data/narrative';
-import { site } from '../../data/site';
 import Film, { type FilmLabel, type Prelude } from '../../film/Film';
 import { prefetchScenes } from '../../film/prefetch';
 import { POD_FEET_LABELS } from './labels';
@@ -56,11 +54,6 @@ const opening: Prelude = {
           </span>
         </p>
       </div>
-      {/* Who the site is powered by (client, 2026-10-10): the logo as supplied, dark on clear, on the card's paper. */}
-      <p className="prelude__by">
-        <span className="t-label">Powered by</span>
-        <img src={hemisphereOne.src} width={hemisphereOne.width} height={hemisphereOne.height} alt={site.poweredBy} decoding="async" />
-      </p>
       {/* The three, in words: read out, and shown where there is no picture to name them on. */}
       <ul className="prelude__kinds">
         {kinds.map((k) => (

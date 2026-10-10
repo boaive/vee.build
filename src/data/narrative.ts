@@ -400,15 +400,30 @@ export const transitSteps: FilmStep[] = [
  * lights come on last. Where each begins is the film's own
  * (film/installTimeline.ts). `shells`: how many the build has.
  */
-export function installSteps(shells: number, sample: boolean): FilmStep[] {
+/**
+ * "On site" (client, 2026-10-11: the site preparation and the installation
+ * as one continuous film). The first caption is what the separate section
+ * "Ready before the shells arrive" said; `plinth`: the build's foundation
+ * has L plinths between its footings.
+ */
+export function installSteps(shells: number, sample: boolean, plinth = true): FilmStep[] {
   const addOns = sample ? 'Deck, posts, spandrel, handrail, steps and shades drop into place.' : 'The add-ons you chose drop into place.';
   return [
+    {
+      id: 'prep',
+      ...IS.prep,
+      kicker: 'Site preparation',
+      title: 'Ready before the shell arrives.',
+      body: plinth
+        ? 'Off-site construction with absolute minimum site impact. The plot is marked out, precast plug footings go into the ground and L plinths are laid between them, while the shell is still in the factory.'
+        : 'Off-site construction with absolute minimum site impact. The plot is marked out and a precast plug footing goes into the ground at every corner, while the shell is still in the factory.',
+    },
     {
       id: 'arrive',
       ...IS.arrive,
       kicker: 'Installation',
       title: 'Delivered to the plot.',
-      body: 'The truck pulls in with a finished shell, beside a foundation that is already set.',
+      body: 'The truck pulls in with a finished shell, beside the foundation waiting for it.',
     },
     {
       id: 'place',

@@ -609,7 +609,7 @@
 
 .sum {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 0.9rem clamp(1.25rem, 2.6vw, 2.5rem);
   padding: 1.1rem 1.35rem 1.15rem;
@@ -619,11 +619,24 @@
     0 0 0 1px var(--line),
     var(--shadow);
 }
-.sum__area {
+/* The area and, beside it, what it would cost (client, 2026-10-11). */
+.sum__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: 0.9rem 0;
+  padding-bottom: 0.95rem;
+  border-bottom: 1px solid var(--line);
+}
+.sum__area,
+.sum__price {
   display: grid;
   justify-items: start;
   gap: 0.3rem;
+}
+.sum__area {
   padding-right: clamp(1.25rem, 2.6vw, 2.5rem);
+  margin-right: clamp(1.25rem, 2.6vw, 2.5rem);
   border-right: 1px solid var(--line);
 }
 .sum__value {
@@ -724,16 +737,95 @@
   font-size: 0.86rem;
   color: var(--mute);
 }
+/* How the estimate is made up: a line for each part, as laid out. */
+.sum__bill {
+  border-top: 1px solid var(--line);
+  padding-top: 0.75rem;
+}
+.sum__bill summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+.sum__bill summary::-webkit-details-marker {
+  display: none;
+}
+.sum__bill summary .sum__label::after {
+  content: ' +';
+}
+.sum__bill[open] summary .sum__label::after {
+  content: ' −';
+}
+.sum__bill summary:focus-visible {
+  outline: 2px solid var(--accent-line);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+.sum__bill-total {
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.sum__bill table {
+  width: 100%;
+  margin-top: 0.6rem;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+  font-variant-numeric: tabular-nums;
+}
+.sum__bill th,
+.sum__bill td {
+  padding: 0.38rem 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: baseline;
+}
+.sum__bill th {
+  font-weight: 560;
+  padding-right: 1rem;
+}
+.sum__bill td {
+  color: var(--text-2);
+}
+.sum__bill td:last-child {
+  text-align: right;
+  color: var(--text);
+  white-space: nowrap;
+}
+.sum__bill-finish td:last-child {
+  color: var(--mute);
+}
+.sum__bill-note {
+  margin-top: 0.55rem;
+  font-size: 0.74rem;
+  color: var(--mute);
+}
 @media (max-width: 700px) {
   .sum {
-    grid-template-columns: minmax(0, 1fr);
     padding: 1.1rem;
+  }
+  /* The price goes under the area here, the rule between them across. */
+  .sum__head {
+    display: grid;
+    gap: 0.8rem;
   }
   .sum__area {
     padding-right: 0;
-    padding-bottom: 0.9rem;
+    margin-right: 0;
     border-right: 0;
-    border-bottom: 1px solid var(--line);
+  }
+  .sum__price {
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--line);
+  }
+  .sum__price .sum__value {
+    font-size: clamp(1.9rem, 8vw, 2.5rem);
+  }
+  .sum__bill td:nth-child(2) {
+    display: none;
   }
   .sum__facts {
     grid-template-columns: repeat(2, minmax(0, 1fr));

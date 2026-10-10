@@ -269,16 +269,31 @@ export function CapsulePods({ x = 0, getA, label, getShow, look }: BuildingProps
 /* 3. Workforce housing — G+1, final module on the crane               */
 /* ------------------------------------------------------------------ */
 
-const WORK_BAYS = 6;
-const WORK = [0, 1].flatMap((y) => Array.from({ length: WORK_BAYS }, (_, i) => A(i, 0, y, 1)));
-const WORK_C = planCentre(WORK);
-const WORK_LAST = WORK.length - 1;
-/** Every shell but the one the crane brings. */
-const WORK_SET = WORK.slice(0, WORK_LAST);
-const WORK_W = WORK_BAYS * 3;
+/** Bays along the block in the workforce set and on the Prefab page; the opening card's block is shorter (sets.tsx, ROW). */
+export const WORK_BAYS = 6;
 const HOOK_Y = 16.5;
 /** The gallery's floor above the block's own ground line. */
 const WORK_GALLERY = 3;
+
+/** A G+1 block of turned Shell As, `bays` long: its shells, its centre, its length. */
+interface Work {
+  all: Placement[];
+  centre: [number, number];
+  last: number;
+  /** Every shell but the one the crane brings. */
+  set: Placement[];
+  w: number;
+}
+const works = new Map<number, Work>();
+function workOf(bays: number): Work {
+  let w = works.get(bays);
+  if (!w) {
+    const all = [0, 1].flatMap((y) => Array.from({ length: bays }, (_, i) => A(i, 0, y, 1)));
+    w = { all, centre: planCentre(all), last: all.length - 1, set: all.slice(0, all.length - 1), w: bays * 3 };
+    works.set(bays, w);
+  }
+  return w;
+}
 
 /**
  * The block's outer staircase: the dog-leg every stacked building has,
@@ -289,14 +304,16 @@ const WORK_GALLERY = 3;
  * as in every place"). The rule's gallery lies where the block's own does,
  * so the landing is set at the block's level.
  */
-let workStair: Stair | null | undefined;
-function workStairOf() {
-  if (workStair === undefined) {
-    const units: Unit[] = WORK.map((p, i) => ({ id: i + 1, t: p.t, x: p.x, z: p.z, y: p.y, r: (p.r ?? 0) as Turn }));
-    const stair = layoutAddOns(units, new Set(), 0, [], 0).stairs[0];
-    workStair = stair ? { ...stair, levels: [WORK_GALLERY] } : null;
+const workStairs = new Map<number, Stair | null>();
+function workStairOf(bays: number) {
+  let stair = workStairs.get(bays);
+  if (stair === undefined) {
+    const units: Unit[] = workOf(bays).all.map((p, i) => ({ id: i + 1, t: p.t, x: p.x, z: p.z, y: p.y, r: (p.r ?? 0) as Turn }));
+    const s = layoutAddOns(units, new Set(), 0, [], 0).stairs[0];
+    stair = s ? { ...s, levels: [WORK_GALLERY] } : null;
+    workStairs.set(bays, stair);
   }
-  return workStair;
+  return stair;
 }
 
 
@@ -361,7 +378,8 @@ function Crane({ tip, getHookY }: { tip: [number, number, number]; getHookY: () 
  * hero's set and the Prefab page). Without it the block is simply lowered
  * in, every shell and then its gallery: one of the three on the opening card.
  */
-export function WorkforceBlock({ x = 0, getA, getLit, look, crane = true }: BuildingProps & { crane?: boolean }) {
+export function WorkforceBlock({ x = 0, getA, getLit, look, crane = true, bays = WORK_BAYS }: BuildingProps & { crane?: boolean; bays?: number }) {
+  const { all: WORK, centre: WORK_C, last: WORK_LAST, set: WORK_SET, w: WORK_W } = workOf(bays);
   const last = useRef<Mesh>(null);
   const extras = useRef<Group>(null);
   const hookY = useRef(HOOK_Y);
@@ -373,16 +391,16 @@ export function WorkforceBlock({ x = 0, getA, getLit, look, crane = true }: Buil
   }, [look, glow]);
   const [lx, ly, lz, lry] = pose(WORK[WORK_LAST], WORK_C[0], WORK_C[1]);
   const front = 3;
-  const rail = railGeometry('work-gallery', [
+  const rail = railGeometry(`work-gallery-${bays}`, [
     [-WORK_W / 2, front + 1.5],
     [WORK_W / 2, front + 1.5],
     [WORK_W / 2, front],
   ]);
-  const stair = workStairOf();
+  const stair = workStairOf(bays);
   // Landings and treads, frames and stringers, rails.
   const stairMats = useMemo(() => [mat.concrete, mat.trim, mat.steel], []);
   // The gallery's posts, as one mesh.
-  const posts = memo('work-posts', () => merge(Array.from({ length: WORK_BAYS + 1 }, (_, i) => box(0.12, 2.86, 0.12, -WORK_W / 2 + i * 3, 1.43, front + 1.42))));
+  const posts = memo(`work-posts-${bays}`, () => merge(Array.from({ length: bays + 1 }, (_, i) => box(0.12, 2.86, 0.12, -WORK_W / 2 + i * 3, 1.43, front + 1.42))));
 
   useFrame(() => {
     const a = getA();

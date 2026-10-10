@@ -13,7 +13,7 @@
  * surface pushed a few millimetres off it, and follow it round the corners.
  */
 import { BufferGeometry, Float32BufferAttribute } from 'three';
-import { box, cyl, memo, mergeGroups } from './geometry';
+import { box, cyl, memo, mergeGroups, withRoom } from './geometry';
 
 const FT = 0.3048;
 
@@ -220,7 +220,7 @@ const WINDOW = { y0: 0.42, y1: 2.24, rc: 0.3, frame: 0.085 };
  * and light lines, 3 timber (the steps).
  */
 export function capsuleGeometry(feet: number): BufferGeometry {
-  return memo(`capsule-v1-${feet}`, () => {
+  return memo(`capsule-v2-${feet}`, () => {
     const L = feet * FT;
     const { D, H, rb, legs } = POD;
     const rim = rimOf(L);
@@ -230,6 +230,8 @@ export function capsuleGeometry(feet: number): BufferGeometry {
     const shell: BufferGeometry[] = [];
     const dark: BufferGeometry[] = [];
     const glass: BufferGeometry[] = [];
+    /** Lines of light in the glazing's group: a glow of their own, no room behind them. */
+    const lights: BufferGeometry[] = [];
     const timber: BufferGeometry[] = [];
 
     /* Hull: one skin from the underside to the roof, and the two flat middles. */
@@ -249,7 +251,7 @@ export function capsuleGeometry(feet: number): BufferGeometry {
     dark.push(skin(rim, round, () => [1.994, 2.02], 0.003));
     /* The skirt: a dark recess at the foot with a line of light in it. */
     dark.push(skin(rim, round, () => [onWall(rb), onWall(rb + 0.12)], 0.003));
-    glass.push(skin(rim, round, () => [onWall(rb + 0.045), onWall(rb + 0.072)], 0.007, () => [0.5, 1]));
+    lights.push(skin(rim, round, () => [onWall(rb + 0.045), onWall(rb + 0.072)], 0.007, () => [0.5, 1]));
 
     /* Glazing wrapped round an end: from beside the door bay, round the front corner and across the end wall. */
     const window = (u0: number, u1: number, corner: [number, number]) => {
@@ -283,7 +285,7 @@ export function capsuleGeometry(feet: number): BufferGeometry {
     glass.push(panel(rim, ud + 0.1, ud + 0.25, 0.72, 1.92, 0.07, 0.026, true));
     dark.push(box(0.028, 0.52, 0.03, lay.door - 0.27, 1.2, D / 2 + 0.045));
     /* Light lines beside the door. */
-    for (const x of lay.bars) for (const y of [1.16, 1.34, 1.52]) glass.push(panel(rim, rim.front(x) - 0.16, rim.front(x) + 0.16, y, y + 0.034, 0.017, 0.012, 1));
+    for (const x of lay.bars) for (const y of [1.16, 1.34, 1.52]) lights.push(panel(rim, rim.front(x) - 0.16, rim.front(x) + 0.16, y, y + 0.034, 0.017, 0.012, 1));
 
     /* Chassis and jack legs. */
     dark.push(box(L - 1.5, 0.14, D - 1.2, 0, -0.07, 0));
@@ -303,7 +305,13 @@ export function capsuleGeometry(feet: number): BufferGeometry {
       for (const s of [-1, 1]) dark.push(box(0.03, top + legs - 0.045, 0.26, lay.door + s * 0.42, (top - 0.045 - legs) / 2, z));
     }
 
-    const g = mergeGroups([shell, dark, glass, timber]);
+    // The room behind the glazing: the hull's inside, floor to ceiling (materials.ts, interiorGlass), where it
+    // will be once the hull is lifted onto its legs (the box is not moved with the vertices).
+    const lo = [-L / 2 + 0.32, legs + rb + 0.06, -D / 2 + 0.3];
+    const hi = [L / 2 - 0.32, legs + H - POD.rt * 0.55, D / 2 - 0.3];
+    for (const part of [...shell, ...dark, ...glass, ...timber]) withRoom(part, lo, hi);
+    for (const part of lights) withRoom(part, [0, 0, 0], [0, 0, 0]);
+    const g = mergeGroups([shell, dark, [...glass, ...lights], timber]);
     g.translate(0, legs, 0);
     return g;
   });

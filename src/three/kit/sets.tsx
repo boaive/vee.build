@@ -35,10 +35,17 @@ export const SETS: Record<SetName, SetInfo> = {
     to: { pos: [8.1, 1.94, 19.7], look: [0.75, 2.46, 0.6] },
     shadow: 26,
   },
+  /*
+   * The three capsules seen near eye level and near enough to read at their
+   * real size (client, 2026-10-11: "too small, like toy houses"), the row
+   * across the foot of the picture and under the caption on the left, which
+   * leaves that ground free. The camera looks a little right of the row's
+   * middle: the hero puts its target three quarters across (focus).
+   */
   pods: {
     look: 'blueHour',
-    from: { pos: [19, 2.4, 31], look: [0, 1.9, 0] },
-    to: { pos: [-9, 2.1, 31], look: [0.6, 1.8, 0] },
+    from: { pos: [8.4, 1.78, 26.6], look: [5.5, 2.3, 0] },
+    to: { pos: [-1.6, 1.72, 25.8], look: [5, 2.24, 0] },
     shadow: 26,
   },
   work: {
@@ -224,8 +231,8 @@ const FARM_EXCLUDE: Rect[] = [
 /** Backfilled pits round the four footings. */
 const FARM_PITS: [number, number][] = [-1, 1].flatMap((sx) => [-1, 1].map((sz) => [sx * (HOME_FOOTPRINT.x1 - 0.28), sz * (HOME_FOOTPRINT.z1 - 0.28)] as [number, number]));
 
-/** land: a ref to the group that holds everything but the house, for the scene to hide until it is wanted. */
-export function FarmSet({ getA, getLit, look, land }: Omit<BuildingProps, 'x'> & { land?: Ref<Group> }) {
+/** land: a ref to the group that holds everything but the house, for the scene to hide until it is wanted. house: the house's own. */
+export function FarmSet({ getA, getLit, look, land, house }: Omit<BuildingProps, 'x'> & { land?: Ref<Group>; house?: Ref<Group> }) {
   const palette = LAND.gold;
   return (
     <group>
@@ -255,10 +262,10 @@ export function FarmSet({ getA, getLit, look, land }: Omit<BuildingProps, 'x'> &
           <Pits at={FARM_PITS} />
         </group>
       </group>
-      <group rotation-y={FARM_YAW}>
+      <group rotation-y={FARM_YAW} ref={house}>
         <ModelHome getA={getA} getLit={getLit} look={look} shellHex={HOME_FINISH.shell} deckHex={HOME_FINISH.deck} trimHex={HOME_FINISH.trim} />
         {/* A soft porch light: the door and its sidelights stay readable under it. It comes on with the windows. */}
-        <Lamp at={HOME_LAMP} intensity={(look.lamps ?? 0) * 0.9} getOn={getLit} />
+        <Lamp at={HOME_LAMP} intensity={(look.lamps ?? 0) * 0.55} distance={6} getOn={getLit} />
       </group>
     </group>
   );
@@ -276,41 +283,121 @@ type P3 = [number, number, number];
  * buildings" is shown by three objects, a modular home, a capsule home and
  * a prefab building, and not by the two shells, which belong to the
  * modular line only). The house is the set's own, at the origin. All three
- * are to one scale: the block is three times the length of the other two,
- * so it stands well back, where it reads as the third of the three.
+ * are to one scale.
+ *
+ * Since 2026-10-11 the three stand side by side along the foot of the
+ * picture, close together, as in the client's reference picture ("back to
+ * back as shown"), and the row is fitted to the screen it is seen on
+ * (HeroScene, frameRow): on a wide screen a straight row seen nearly level;
+ * on a squarer one the capsule and the block step back behind the house
+ * and the camera rises, so the row grows into the height the screen has
+ * instead of leaving it empty. `s` is that step, 0 to 1.
  */
 export interface Row {
   capsule: { at: P3; turn: number; feet: number };
-  prefab: { at: P3; turn: number };
+  prefab: { at: P3; turn: number; bays: number };
   /** Where each one's name hangs from: a point on the floor in front of it (the label stands under that point, film.css). */
   tags: Record<'mod' | 'pod' | 'fab', P3>;
   /** Each one's place on the floor and how far its shadow is kept (x, z, from, to), for the bare floor of the opening. */
   spots: [number, number, number, number][];
+  /** The corners of each one's box, in the set's metres: what the camera frames. House, capsule, block. */
+  hull: P3[][];
+  /** The camera's bearing on the row: azimuth from +z towards +x and elevation, radians. */
+  view: { az: number; el: number };
 }
 
-const rowOf = (capsule: P3, prefab: P3, tags: Row['tags']): Row => ({
-  capsule: { at: capsule, turn: -0.1, feet: 20 },
-  prefab: { at: prefab, turn: -0.16 },
-  tags,
-  spots: [
-    [0, 0, 3, 10],
-    [capsule[0], capsule[2], 3.5, 9],
-    [prefab[0], prefab[2], 10.5, 18],
-  ],
-});
+/** The card's block: two floors of four bays, the brief's G+1 at a length that sits in a row with the other two. */
+export const ROW_BAYS = 4;
+
+/** Corners of a box given on a building's own plan (x0, x1, z0, z1, height), turned by `turn` and set at `at`. */
+function hullOf(at: P3, turn: number, [x0, x1, z0, z1, h]: [number, number, number, number, number]): P3[] {
+  const c = Math.cos(turn);
+  const sn = Math.sin(turn);
+  const out: P3[] = [];
+  for (const x of [x0, x1])
+    for (const z of [z0, z1])
+      for (const y of [0, h]) out.push([at[0] + x * c + z * sn, at[1] + y, at[2] - x * sn + z * c]);
+  return out;
+}
+const placed = (at: P3, turn: number, x: number, z: number): P3 => [at[0] + x * Math.cos(turn) + z * Math.sin(turn), 0, at[2] - x * Math.sin(turn) + z * Math.cos(turn)];
+
+/** The house's box on its own plan: roof overhang, landing and steps included, up to the ridge. */
+const HOUSE_BOX: [number, number, number, number, number] = [-3.2, 3.25, -1.7, 3.25, 4.2];
+/** The 20′ capsule's, steps included. */
+const CAPSULE_BOX: [number, number, number, number, number] = [-3.08, 3.08, -1.55, 2.2, 3.2];
+/** The block's: its staircase stands against its left flank, its gallery along the front. */
+const blockBox = (bays: number): [number, number, number, number, number] => [-bays * 1.5 - 2.15, bays * 1.5 + 0.1, -3.05, 4.65, 6.2];
+
+const mix = (p: number, q: number, t: number) => p + (q - p) * t;
 
 /**
- * On a wide screen: side by side along the foot of the picture, seen from
- * the front corner. The three are set out as three columns (developer,
- * 2026-10-10, twice: "a little to the right, make it look uniform"): as
- * seen, the capsule's middle is half-way between the house's and the
- * block's, and each name hangs under the middle of its own building, so the
- * names are evenly spaced too. The block's staircase now stands against its
- * flank, which is what leaves the capsule the room.
+ * The row for a screen: `s` 0 on a wide one, 1 on a squarish one. Along the
+ * row the gaps stay alike as the two behind the house step back; seen from
+ * in front, each is turned a little towards the camera.
  */
-export const ROW: Row = rowOf([8.0, 0, -4.8], [5.6, 0, -39.3], { mod: [3.9, 0, 3.2], pod: [8.45, 0, -4.2], fab: [5.9, 0, -36.5] });
-/** On a narrow one the picture is upright: the three stand one behind another and are seen from above, the house nearest. */
-export const ROW_COMPACT: Row = rowOf([-0.7, 0, -13.7], [-22, 0, -57], { mod: [1.2, 0, 3.4], pod: [-0.7, 0, -13.1], fab: [-23.4, 0, -54.4] });
+export function rowFor(s: number): Row {
+  const az = mix(0.02, 0.2, s);
+  const el = mix(0.085, 0.27, s);
+  // Along the row (u) and away from the camera (w), on plan.
+  const u: [number, number] = [Math.cos(az), -Math.sin(az)];
+  const w: [number, number] = [-Math.sin(az), -Math.cos(az)];
+  const at = (along: number, back: number): P3 => [u[0] * along + w[0] * back, 0, u[1] * along + w[1] * back];
+  const bays = ROW_BAYS;
+  const capsule = at(mix(8.15, 6.6, s), mix(0.4, 6.2, s));
+  const prefab = at(mix(22.6, 16.2, s), mix(9, 20, s));
+  const capTurn = az - 0.1;
+  const fabTurn = az - mix(0.26, 0.2, s);
+  const [, bx1] = blockBox(bays);
+  return {
+    capsule: { at: capsule, turn: capTurn, feet: 20 },
+    prefab: { at: prefab, turn: fabTurn, bays },
+    tags: {
+      mod: placed([0, 0, 0], FARM_YAW, 0.35, 3.9),
+      pod: placed(capsule, capTurn, 0, 2.75),
+      fab: placed(prefab, fabTurn, -1.05, 5.35),
+    },
+    spots: [
+      [0, 0, 3.5, 10],
+      [capsule[0], capsule[2], 3.6, 9],
+      [prefab[0], prefab[2], bx1 + 2.5, bx1 + 10],
+    ],
+    hull: [hullOf([0, 0, 0], FARM_YAW, HOUSE_BOX), hullOf(capsule, capTurn, CAPSULE_BOX), hullOf(prefab, fabTurn, blockBox(bays))],
+    view: { az, el },
+  };
+}
+
+/** How far a screen of this shape steps the row back: 0 from 1.9 wide to 1, 1 at 1.25 and squarer. */
+export const rowStep = (aspect: number) => Math.min(1, Math.max(0, (1.9 - aspect) / 0.65));
+
+/**
+ * On a narrow screen the picture is the top of an upright card: two tiers
+ * seen from above, the house and the capsule side by side in front, the
+ * block behind them, each named under itself.
+ */
+export function rowCompact(): Row {
+  const capsule: P3 = [7.7, 0, 0.9];
+  const prefab: P3 = [4.4, 0, -22];
+  const capTurn = 0.02;
+  const fabTurn = 0.02;
+  const bays = ROW_BAYS;
+  const [, bx1] = blockBox(bays);
+  return {
+    capsule: { at: capsule, turn: capTurn, feet: 20 },
+    prefab: { at: prefab, turn: fabTurn, bays },
+    tags: {
+      mod: placed([0, 0, 0], FARM_YAW, 0.35, 3.9),
+      pod: placed(capsule, capTurn, 0, 2.75),
+      fab: placed(prefab, fabTurn, -1.05, 5.35),
+    },
+    spots: [
+      [0, 0, 3.5, 10],
+      [capsule[0], capsule[2], 3.6, 9],
+      [prefab[0], prefab[2], bx1 + 2.5, bx1 + 10],
+    ],
+    hull: [hullOf([0, 0, 0], FARM_YAW, HOUSE_BOX), hullOf(capsule, capTurn, CAPSULE_BOX), hullOf(prefab, fabTurn, blockBox(bays))],
+    view: { az: 0.1, el: 0.5 },
+  };
+}
 
 /** The other two of the three: lowered in beside the house on the opening card, lifted away as the page scrolls on. */
 export function Lineup({
@@ -336,7 +423,7 @@ export function Lineup({
       <Capsule feet={row.capsule.feet} position={row.capsule.at} rotation={row.capsule.turn} getT={getCapsule} getLit={getCapsuleLit} look={look} drop={11} />
       {/* The block's own ground line is the top of its set's gravel pad: here it stands on the bare floor. */}
       <group position={[row.prefab.at[0], -0.06, row.prefab.at[2]]} rotation-y={row.prefab.turn}>
-        <WorkforceBlock getA={getPrefab} getLit={getPrefabLit} look={look} crane={false} />
+        <WorkforceBlock getA={getPrefab} getLit={getPrefabLit} look={look} crane={false} bays={row.prefab.bays} />
       </group>
     </group>
   );
