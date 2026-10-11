@@ -1,12 +1,16 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MeshBasicMaterial, ShadowMaterial, Vector4, type Group, type Mesh } from 'three';
+import { MeshBasicMaterial, ShadowMaterial, Vector3, Vector4, type Group, type Mesh, type PerspectiveCamera } from 'three';
 import { HERO_CUTS } from '../../film/heroTimeline';
 import type { SceneProps } from '../../film/progress';
 import { clamp01, ease, lerp } from '../../film/timeline';
 import Stage, { aim, useLabel, type Rig } from '../Stage';
+import { useMirror } from '../kit/mirror';
 import { LOOKS } from '../kit/looks';
-import { CampusSet, FarmSet, Lineup, PodSet, ROW, ROW_COMPACT, SETS, WorkSet, type Row, type SetName } from '../kit/sets';
+import { PLAZA_Y, PlazaFloor, plazaMaterial } from '../kit/plaza';
+import { FARM_YAW, ROW_BAYS } from '../kit/row';
+import { fitRow, type Band, type RowFit } from '../kit/rowfit';
+import { CampusSet, FarmSet, Lineup, PodSet, SETS, WorkSet, type SetName } from '../kit/sets';
 
 /**
  * Hero: the kinds of building VEE.BUILD makes, each shot alone against a
@@ -14,14 +18,20 @@ import { CampusSet, FarmSet, Lineup, PodSet, ROW, ROW_COMPACT, SETS, WorkSet, ty
  * change of set while the light is retuned. The first building assembles on
  * load, the others as their set arrives.
  *
- * The page opens on the three kinds in a row (client, 2026-10-09): the
+ * The page opens on the three kinds of building (client, 2026-10-09): the
  * modular house, a capsule home and a prefab building, lowered in one after
- * another on a bare studio floor, no land and no sky, the canvas clear to
- * the page behind them. The opening card's scroll then has two parts. In
- * the first the capsule and the prefab block are lifted away, as they came,
- * and the camera goes to the house. In the second a clearing opens in the
- * land (atmosphere.ts) and spreads from under the house to the horizon, and
- * the sky comes up behind it. At rest the land is not drawn at all.
+ * another. Since the client's second brief of 2026-10-11 they stand one
+ * behind another and are seen on the diagonal (kit/row.ts), on a polished
+ * floor that mirrors them (kit/plaza.tsx, kit/mirror.tsx), in the last warm
+ * light of the day, with the page's warm shade behind the canvas where the
+ * floor ends: no land and no sky yet. The camera is fitted to whatever
+ * screen they are seen on (kit/rowfit.ts). The opening card's scroll then
+ * has two parts. In the first the capsule and the prefab block are lifted
+ * away, as they came, and the camera goes to the house. In the second a
+ * clearing opens in the land (atmosphere.ts) and spreads from under the
+ * house over the floor and on to the horizon, the floor goes, the light
+ * becomes the sunset's and the sky comes up behind. At rest the land is
+ * not drawn at all.
  *
  * Only the first set is built before the first frame. The other three are
  * built one at a time as soon as the picture is up, while it still stands
@@ -59,7 +69,7 @@ const COMPOSED = 1.55;
 const PULL = 0.5;
 /**
  * The opening card's scroll (0–1), first part: up to here the camera leaves
- * the row for the house and the other two are lifted away. film.css takes
+ * the three for the house and the other two are lifted away. film.css takes
  * the mist's rise from the same number (--lineup).
  */
 const LINEUP = 0.34;
@@ -73,19 +83,101 @@ const reach = (t: number) => 2.5 * (Math.exp(5.2 * t) - 1);
 /** While it is alone the house stands this much nearer, and this many metres higher in the frame, clear of the mist at its feet. */
 const NEAR = 0.9;
 const LIFT = 0.62;
+/** How dark the shadows lie on the floor: the card's. */
+const FLOOR_SHADOW = LOOKS.card.shadow.opacity;
+/** How strongly the floor mirrors what stands on it (kit/mirror.tsx), at a grazing angle. */
+const GLOSS = 0.46;
+/** Over this part of the card's second part (0–1) the card's light becomes the sunset's, while the mist is up. */
+const LIGHT_IN: [number, number] = [0.04, 0.6];
 /**
- * The camera on the row of three, and the shape of screen each view is
- * composed for: on a narrower one it stands back in proportion, so the row
- * keeps its place between the edges. Wide: from the same side as the farm
- * set's own camera, farther back and level with the eye, the three along
- * the foot of the picture with the words above them. Narrow: the picture
- * is the upper half of an upright screen, so the three stand one behind
- * another and are seen from above.
+ * The floor goes while the land is still near the house (0–1 of the land's
+ * spread): the meadow grows over it at first, and before the land reaches
+ * its own hills, which dip under a flat floor, the rest of it has gone into
+ * the shade behind.
  */
-const ROW_VIEW = { pos: [29.5, 2.5, 24.6], look: [14.7, 2.0, -7.2], aspect: 1.72 };
-const ROW_VIEW_COMPACT = { pos: [23.6, 14, 46.4], look: [-8.1, -0.5, -21.6], aspect: 0.462 };
-/** How dark the shadows lie on the bare floor. */
-const FLOOR_SHADOW = LOOKS[SETS.farm.look].shadow.opacity;
+const FLOOR_OUT: [number, number] = [0.2, 0.48];
+/** The shadow floor lies this far over the polished one. */
+const SHADOW_Y = PLAZA_Y + 0.01;
+
+/** An element's offset inside an ancestor, through its offset parents (transforms ignored: they move with the scroll). */
+function offsetIn(el: HTMLElement, root: HTMLElement) {
+  let x = 0;
+  let y = 0;
+  let e: HTMLElement | null = el;
+  while (e && e !== root) {
+    x += e.offsetLeft;
+    y += e.offsetTop;
+    e = e.offsetParent as HTMLElement | null;
+  }
+  return [x, y];
+}
+
+/**
+ * What the three are fitted into (kit/rowfit.ts, Band), measured from the
+ * card's own words on this screen: its margins, the header, the headline
+ * that no building may stand over, each name's own box under its building
+ * and how low a name may hang. On a narrow screen the picture is the top of
+ * the card, from under the header down to the words (film.css).
+ */
+function measureBand(canvas: HTMLCanvasElement, compact: boolean): Band | null {
+  const sticky = canvas.closest<HTMLElement>('.film__sticky');
+  const words = sticky?.querySelector<HTMLElement>('.prelude__top');
+  const line = sticky?.querySelector<HTMLElement>('.prelude__line');
+  if (!sticky || !words || !line) return null;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  if (!w || !h) return null;
+  const hdr = document.querySelector<HTMLElement>('[data-hdr]')?.offsetHeight ?? 64;
+  const [cx, cy] = offsetIn(canvas, sticky);
+  const [, wy] = offsetIn(words, sticky);
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  const gutter = Math.min(4 * rem, Math.max(rem, 0.04 * window.innerWidth));
+  // Each name as it is set: how wide, and where its top and foot hang under its point (film.css, .lbl--kind).
+  const labels = ['mod', 'pod', 'fab'].map((id) => {
+    const name = sticky.querySelector<HTMLElement>(`[data-label="kind-${id}"] > span`);
+    return name ? { w: name.offsetWidth, top: name.offsetTop, bottom: name.offsetTop + name.offsetHeight } : { w: 10 * rem, top: 0.9 * rem, bottom: 4 * rem };
+  });
+  const top = hdr + 0.5 * rem - cy;
+  if (compact) {
+    const kicker = words.querySelector<HTMLElement>('.prelude__kicker') ?? words;
+    const [, ky] = offsetIn(kicker, sticky);
+    return { w, h, l: gutter * 0.6, r: w - gutter * 0.6, top, bottom: ky - cy - 1.2 * rem, textRight: -1, textBottom: 0, labels, cue: null };
+  }
+  // The words: how far right they reach (the headline's lines and the small line over them) and where their block ends.
+  let right = 0;
+  const range = document.createRange();
+  const edge = sticky.getBoundingClientRect().left;
+  for (const ln of [...line.querySelectorAll<HTMLElement>('.prelude__ln > span'), ...words.querySelectorAll<HTMLElement>('.prelude__kicker')]) {
+    range.selectNodeContents(ln);
+    right = Math.max(right, range.getBoundingClientRect().right - edge);
+  }
+  // The scroll cue, at the foot on the right: a name keeps out of its corner.
+  const mark = sticky.querySelector<HTMLElement>('.film__prelude-cue');
+  let cue: Band['cue'] = null;
+  if (mark && mark.offsetWidth) {
+    const [mx, my] = offsetIn(mark, sticky);
+    cue = { x0: mx - cx, y0: my - cy };
+  }
+  const rail = 2.6 * rem;
+  return {
+    w,
+    h,
+    l: gutter,
+    r: w - Math.max(gutter, rail),
+    top,
+    bottom: h - Math.max(1.1 * rem, h * 0.04),
+    textRight: right - cx + 1.5 * rem,
+    textBottom: wy + words.offsetHeight - cy + 0.9 * rem,
+    labels,
+    cue,
+  };
+}
+
+/** Where nothing of the card can be measured: a band from the canvas alone. */
+function plainBand(w: number, h: number): Band {
+  const label = { w: 160, top: 14, bottom: 62 };
+  return { w, h, l: 0.04 * w, r: 0.96 * w, top: 76, bottom: 0.95 * h, textRight: -1, textBottom: 0, labels: [label, label, label], cue: null };
+}
 
 const setAt = (p: number) => {
   let i = 0;
@@ -105,14 +197,16 @@ const idle = (fn: () => void, wait = 60) => {
 };
 
 /**
- * The floor of the opening: nothing but the shadows of what stands on it,
- * each fading out a few metres from its caster (the sun is low and a shadow
- * would run on for fifty). It lies just under the land, which covers it as
- * it spreads, and it is gone before the land has spread far.
+ * The shadows of what stands on the card's floor, laid over it: each kept
+ * for a few metres from its caster and then let go (the light is low; a
+ * shadow left whole would lie across the next building's ground). It lies a
+ * hair over the polished floor and under the land, which covers both as it
+ * spreads, and it is gone before the land has spread far. `spots`: each
+ * caster's place and the two distances between which its shadow goes (x, z,
+ * from, to), written by the scene when it knows where the three stand.
  */
-function shadowFloor(color: string, opacity: number, row: Row) {
+function shadowFloor(color: string, opacity: number, spots: Vector4[]) {
   const m = new ShadowMaterial({ color, opacity, transparent: true });
-  const spots = row.spots.map((s) => new Vector4(...s));
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uSpots = { value: spots };
     shader.fragmentShader = shader.fragmentShader
@@ -159,6 +253,19 @@ function Veil({ getOpacity }: { getOpacity: () => number }) {
 
 const _look = [0, 0, 0];
 const _pos = [0, 0, 0];
+const _hz = new Vector3();
+
+/** The three on the card as the scene has them: the fit for this screen, with the camera's pose made ready for `aim`. */
+interface RowView {
+  key: string;
+  fit: RowFit;
+  pos: number[];
+  look: number[];
+  /** On a narrow screen: how far towards the camera the floor reaches before the card's words (two distances from its centre, on plan). */
+  near: [number, number] | null;
+  /** Where the floor ends round the three: the two distances from its centre between which it goes. */
+  ends: [number, number];
+}
 
 function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Rig }) {
   const intro = useMemo(() => ({ t: reduced ? 1 : 0 }), [reduced]);
@@ -169,19 +276,129 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
   const groups = useRef<(Group | null)[]>([]);
   const land = useRef<Group>(null);
   const others = useRef<Group>(null);
+  const house = useRef<Group>(null);
+  const capsule = useRef<Group>(null);
+  const prefab = useRef<Group>(null);
+  const mirror = useRef<Group>(null);
+  const plazaHold = useRef<Group>(null);
+  /** How strongly the floor reflects, 0–1: full on the card, gone as the land comes in. */
+  const gloss = useRef(0);
+  useMirror(rig, mirror, [house, others], () => gloss.current);
   const floor = useRef<Mesh>(null);
-  const row = compact ? ROW_COMPACT : ROW;
-  const floorMat = useMemo(() => shadowFloor(LOOKS[SETS.farm.look].shadow.color, FLOOR_SHADOW, row), [row]);
+  const gl = useThree((s) => s.gl);
+  const aspect = size.width / size.height;
+  // The floor's slabs lie square to the house; where it ends is set with the three (viewOfRow).
+  const plaza = useMemo(() => plazaMaterial(FARM_YAW), []);
+  useEffect(() => () => plaza.material.dispose(), [plaza]);
+  const spots = useMemo(() => [new Vector4(0, 0, 6, 13), new Vector4(0, 0, 6, 12), new Vector4(0, 0, 12, 22)], []);
+  const floorMat = useMemo(() => shadowFloor(LOOKS.card.shadow.color, FLOOR_SHADOW, spots), [spots]);
   useEffect(() => () => floorMat.dispose(), [floorMat]);
   const current = useRef(-1);
   /** Sets built so far, in order. */
   const [built, setBuilt] = useState(1);
   const warmed = useRef(1);
   const landWarm = useRef(0);
-  const aspect = size.width / size.height;
-  const view = compact ? ROW_VIEW_COMPACT : ROW_VIEW;
-  // `aim` stands every pose back by its own measure on a narrow screen; the row's pose is given the difference.
-  const stand = Math.max(1, view.aspect / aspect) / (aspect < COMPOSED ? 1 + (COMPOSED / aspect - 1) * PULL : 1);
+  /**
+   * The three and the camera on them, fitted to the card's words on this screen (rowfit.ts): worked out on the
+   * first frame at a size, and again once the fonts are in, since the headline's measure changes with them.
+   */
+  const rowView = useRef<RowView | null>(null);
+  /** A camera of the fit's own, with the stage's lens: the scene's is not moved about to try arrangements. */
+  const probe = useMemo(() => (camera as PerspectiveCamera).clone(), [camera]);
+  const fonts = useRef(0);
+  useEffect(() => {
+    const again = () => {
+      fonts.current++;
+      invalidate();
+    };
+    document.fonts?.ready.then(again);
+    window.addEventListener('vee:booted', again);
+    return () => window.removeEventListener('vee:booted', again);
+  }, [invalidate]);
+  /**
+   * Where the floor would meet the sky, seen from a camera pose, as a percentage of the screen's height: the
+   * page's shade behind the canvas has its glow there (film.css, --floor).
+   */
+  const horizon = (pos: readonly number[], look: readonly number[]) => {
+    aim(camera, pos, look, aspect, COMPOSED, PULL);
+    _hz.set(look[0] - pos[0], 0, look[2] - pos[2]).normalize().multiplyScalar(4000).add(camera.position).setY(0).project(camera);
+    return (-_hz.y * 0.5 + 0.5) * 100;
+  };
+  const viewOfRow = () => {
+    const key = `${size.width}x${size.height}-${compact ? 'c' : 'w'}-${fonts.current}`;
+    if (rowView.current?.key === key) return rowView.current;
+    const cam = camera as PerspectiveCamera;
+    // The fit's camera sees through the stage's lens as it is now: its field, its shape, its off-centre framing.
+    probe.fov = cam.fov;
+    probe.aspect = cam.aspect;
+    if (cam.view) probe.setViewOffset(cam.view.fullWidth, cam.view.fullHeight, cam.view.offsetX, cam.view.offsetY, cam.view.width, cam.view.height);
+    else probe.clearViewOffset();
+    probe.updateProjectionMatrix();
+    const only = import.meta.env.DEV ? (window as unknown as { __veeRow?: number }).__veeRow : undefined;
+    const band = measureBand(gl.domElement, compact) ?? plainBand(size.width, size.height);
+    const fit = fitRow(probe, band, compact, only);
+    // `aim` stands every pose back by its own measure on a narrow screen: the fit's pose is given the difference.
+    const back = aspect < COMPOSED ? 1 + (COMPOSED / aspect - 1) * PULL : 1;
+    const pos = fit.look.map((q, k) => q + (fit.pos[k] - q) / back);
+    rowView.current = { key, fit, pos, look: fit.look, near: null, ends: [80, 200] };
+    if (import.meta.env.DEV) (rig as unknown as { row?: unknown }).row = rowView.current;
+    // The two behind the house, where this arrangement has them. The block's own ground line is its set's gravel pad: here it stands on the floor.
+    const { row } = fit;
+    capsule.current?.position.set(...row.capsule.at);
+    if (capsule.current) capsule.current.rotation.y = row.capsule.turn;
+    prefab.current?.position.set(row.prefab.at[0], -0.06, row.prefab.at[2]);
+    if (prefab.current) prefab.current.rotation.y = row.prefab.turn;
+    row.spots.forEach((s, k) => spots[k].set(...s));
+    // The floor ends well behind the three and under the camera's feet; on a narrow screen it is an island under them, clear of the words.
+    let cx = 0;
+    let cz = 0;
+    let n = 0;
+    for (const hull of row.hull)
+      for (const q of hull) {
+        cx += q[0];
+        cz += q[2];
+        n++;
+      }
+    cx /= n;
+    cz /= n;
+    let far = 0;
+    for (const hull of row.hull) for (const q of hull) far = Math.max(far, Math.hypot(q[0] - cx, q[2] - cz));
+    const eye = Math.hypot(fit.pos[0] - cx, fit.pos[2] - cz);
+    if (compact) {
+      rowView.current.ends = [far + 4, far + 22];
+      plaza.fade.set(cx, cz, far + 4, far + 22);
+      // The words stand under the picture, not on it: the floor ends over them. Where that is on the floor, seen from the fitted camera.
+      probe.position.set(fit.pos[0], fit.pos[1], fit.pos[2]);
+      probe.lookAt(fit.look[0], fit.look[1], fit.look[2]);
+      probe.updateMatrixWorld();
+      const nx = (fit.pos[0] - cx) / (eye || 1);
+      const nz = (fit.pos[2] - cz) / (eye || 1);
+      const along = (y: number) => {
+        _hz.set(0, -((y / band.h) * 2 - 1), 0.5).unproject(probe).sub(probe.position);
+        const t = _hz.y < -1e-6 ? -probe.position.y / _hz.y : 0;
+        return (probe.position.x + _hz.x * t - cx) * nx + (probe.position.z + _hz.z * t - cz) * nz;
+      };
+      const foot = band.bottom + 4;
+      rowView.current.near = [along(foot - Math.min(90, band.h * 0.1)), along(foot)];
+      plaza.near.set(nx, nz, rowView.current.near[0], rowView.current.near[1]);
+    } else {
+      plaza.fade.set(cx, cz, Math.max(eye + 25, far + 30), Math.max(eye + 25, far + 30) + 130);
+      plaza.near.set(0, 1, 1e5, 1e5 + 1);
+    }
+    // The shade's glow stands where the floor would meet the sky, here and once the camera is by the house.
+    const backdrop = gl.domElement.closest('.film__sticky')?.querySelector<HTMLElement>('.film__backdrop--studio');
+    if (backdrop) {
+      const farm = SETS.farm;
+      const at = farm.from.look.map((q, k) => q - (k === 1 ? LIFT : 0));
+      const there = horizon(farm.from.pos.map((q, k) => at[k] + (q - at[k]) * NEAR), at);
+      const here = horizon(pos, fit.look);
+      backdrop.style.setProperty('--floor', here.toFixed(2));
+      backdrop.style.setProperty('--floor-drop', `${(there - here).toFixed(2)}svh`);
+    }
+    return rowView.current;
+  };
+  /** The look last set for the first set's stretch: how far the card's light has gone over to the sunset. */
+  const lit = useRef(-1);
 
   // The three are put together on the opening card, once the loading screen has lifted.
   const booting = useRef(typeof document !== 'undefined' && document.documentElement.classList.contains('is-booting'));
@@ -199,7 +416,7 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
   const go = useRef(false);
   const started = useRef(0);
   /**
-   * How far the card's first part has gone: 0 the row, 1 the camera is with the house and the other two are away.
+   * How far the card's first part has gone: 0 the three, 1 the camera is with the house and the other two are away.
    * Read from the scroll itself wherever it is needed, not kept from one frame to the next: the parts of the
    * scene draw in an order of their own, and one frame may be all a jump of the page gets.
    */
@@ -217,16 +434,19 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
     const p = progress.value;
     const i = setAt(p);
     groups.current.forEach((g, k) => g && (g.visible = k === i));
-    if (i !== current.current) {
-      current.current = i;
-      rig.setLook(LOOKS[SETS[ORDER[i]].look]);
-    }
-    const s = SETS[ORDER[i]];
-    const u = ease.inOut(localU(p, i));
     // The opening card, in its two parts. Only the first set has one.
     const pre = i === 0 ? progress.pre : 1;
     const led = lead();
     const open = clamp01((pre - LINEUP) / (1 - LINEUP));
+    if (i === 0) {
+      // The card has a light of its own; as the land comes in it becomes the farm's sunset.
+      const m = ease.inOut(span(open, LIGHT_IN));
+      if (m !== lit.current || current.current !== 0) rig.mixLook(LOOKS.card, LOOKS.sunset, m);
+      lit.current = m;
+    } else if (i !== current.current) rig.setLook(LOOKS[SETS[ORDER[i]].look]);
+    current.current = i;
+    const s = SETS[ORDER[i]];
+    const u = ease.inOut(localU(p, i));
     // How far the land has spread (1: all of it) and how much sky there is.
     const t = span(open, LAND_IN);
     if (t < 1) {
@@ -238,26 +458,49 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
     if (land.current) land.current.visible = t > 0;
     // The other two of the three are there for the first part only.
     if (others.current) others.current.visible = led < 1;
-    // The bare floor's shadows go as the ground comes: once the trees are there, their long shadows would fall across it too.
-    floorMat.opacity = FLOOR_SHADOW * (1 - clamp01((t - 0.02) / 0.12));
+    // The floor's shadows go just before the ground comes: the land's trees and shrubs cast theirs as soon as it is there,
+    // before the clearing has reached them, and on a bare floor those lay about the house as marks with nothing to cast them.
+    floorMat.opacity = FLOOR_SHADOW * (1 - clamp01(open / LAND_IN[0]));
+    // The floor's reflection goes with its shadows, and is not there once the other sets are.
+    gloss.current = i === 0 ? GLOSS * (1 - clamp01((t - 0.02) / 0.1)) : 0;
     if (floor.current) floor.current.visible = floorMat.opacity > 0.003;
+    // The floor itself: the meadow grows over it, and what the meadow has not reached goes into the shade behind.
+    const paved = i === 0 ? 1 - ease.inOut(span(t, FLOOR_OUT)) : 0;
+    plaza.cover.value = paved;
+    if (plazaHold.current) plazaHold.current.visible = paved > 0.003;
+    // While the floor is there the land keeps out of the occlusion's view: that pass draws all of it, shown or not,
+    // and the grass and shrubs the clearing has not reached darkened the floor where they stand, as stains.
+    if (land.current) land.current.userData.unoccluded = paved > 0.003;
     const alone = 1 - ease.inOut(open);
     const near = lerp(1, NEAR, alone);
     const inRow = 1 - ease.inOut(led);
+    const view = inRow > 0 ? viewOfRow() : null;
+    // On a narrow screen the floor's near edge is for the card's words: as the camera leaves the three it moves off, well before it could be seen.
+    const edge = rowView.current?.near;
+    if (edge && rowView.current) {
+      plaza.near.z = edge[0] + (1 - inRow) * 240;
+      plaza.near.w = edge[1] + (1 - inRow) * 240;
+      // And the island the floor is there grows with it: from by the house its edge would lie across the foreground.
+      plaza.fade.z = rowView.current.ends[0] + (1 - inRow) * 150;
+      plaza.fade.w = rowView.current.ends[1] + (1 - inRow) * 150;
+    }
     for (let k = 0; k < 3; k++) {
       const at = lerp(s.from.look[k], s.to.look[k], u) - (k === 1 ? LIFT * alone : 0);
       const from = at + (lerp(s.from.pos[k], s.to.pos[k], u) - at) * near;
-      _look[k] = lerp(at, view.look[k], inRow);
-      _pos[k] = lerp(from, view.look[k] + (view.pos[k] - view.look[k]) * stand, inRow);
+      _look[k] = view ? lerp(at, view.look[k], inRow) : at;
+      _pos[k] = view ? lerp(from, view.pos[k], inRow) : from;
     }
     aim(camera, _pos, _look, aspect, COMPOSED, PULL);
     rig.lightTarget.set(_look[0], 0, _look[2]);
     // Each of the three is named once it stands; the names go as the card starts to open.
-    const named = i === 0 ? clamp01(1 - progress.pre * 9) : 0;
+    const named = i === 0 && view ? clamp01(1 - progress.pre * 9) : 0;
     const a = intro.t * INTRO.total;
-    label('kind-mod', ...row.tags.mod, named * clamp01((a - INTRO.house[1] + 0.5) * 2.5));
-    label('kind-pod', ...row.tags.pod, named * clamp01((a - INTRO.capsule[1] + 0.4) * 2.5));
-    label('kind-fab', ...row.tags.fab, named * clamp01((a - INTRO.prefab[1] + 0.5) * 2.5));
+    const tags = (view ?? rowView.current)?.fit.tags;
+    if (tags) {
+      label('kind-mod', ...tags[0], named * clamp01((a - INTRO.house[1] + 0.5) * 2.5));
+      label('kind-pod', ...tags[1], named * clamp01((a - INTRO.capsule[1] + 0.4) * 2.5));
+      label('kind-fab', ...tags[2], named * clamp01((a - INTRO.prefab[1] + 0.5) * 2.5));
+    }
     // A visitor who scrolls straight through: have the next set ready before its cut.
     const next = setAt(Math.min(1, p + AHEAD)) + 1;
     if (next > built) setBuilt(Math.min(ORDER.length, next));
@@ -377,10 +620,23 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
   return (
     <>
       <group ref={slot(0)}>
-        <FarmSet getA={getters.first} getLit={getters.firstLit} look={looks[0]} land={land} />
-        <Lineup row={row} getCapsule={getters.capsule} getPrefab={getters.prefab} getCapsuleLit={getters.capsuleLit} getPrefabLit={getters.prefabLit} look={looks[0]} hold={others} />
-        <mesh ref={floor} material={floorMat} rotation-x={-Math.PI / 2} position={[0, -0.03, -20]} receiveShadow>
-          <planeGeometry args={[150, 150]} />
+        <PlazaFloor plaza={plaza} hold={plazaHold} />
+        <FarmSet getA={getters.first} getLit={getters.firstLit} look={looks[0]} land={land} house={house} />
+        <Lineup
+          getCapsule={getters.capsule}
+          getPrefab={getters.prefab}
+          getCapsuleLit={getters.capsuleLit}
+          getPrefabLit={getters.prefabLit}
+          look={looks[0]}
+          hold={others}
+          capsule={capsule}
+          prefab={prefab}
+          feet={20}
+          bays={ROW_BAYS}
+        />
+        <group ref={mirror} />
+        <mesh ref={floor} material={floorMat} rotation-x={-Math.PI / 2} position={[0, SHADOW_Y, -20]} receiveShadow>
+          <planeGeometry args={[220, 220]} />
         </mesh>
       </group>
       {built > 1 && (

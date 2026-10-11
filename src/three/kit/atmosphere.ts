@@ -15,13 +15,17 @@
  * the test (a `discard`, at the top of the shader so that what is outside
  * is not shaded first) is compiled in only while a clearing is open,
  * because a shader that can discard gives up early depth rejection and the
- * land is where the overdraw is.
+ * land is where the overdraw is. While it is open the land is also laid
+ * over what has been drawn before it (the opening card's floor, kit/
+ * plaza.tsx), premultiplied, instead of replacing it: at the clearing's
+ * soft edge the meadow then fades into the floor it grows over, and where
+ * nothing is under it, into the page, as before.
  *
  * The extra uniforms are plain {x,y,z,w} objects. UniformsUtils.clone keeps
  * plain objects by reference, so every material shares them and a look
  * change is one write here.
  */
-import { ShaderChunk, ShaderLib, UniformsLib, type Material } from 'three';
+import { CustomBlending, NormalBlending, OneFactor, OneMinusSrcAlphaFactor, ShaderChunk, ShaderLib, UniformsLib, type Blending, type Material } from 'three';
 
 type V4 = { x: number; y: number; z: number; w: number };
 
@@ -101,7 +105,8 @@ export function patchAtmosphere() {
   }
   gl_FragColor.rgb = mix( gl_FragColor.rgb, atmFog, fogFactor );
   #ifdef ATM_CLEARING
-    gl_FragColor *= atmClearK;
+    // Premultiplied, its coverage the clearing's own: so it can be laid over what is under it (dress, below).
+    gl_FragColor = vec4( gl_FragColor.rgb * atmClearK, atmClearK );
   #endif
 #endif`;
 
@@ -128,26 +133,34 @@ export function atmosphereUniforms() {
   };
 }
 
-/** Land materials, with whether each uses fog when no clearing is open (the test needs the fog chunks). */
-const land = new Map<Material, boolean>();
+/** Land materials, with what each has when no clearing is open: whether it uses fog (the test needs the fog chunks), and how it is laid down. */
+const land = new Map<Material, { fog: boolean; blending: Blending }>();
 let open = false;
 
-const dress = (m: Material, fog: boolean, on: boolean) => {
+const dress = (m: Material, was: { fog: boolean; blending: Blending }, on: boolean) => {
   const f = m as Material & { fog: boolean };
   const defines = { ...(m.defines ?? {}) };
   if (on) defines.ATM_CLEARING = '';
   else delete defines.ATM_CLEARING;
   m.defines = defines;
-  f.fog = on || fog;
+  f.fog = on || was.fog;
+  // Over what is already there, by its own coverage (the shader has multiplied its colour by it). Not what is see-through already.
+  if (!m.transparent && was.blending === NormalBlending) {
+    m.blending = on ? CustomBlending : NormalBlending;
+    if (on) {
+      m.blendSrc = m.blendSrcAlpha = OneFactor;
+      m.blendDst = m.blendDstAlpha = OneMinusSrcAlphaFactor;
+    }
+  }
   m.needsUpdate = true;
 };
 
 /** Marks a material as land: it keeps inside the clearing while one is open. */
 export function clearing<M extends Material>(m: M): M {
-  const fog = (m as Material & { fog?: boolean }).fog !== false;
-  land.set(m, fog);
+  const was = { fog: (m as Material & { fog?: boolean }).fog !== false, blending: m.blending };
+  land.set(m, was);
   m.addEventListener('dispose', () => land.delete(m));
-  if (open) dress(m, fog, true);
+  if (open) dress(m, was, true);
   return m;
 }
 
@@ -155,5 +168,5 @@ export function clearing<M extends Material>(m: M): M {
 export function setClearing(on: boolean) {
   if (on === open) return;
   open = on;
-  land.forEach((fog, m) => dress(m, fog, on));
+  land.forEach((was, m) => dress(m, was, on));
 }

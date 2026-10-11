@@ -30,7 +30,8 @@ source. Never resolve a conflict by inventing a third value.
   2026-10-09). Partnership, Investors and Technology are in the bottom
   band under the footer, with "Powered by" and the Hemisphere One logo as
   supplied (`src/assets/brand/hemisphere-one.png`; it is dark on clear, so
-  the band is on paper: do not put it on ink, recolour it or redraw it).
+  the band is on paper: do not recolour it or redraw it; on ink, only the
+  reversed copy described below).
   Menu and band are `primaryNav` and `bandNav` in `src/data/site.ts`.
   CONFIRM: Investors and Technology have no pages; they lead to the
   enquiry form and to "How it works" (notes J2).
@@ -44,10 +45,12 @@ source. Never resolve a conflict by inventing a third value.
   not "we" ("How is VEE different?", "See how VEE manufactures it.";
   client, 2026-10-10). An ordinary "we" or "us" in a sentence spoken to
   the visitor ("Tell us what you want to build") stays.
-- **Powered by Hemisphere One** stands under the wordmark wherever the
-  wordmark does (header, footer, loading screen: text, small, in the
-  wordmark's own colour) and on the opening card with the logo as
-  supplied (client, 2026-10-10). The logo itself only ever on paper.
+- **Powered by Hemisphere One**, with the Hemisphere One logo, stands
+  under the wordmark wherever the wordmark does (header, footer, loading
+  screen) and nowhere else on the opening card (client, 2026-10-11,
+  morning; `Brand.astro`, one lockup). On paper the logo as supplied; on
+  ink a reversed copy derived from it and from nothing else
+  (`scripts/logo-reversed.mjs`). CONFIRM: that copy is ours (notes N1).
 - The capsule's form follows the client's three reference renders of
   2026-10-09 (`src/three/kit/capsule.ts`). Its lengths are the brief's
   10′, 16′ and 20′; nothing else about it is supplied (notes C5, C9). No
@@ -92,7 +95,11 @@ source. Never resolve a conflict by inventing a third value.
   stands on it: the steps do not run on into the ground, their frame ends
   in a level sole on the pier's head (`carriedStairGeometry`). The hero's
   house has them too, under its landing and its steps (client, the same
-  day).
+  day), and so does the building of "08 On site", under its deck's posts
+  and its steps (client, 2026-10-11; `piers` on `House`, heights in
+  `PIER`, `kit/house.tsx`; set by the film's clock just before the
+  add-ons, `installClock`). CONFIRM: the configurator and the 3D tour
+  show the same house without them (notes O3).
 - The deck, the steps and the sloped roof are add-ons, not standard parts,
   and are tagged "Add-on" in the picture when they land in section 3
   (client, 2026-10-10).
@@ -161,6 +168,16 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   to scenes: the sky (drawn on its own and put behind the scene), the shadow
   map (redrawn only when the light or a caster has moved, or after
   `rig.warm`), ambient occlusion, bloom and the grade (`kit/post.tsx`).
+- The scene's picture is premultiplied and its alpha is its coverage: what
+  fades out lets the page or the sky through. The finish develops the
+  picture before the page is put behind it, so a surface that fades must
+  let its colour down with its coverage as the screen will show it
+  (`pow(k, 2.2)`, as the opening card's floor does); merely multiplied,
+  it comes out as a bright rim where it fades.
+- A look may have its sky's sun where its key light is not (`skySun` in
+  `kit/looks.ts`): the opening card is lit like a studio under the
+  farmhouse's sunset. Looks with one sky and one sun in it share one
+  environment map.
 - A scene can ask the stage for less than the whole world: `rig.sky`
   (0-1, how much sky is behind the scene; at 0 it is not drawn) and
   `rig.clear` (a clearing: land is drawn only out to a radius from a
@@ -170,7 +187,11 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   be, or it will stand there before the land does. The clearing's test is
   compiled in only while one is open (a shader that can discard gives up
   early depth rejection), so every land material has two programs: warm
-  both.
+  both. While one is open the land is also laid over what is under it by
+  its coverage (the opening card's floor), not written in its place.
+  The occlusion pass draws everything in the scene, shown through a
+  clearing or not: what is there but not yet shown keeps out of it
+  (`userData.unoccluded`), or it darkens the floor under it as stains.
 - A film that keeps parts out of sight until their turn sends all of them
   to the GPU when it mounts (`useWarmAll` in `Stage.tsx`), and builds its
   geometry in idle time before that (a `prepare` list exported by the
@@ -217,26 +238,39 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   dark stage keeps a vignette in its own tone. Small callouts placed from
   3D stay on their ink pills.
   One exception, asked for by the client (2026-10-07): the hero's opening
-  card, where mist in the page colour lies at the house's feet and rises
-  over the moment the land and sky arrive (`.film__mist`, film.css). It is
+  card, where mist lies at the house's feet and rises over the moment the
+  land and sky arrive (`.film__mist`, film.css; since 2026-10-11 in the
+  card's warm shade, not the page colour). It is
   DOM over the canvas, transforms and opacity only, each layer with its
   own opacity; it never lies on the house at rest, and it is gone
   (`display: none`) once the card has opened, so the film itself is never
   under it. Do not use it anywhere else without asking.
-- The hero opens on the three kinds of building in a row (client,
-  2026-10-09): the modular house, a capsule home and a prefab building in
-  a studio, to one scale, each named on the floor in front of it, no land
-  and no sky. Scrolling lifts the capsule and the prefab block away as
-  they were lowered in, goes to the house, and then brings its land and
-  sky in as before (client, 2026-10-07). Each of the three is dark while
-  it is lowered in, and its lights come on once it stands. The three
-  stand in three columns, their middles evenly spaced, each name under
-  the middle of its building. The studio is CSS behind the
-  canvas (the canvas is clear wherever the scene has drawn nothing). At
-  rest the land is not drawn at all. On a narrow screen the three stand
-  one behind another and are seen from above (`ROW`, `ROW_COMPACT` in
-  `kit/sets.tsx`). Things leave a picture by being lifted or by the camera
-  moving on, never by fading: a faded object needs a blended material.
+- The hero opens on the three kinds of building (client, 2026-10-09): the
+  modular house, a capsule home and a prefab building, to one scale, each
+  named on the floor under it, no land and no sky. Since the client's
+  second brief of 2026-10-11 (with two reference pictures; notes O) they
+  stand parallel, one behind another on a diagonal, and are seen on the
+  diagonal, each showing its front and one end (`rowFor` in
+  `kit/row.ts`); on a polished floor of 3 m slabs that mirrors them
+  (`kit/plaza.tsx`, `kit/mirror.tsx`); in warm light (look `card`); on a
+  warm shade, which is CSS behind the canvas (`.film__backdrop--studio`;
+  the canvas is clear wherever the scene has drawn nothing). Not the
+  white studio, and not the references' own buildings. The camera is
+  fitted to the screen (`fitRow` in `kit/rowfit.ts`): as near as the
+  card's words, margins and names allow, under the headline or beside it,
+  from eye level where the screen allows it and from higher up where that
+  gives the three real size; it is moved sideways and tilted to place
+  the picture, never raised or lowered. Do not place the three, the
+  camera or the names by hand for a screen size: change the fit. A
+  change to the card is looked at in a low window too (1267 × 303 and
+  1267 × 427 at 150%: the developer drags the window short), on a phone
+  and at 4:3. Scrolling lifts the capsule and the prefab block away as
+  they were lowered in, goes round to the house, and then grows its land
+  from under it over the floor and brings the sky in (client,
+  2026-10-07). Each of the three is dark while it is lowered in, and its
+  lights come on once it stands. At rest the land is not drawn at all.
+  Things leave a picture by being lifted or by the camera moving on,
+  never by fading: a faded object needs a blended material.
 - "Componentized building" opens on the finished house, whole, which
   comes apart twice (developer, 2026-10-10: "easy to understand for very
   common people", then "after fully bursting, we can burst further").
@@ -276,10 +310,19 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   while it does; it can never keep it (`film/hold.ts` lets go on a timer,
   on Escape, when the page is hidden). It only ever holds a scroll the
   visitor is making: a link gliding past does not start it.
-- The installation: the truck arrives with one shell; scrolling on places
-  it on the foundation ("Placed on the foundation"); the rest of the
-  building then comes together by itself, its add-ons land, and its
-  lights come on last (client, 2026-10-10).
+- The installation ("08 On site") begins with the site made ready, on
+  the scroll: the plot pegged out, pits dug, plug footings lowered in, L
+  plinths laid, backfilled (client, 2026-10-11, morning: the section
+  "Ready before the shells arrive" and the installation as one film;
+  `PREP` in `film/installTimeline.ts`). Then the truck arrives with one
+  shell; scrolling on places it on the foundation ("Placed on the
+  foundation"); the rest of the building then comes together by itself,
+  jack piers are set where its deck's posts and its steps come down, its
+  add-ons land on them, and its lights come on last (client, 2026-10-10
+  and 2026-10-11).
+- The configurator shows an estimated price, counted from what is laid
+  out (`build/price.ts`, rates in `data/pricing.ts`; client, 2026-10-11).
+  CONFIRM: every rate is ours (notes N5); do not quote them elsewhere.
 - 3D look, as built: every stage goes through one photographic finish (sun
   shadows, ambient occlusion, bloom on the sun and lit glass, filmic tone
   mapping, a light grade). Studio stages stand on the page colour with a
@@ -326,6 +369,12 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   in it without a word, and the build stops on it (2026-10-10).
 - `?noboot` skips the boot screen. `?q=1` shows the one emergency
   resolution step, `?q=0` rules it out.
+- The opening card's fit runs without a browser (`kit/rowfit.ts` is pure
+  geometry on a camera; `vee-build-progress.md`, QA aids). In the dev
+  build `window.__veeRow = <s>` holds the card to one arrangement.
+- Two builds timed in turn: reverse their order before believing a
+  difference. The laptop's power state has put the second load of every
+  pair in its slow half (notes F12).
 - Frame timing and 3D screenshots: a headless Edge on the same GPU (the
   app's browser pane does not draw frames while hidden). Details in
   `vee-build-progress.md`, QA aids.

@@ -65,7 +65,9 @@ Tagged `CONFIRM:` in the data files.
   ours. The ground is drawn see-through while the footings and plinth go
   in and closes round them afterwards. The configurator's foundation
   (`kit/house.tsx`) still has a jack head on each pedestal and none under
-  the deck (K8).
+  the deck (K8). Since 2026-10-11 the building of "08 On site" has them
+  under its deck's posts and its steps too, at section 3's heights (O4);
+  the configurator and the 3D tour show the same house without.
 - **C3 "Core shell" in the factory.** Drawn since 2026-10-07 as the steel
   frame of the client's structure sequence (H7): corner columns, a ring beam
   top and bottom, a cross beam, floor joists. The insulation panels stand
@@ -130,7 +132,7 @@ Tagged `CONFIRM:` in the data files.
 | Catalogue range | 200–600, five models | Sketch: 200 300 400 500 600 800 | Brief. 800 appears only in the footprint counter, where the brief also has it. |
 | Differentiators | Six: end-to-end, insulated, sustainable, energy efficient, code compliant, affordable | Sketch adds "half the weight of others", "acoustic comforts"; Wieldy adds "4hr fire rated", "30–60% faster" | Brief's six. Acoustic comfort is inside "Insulated". Weight, fire rating and speed percentages are not published. |
 | Module areas | Nominal 200 / 100 sq.ft. | Geometry: 18 m² = 193.8 sq.ft., 9 m² = 96.9 sq.ft. | Nominal sq.ft. as headline, true m² beside it. Confirm whether sq.ft. figures are external footprint or carpet area. |
-| Pricing | None | Wieldy: ₹5L–₹25L | No pricing on the site. |
+| Pricing | None | Earlier brand's price list | No pricing on the site until 2026-10-11; then the client asked for "tentative and reasonable prices" in the configurator: rates of our own, tagged CONFIRM (N5), none taken from that list. |
 | Testimonials | None | Wieldy HTML has three unattributed quotes and calls itself a "design study" | Not used. |
 | Hero lines | "Get your house installed in one day!", "Live a sci-fi life.", "Insulated and comfortable living for your workforce.", "Lean, clean, resilient…" | Client, 2026-10-09: a heading and a line for each of three kinds | Latest instruction. The brief's first three lines are gone; the institutional line stays, set as statements (E). |
 | Stacked buildings | Three: The Villa, The Apartment, High-Rise Block | Client, 2026-10-09: remove The Apartment, "mid-rise" for "high-rise" | "How it works" shows two. The configurator keeps all three as presets (the client found it "just great" bar the name). |
@@ -778,6 +780,131 @@ the two builds are compared at their low ends and at their medians.
   canvas can be mounted between the factory and the installation); a
   phone; a real touch screen for the hold (emulated only); the production
   build's pages.
+
+### F11. Ninth pass: the client's brief of 2026-10-11 (section N)
+
+Method as F9 and F10: headless Edge on the Arc GPU, 1280 × 720 at DPR
+1.5, the tree before this round (`git archive HEAD`) served beside the
+working tree and visited in turn, GPU time of one moving frame by timer
+query, 60 frames at the pose then 20 timed, medians of 3 or 4 alternating
+rounds, range in brackets; and, for what is new, each addition switched
+on and off inside one page, round-robin, 8 to 10 rounds, the median of
+the rounds' differences (`toggle.mjs` in the session's scratchpad).
+
+| Where | Before | Now | Draw calls |
+| --- | --- | --- | --- |
+| Hero, opening card at rest | 2.65 [2.18-5.02] | 3.07 [2.75-3.15] | 75 → 153 |
+| Hero, card, the two lifted away (pre 0.17) | 2.12 [2.06-2.25] | 2.43 [2.35-2.43] | 83 → 153 |
+| Hero, card, land half spread (pre 0.6) | 5.66 [5.40-8.25] | 5.65 [5.53-5.72] | 118 → 118 |
+| Hero, the farm set | 5.20 [5.15-7.80] | 5.36 [5.16-8.39] | 110 → 110 |
+| Hero, the capsule set | 4.97 [4.86-7.23] | 4.66 [4.52-4.66] | 104 → 98 |
+| How it works, lift (0.2 / 0.232) | 2.97 / 3.89 | 2.83 / 2.84 | 46 / 54 → same |
+| Installation, arrival (old 0.2, new 0.43) | 6.18 [4.79-8.38] | 5.00 [4.67-6.28] | 158 → 163 |
+| Installation, placement (old 0.5, new 0.65) | 5.58 [4.82-7.87] | 5.99 [5.91-7.89] | 144 → 157 |
+| Installation, the site made ready (0.1 / 0.24) | (none) | 4.96 / 4.83 | 106 / 115 |
+
+| Switched on and off inside one page | Cost a frame | Draw calls |
+| --- | --- | --- |
+| The floor's reflection, card at rest | 0.26 ms | +62 |
+| Rooms behind lit glass, card at rest (first version) | 0.85 ms | |
+| The same, with one test round all the furniture first | 0.11 ms | |
+| Rooms, the capsule set (the largest lit windows) | 0.39 ms | |
+| Rooms, the installation's last frame, lights on | 0.05 ms | |
+
+- **The card costs about 0.4 to 0.6 ms more at rest** (median and fast
+  state), for what was asked: the reflection (0.26), the rooms (0.11)
+  and three larger buildings in the frame. More than the half
+  millisecond the rules allow without a reason: the reason is the
+  request. It is still the cheapest frame of the hero. The lift-away is
+  0.3 ms dearer for the same reasons; once the land is in, the
+  reflection is not drawn and the frames cost what they did.
+- **The rooms behind the glass first cost 0.85 ms** on the card; one test
+  against a box round all the furniture, before the pieces, brought them
+  to 0.11 (most rays never come near the furniture).
+- **The capsule set is cheaper** (0.3 ms): nearer the capsules, less of the
+  wood and the land is in shot.
+- **The installation's last frame** read 4.0 before and 5.4 now in one
+  run, then 14.2 and 14.7 when the laptop had dropped to its slow state;
+  the rooms there cost 0.05 ms switched on and off. No difference that
+  can be told from the spread.
+- **Frame pacing**, a steady 1500 px/s scroll: the hero, three passes
+  against one, one long frame each where the next film mounts (73 and
+  84 ms now, 68 before; one pass of 283 ms that did not recur). The site
+  film, three passes each: 1 or 2 frames over 25 ms before, 4 now, one
+  of them 85 to 117 ms at the same place every pass. Profiled: the road
+  film's canvas being released (`forceContextLoss`, R3F's teardown) as it
+  leaves the viewport's neighbourhood. Before, the static section
+  between the two films was on screen at that moment; now the site film's
+  first screen is. A deferred release (in the next quiet moment) would
+  take it out of the scroll; not done, as it changes how every film
+  lets its stage go and holds more GPU memory meanwhile (F9).
+- **Moving against still**: the card at rest, mean 0.52 of a grey level,
+  largest shift of any twelfth of the picture 0.20; the site made ready
+  (two poses, JPEG captures), 0.01. The reflection and the rooms are
+  drawn the same in a moving and a settled frame (the reflection follows
+  its buildings in `rig.beforeDraw`, which both run).
+- **Not measured:** a phone; the production build's pages; the
+  configurator's frame (nothing in its 3D changed: its windows are day
+  glass).
+
+### F12. Tenth pass: the client's second brief of 2026-10-11 (section O)
+
+Method as F9 to F11. "Before" is the tree as it stood after section N
+(that morning's round, not committed), copied and served beside the
+working tree. The laptop changed power state inside most runs: where a
+range is wide its low end is the fast state, and the two builds are
+compared at their low ends as well as their medians.
+
+| Where | Before, low end / median | Now, low end / median | Draw calls |
+| --- | --- | --- | --- |
+| Hero, opening card at rest | 2.80 / 5.28 | 3.30 / 5.85 | 145 → 148 |
+| Hero, card, the two lifted away (pre 0.17) | 2.31 / 5.18 | 2.94 / 5.74 | 145 → 136 |
+| Hero, card, the house on the floor, land starting (pre 0.45) | 3.65 / 3.89 | 4.04 / 4.19 | 109 → 112 |
+| Hero, card, land half spread (pre 0.6) | 5.47 / 5.94 | 5.90 / 6.24 | 110 → 113 |
+| Hero, the farm set | 5.16 / 5.36 | 5.18 / 5.41 | 110 → 118 |
+| Installation, last frame (0.97), lights on | 3.59 / 3.72 | 3.58 / 3.81 | 98 → 102 |
+
+| Switched on and off inside one page, card at rest | Cost a frame |
+| --- | --- |
+| The floor as a physically shaded surface with the sky's environment (first version) | 0.88 ms |
+| The floor as built: plainly lit, its sheen worked out | 0.50 ms |
+| The floor's depth alone (its third step) | 0.02 ms |
+| The reflections (62 draw calls) | 0.25 to 0.5 ms |
+| The jack piers, installation's last frame | 0.04 to 0.05 ms |
+
+- **The card costs about 0.5 to 0.6 ms more than it did that morning,**
+  for what was asked: a real floor under the three (0.5) where there was
+  the page's own colour, and reflections that reach farther on larger
+  buildings. More than the half millisecond the rules allow without a
+  reason: the reason is the request. It is still the cheapest frame of
+  the hero, and the film after it costs what it did.
+- **The floor was 0.88 ms as first built** (a standard material, the
+  sunset's environment in it, over half the picture). What that bought
+  was a sheen that grows towards a grazing angle in one colour: worked
+  out in the shader on a plainly lit surface it is 0.50 ms and the same
+  picture (two captures side by side; the built one is a shade paler).
+- **Fitting the camera** (`fitRow`): 15 to 50 ms once for a size of
+  screen, 88 fits of 28 steps each, on the main thread. It runs on the
+  first frame at a size and once more when the fonts are in; while a
+  window is being dragged it runs for each size it passes through.
+- **A reading that was not what it seemed.** The installation read 3.55
+  ms before and 6.88 now in three alternating rounds, every round. With
+  the order of the two builds reversed both read 3.6 to 3.8 (and 7.0
+  each in the round the laptop was throttled). The second page load of
+  each pair had fallen in the slow power state every time. Inside one
+  page the piers cost 0.04 ms. **Reverse the order before believing a
+  difference between two builds.**
+- **Frame pacing**, a steady 1500 px/s scroll through the hero, two
+  passes and one of the tree before: median 16.7 ms, 95th percentile
+  16.8 to 16.9, one long frame each (100 ms, 233 once) at the very end,
+  where the next film mounts, in both builds. None inside the card.
+- **Moving against still**, five poses of the card and the farm set:
+  mean difference 0.5 to 1.4 of a grey level (the grain), largest shift
+  of any twelfth of the picture 0.14 to 0.21; 0.55 at pre 0.6, where the
+  mist is up and drifting (it is DOM, it drifts in both captures, and it
+  is no longer the colour of what is under it).
+- **Not measured:** a phone; the production build's pages; GPU memory
+  (one more plane and no new target: not expected to move).
 
 ## G. Decisions made during the build
 
@@ -1617,3 +1744,308 @@ back on; the configurator and the 3D tour after the kit's changes (looked
 at only in passing); the second burst's cost (F10); the header's links
 over the new factory picture on a phone, where the back of the yard is
 under the chapter's line.
+
+## N. The client's brief of 2026-10-11 and how it was carried out
+
+Six items, relayed by the developer with three pictures: an AI-generated
+reference for the opening card (the three side by side in a bright studio
+on a glossy floor, warm rooms behind the glass, "Powered by" and the logo
+under the wordmark) and two photographs of the live site on a wider and a
+taller screen than 16:9. "Use your creativity... preserving the existing
+functionality and performance." And: "in landing page it really dont
+matter if it is a rendered one or picture... the goal for the landing
+page is to understand the website and vee.build, not just the
+animations but the real product."
+
+1. **Branding.** The card's right-hand "Powered by" with the logo is gone.
+   Under the wordmark, wherever it stands (header, footer, loading
+   screen), "Powered by" and the Hemisphere One logo: `Brand.astro`, one
+   lockup for the header and the footer. The header is taller for it
+   (`--hdr` 4.25rem, 3.75 on a phone). On paper the logo as supplied; on
+   ink a reversed copy derived from it (`scripts/logo-reversed.mjs`: each
+   pixel read as a mix of the logo's near-black and its yellow and
+   written as the same mix of the page's paper and that yellow; the
+   drawing and the yellow are the supplied file's). The band under the
+   footer keeps its own "Powered by" and logo, as the client asked on
+   2026-10-09.
+   **CONFIRM (N1):** the reversed logo is ours; ask Hemisphere One for
+   theirs. Until this round the logo was only ever shown on paper.
+   "Keep the Vee.build name only beneath the Vee.build logo" was read as:
+   the powered-by line belongs under the wordmark only.
+2. **The opening card.**
+   - *Arrangement.* The three stand side by side, close together, as in
+     the reference (`rowFor` in `kit/sets.tsx`), and the camera is fitted
+     to the screen it is seen on (`frameRow` in `HeroScene.tsx`): it
+     stands as near as it can while the row keeps inside the margins, no
+     building stands over the headline (beside it, right of the words,
+     the block may rise to the second line's middle), and the names stay
+     above the foot of the screen; the row is centred across and the
+     height left over is shared, a little more of it under the names.
+     The headline, the names and the margins are measured from the page
+     itself, and again once the fonts are in. On a squarer screen the
+     capsule and the block step back behind the house and the camera
+     rises (`rowStep`: 0 from 1.9 wide, 1 at 1.25), so the row fills the
+     height instead of leaving it empty. On a phone, two tiers seen from
+     above, the house and the capsule in front, the block behind; the
+     card's words stand at the foot of the screen there and the picture
+     has everything above them. The studio floor's faint line is drawn
+     behind the farthest of the three, wherever that falls (it was a
+     fixed height and cut through the headline on tall screens).
+   - *The block on the card is four bays long* (two floors, eight
+     shells), not six: at one scale a six-bay block is three times the
+     house's length and the three could not stand side by side at a
+     readable size. The workforce set and `/prefab/` keep six
+     (`WorkforceBlock`'s `bays`). **CONFIRM (N2).**
+   - *Realism.* A studio light for the card (look `card`: a large soft
+     key high on the left, in front; a cool fill; the studio's room in
+     every reflection), which turns into the farm's sunset while the land
+     comes in and the mist is up (`rig.mixLook`, `LIGHT_IN`): lights,
+     exposure and grade in between, the room's environment faded out and
+     the sky's faded in round the middle, the key light swinging round
+     in the middle of the change only. Rooms behind lit glass
+     (`interiorGlass` in `kit/materials.ts`): a ray from each pixel of a
+     lit pane into the building's room box (`withRoom`, given by the
+     shell, the hero's house and the capsule) meets walls, floor boards,
+     the ceiling, a sofa with a table and a floor lamp or a bed with a
+     bedside lamp, a picture on the far wall, lit by a ceiling light and
+     the lamp; each room picks its own from where it stands. Wherever lit
+     glass is used (the hero's sets, the 3D tour, the installation), not
+     only on the card; dark until the building's lights come on, as
+     before. A glossy studio floor (`kit/mirror.tsx`): the three drawn
+     again upside down under the floor, one small shader for all of them,
+     written into the canvas's coverage so that the reflection lies over
+     the page's own studio without any blending; it fades with depth and
+     is stronger at a grazing angle, and goes with the floor's shadows as
+     the land comes in. The porch lamp is softer (it read as a flash).
+     **CONFIRM (N3):** the furniture is illustrative; nothing about the
+     interiors was supplied.
+   - *Not taken from the reference:* its house (French doors, another
+     deck), its capsule (another maker's), its container-like block with
+     steel corner posts. The buildings are VEE.BUILD's own models; the
+     reference set the arrangement, the studio and the light. The card
+     stays live 3D, not a picture: the scroll lifts two of them away and
+     brings the house's land in, and a still picture could not do that
+     without a change of picture the client ruled out (2026-10-07).
+3. **Capsules at life size.** The hero's capsule set is seen near eye
+   level from about 26 m, the row across the foot of the picture and
+   under the caption, whose lower left was empty ground (`SETS.pods`).
+   Before, the camera stood 36 m off, the row sat in the right half and
+   the 20′ was cut by the edge. `/capsule/` frames its three on its own,
+   near and at eye level, across most of the stage (`FRAME` in
+   `ShowcaseScene.tsx`). The capsules' sizes are unchanged (3.0 m wide,
+   3.15 m tall on their legs, 10′, 16′ and 20′ long): what read as
+   toy-like was the camera's distance and height.
+4. **2.2 Lift & shift.** Only the shell about to move was lifted; the
+   6 × 3 stood still while its red hooks and the arrows over them rose
+   without it. Now each shell is lifted by its own hooks, the hooks and
+   arrows on it throughout: the 3 × 3 first, the 6 × 3 a moment after
+   (`liftOf` in `film/systemTimeline.ts`). Each eases off the ground,
+   hangs still a moment and is let down slowly onto its seat.
+5. **Prices.** The configurator shows an estimated price beside the area,
+   with what it is made of in a breakdown under the add-ons, and both
+   figures count to their new values whenever the build changes. The
+   estimate is counted from what is laid out (`build/price.ts`): each
+   shell; every footing (a combined one costs more) and metre of L plinth
+   at the chosen height; every square metre of deck, post, metre of
+   spandrel and of handrail (beyond the galleries' own), flight of steps,
+   shade, sloped roof and solar array; the upper floors' gallery and
+   staircase; delivery and placing for each shell. Rates in
+   `data/pricing.ts`, in rupees, ex-works, excluding GST, delivery within
+   100 km, finishes included. The enquiry the configurator prepares
+   carries the estimate. Examples: The Pod ₹6,60,000; The Homestead
+   ₹16,82,000; Duplex Prime ₹20,87,000; the Mid-Rise Apartment
+   ₹1,14,03,000 (₹2,800 to ₹3,500 a square foot, all in).
+   **CONFIRM (N5): every rate is ours.** Neither the brief nor the client
+   gave a price; the earlier brand's price list is not used (D,
+   "Pricing", now superseded by this instruction).
+6. **Site preparation and the installation, one film.** The section
+   "Ready before the shells arrive" (`SitePrep.astro`, three drawings) is
+   gone; the installation film ("On site") begins with it (`PREP` in
+   `film/installTimeline.ts`). On the scroll: the plot is pegged out and a
+   string line run round it a little outside the footprint; a pit is dug
+   where each footing goes; the plug footings are lowered in one after
+   another, front first, each with its jack; the L plinths are laid
+   between them; the pits are backfilled and the strings and pegs taken
+   up. Each part is named as it goes in ("Plot marked out", "Plug
+   footing", "L plinth"). Then, without a cut, the camera stands back as
+   the truck comes down the lane with the shell, and the film goes on as
+   it was (the placement on its own clock). The first caption is the old
+   section's: "Ready before the shell arrives." with "Off-site
+   construction with absolute minimum site impact." The film is 6.4
+   screens where it was 4.4 (5.8 on a phone). The jack pier is not set
+   here: since 2026-10-10 it comes with the add-ons (C2).
+   **CONFIRM (N6):** the order of the site work (pegs, pits, footings,
+   plinths, backfill) follows the client's model's scenes (H3); the
+   string line and the pegs are ours.
+
+**Found on the way.**
+- Headless Edge's PNG encoder can hang for good on some pictures (the
+  site film's first screen): the page is fine, its frames are drawn and
+  presented, only the capture never returns. The capture tooling now
+  takes JPEGs with the fast encoder (progress file, QA aids).
+- With the section between them gone, the road film's canvas is released
+  (context loss: about 15 ms of main thread, a frame of 50 to 100 ms)
+  while the site film's first screen scrolls by, where it used to happen
+  while the static section did. Not new work; it moved (F11).
+
+**Not verified in this round.** A real phone or tablet; Safari and
+Firefox; the reflection and the interiors on a GPU slower than the test
+laptop's; the price breakdown with a screen reader beyond its markup (a
+disclosure with a table; the settled figures are read out once).
+
+## O. The client's second brief of 2026-10-11 and how it was carried out
+
+Relayed by the developer the same afternoon, after looking at section
+N's opening card in three windows of their own (1267 × 713, 1267 × 427
+and 1267 × 303 CSS pixels at 150%: a browser window dragged shorter),
+with two AI-generated references: the three on a white studio floor, and
+the same three at sunset on a wet paved floor with a sky and trees. In
+their words: "we actually want building arranged back to one another in
+diagonal form. and for different screen size it does not fit well";
+"the building size can be adopted but it is reducing"; "the client
+wants to have something realistic not like how we have now. for clr,
+keep what ever is in hero sections not the white one"; "use actual
+rendering or use image or any other files, but either way the
+animations should be there, and the website should not lag"; "for
+background use subtle and warm shade"; "do not change any other page,
+only the landing page and its continued animation to the hero page";
+"in 08-on site, add jack pier to the deck and steps"; "for landing page
+you have your own whole freedom... premium, a little gen Z".
+
+1. **The arrangement.** The three stand parallel, one behind another on
+   a diagonal, back to back: the capsule 9 m behind the house and a slab
+   to its right, the block 34.5 m behind and two slabs to the right
+   (`rowFor` in `kit/row.ts`, on the house's own plan and on the floor's
+   3 m joints). Seen on the diagonal too, they stand side by side across
+   the screen, each showing its front and one end, the house nearest and
+   largest: the reference's arrangement. Before, the capsule and the
+   block were turned to face the camera and stood beside the house.
+   - *Where the places come from.* Every place on the joints was tried
+     for each of them, at several camera heights and screen shapes, for
+     the largest house whose neighbours are not dwarfed (capsule at
+     least 0.55 of it on the screen, block 0.72) with no building over
+     another and every name clear (the session's `sweep2`, run in Node
+     on the same fit the page uses). At eye level on a 16:9 screen the
+     house is 33% of the screen's height where it was 27%.
+   - *The camera's bearing* is 0.17 rad from the house's front
+     (`ROW_AZ`). The house stands at the left of the picture and the
+     stage's lens looks 73% of the way across (`focus`), so it is seen
+     about 25° more from its side than the bearing says: near enough as
+     the film's first shot sees it, which is why the way from the three
+     to the house is a move round it and no turn of it. With the
+     bearing the film has (0.44) the house showed more end than front.
+2. **Fitting every screen** (`fitRow` in `kit/rowfit.ts`). The card's
+   words are measured from the page (margins, header, the headline no
+   building may stand over, each name's own box, the scroll cue) and
+   every arrangement is fitted into what they leave, twice: under the
+   headline across the whole width, and beside it, to its right, for a
+   window too low to have anything under the words. That second place
+   is what the short windows lacked: the row was centred across the
+   screen, so on a low window it had to shrink until it cleared the
+   headline (the house under 30 px tall in the 303 px window; about 130
+   now). The
+   arrangements differ in how high the camera stands (`s`): eye level
+   (2 m) where the screen allows it, as in the reference, higher where
+   that gives real size (a 4:3 or upright screen), with the block moved
+   across behind the house so the three climb the screen. Of those whose
+   names are clear the lowest is taken that is at least 0.84 of the
+   largest. Names that would touch are moved apart. The camera is never
+   raised or lowered to place the picture, only moved sideways and
+   tilted: moved down, an eye-level camera was under the floor.
+   On a phone the same, steeper, with the words under the picture.
+   Checked at 1267 × 303, 1267 × 427, 1267 × 713, 1920 × 1080,
+   2560 × 1080, 1024 × 768, 1024 × 1366, 820 × 1180 and 390 × 844, and
+   by resizing a loaded page through four sizes.
+3. **Realism, in the hero's colours.** Live 3D, not a picture: the
+   scroll lifts two of them away and grows the meadow from under the
+   third, which a picture could not do without the change of picture the
+   client ruled out on 2026-10-07; and the references' buildings are not
+   VEE.BUILD's (N, "Not taken from the reference").
+   - *A floor* (`kit/plaza.tsx`): polished pale concrete in 3 m slabs,
+     each a shade of its own, the joints laid from the house's walls. A
+     real surface where the card had the page's colour: it takes the
+     light and the sheen of a low sky at a grazing angle, hides what a
+     footing has under the ground (the house now stands on its pedestals
+     on the card as it does in the meadow), and gives the occlusion a
+     ground to darken at every foot. Drawn in three steps so the
+     buildings can be mirrored in it without a second view of the scene:
+     its colour (no depth), the mirrored buildings laid over it
+     (`kit/mirror.tsx`, now blended over the floor in the opaque pass),
+     its depth alone. It ends by fading into the shade behind, its
+     colour let down with its coverage as the screen will show it (a
+     floor merely multiplied by its coverage came out as a bright rim
+     where it faded: the finish develops the picture before the page is
+     put behind it). On a phone it is an island under the three and
+     stops over the card's words.
+   - *Light* (look `card`): a warm key from in front and to the left,
+     31° up, on the fronts; high enough that the house's shadow stops
+     short of the capsule and the capsule's of the block (a lower sun
+     laid each across the next); a soft fill from the right for the
+     ends; the farmhouse's sunset in every reflection (`skySun`: a look
+     may have its sky's sun where its key light is not). It becomes the
+     sunset's as the land comes in, as before.
+   - *Behind* (`.film__backdrop--studio`, film.css): a warm shade, ivory
+     overhead, an apricot glow where the floor would meet the sky; the
+     scene tells it where that is. No sky until the land comes.
+     "Subtle and warm shade" was read as this, not as the reference's
+     sky with clouds and trees.
+   - *The way into the film.* The two behind are lifted away and the
+     camera goes round to the house, as before. The floor's shadows go;
+     the meadow grows from under the house over the floor (while a
+     clearing is open the land is laid over what is under it, by its
+     coverage: `atmosphere.ts`), and what the meadow has not reached
+     goes into the shade (`FLOOR_OUT`) before the land comes to its own
+     hills, which dip under a flat floor. Mist in the card's shade
+     rises over the change.
+   **CONFIRM (O1):** the floor and its slabs are ours (nothing about a
+   show floor was supplied); the card's light is ours.
+   **CONFIRM (O2):** eye level or raised. A low window gets eye level
+   (2 m); the developer's 16:9 laptop a camera 3.8 m up; a larger or
+   squarer screen 7 to 13 m, because the three stand a fifth to a third
+   larger there that way. `NEAR_BEST` in `rowfit.ts` is the one number
+   that decides it.
+4. **Jack piers in "08 On site".** The building of the installation
+   now stands its deck's posts on jack piers and carries the foot of its
+   steps on two, as "Componentized building" and the hero's house do
+   (`piers` on `House`; `PIER` in `kit/house.tsx`, section 3's heights:
+   a head 260 mm up under a post, 160 mm under a stringer's level
+   sole). They are set by the film's own clock just before the add-ons
+   that land on them (`piers` in `installClock`), and the assembly's
+   caption says so in 3.3's words where the build has posts or steps.
+   The add-ons land 0.38 s later for it.
+   **CONFIRM (O3):** in "08 On site" only, as asked. The configurator
+   and the 3D tour show the same house without them (J's open question
+   stands); it is one prop to switch on.
+
+5. **The small line over the headline is gone** (developer, the same
+   evening: "remove vee.build . mod . pod . fab from the landing page
+   and place the one system many buildings a little bigger and upwards").
+   The headline starts where that line stood and is a size larger (7.3vw
+   against 6.7, 13.5svh against 12.4); the three are fitted to what it
+   leaves, as before. The three codes are still on the card, over each
+   building's name, and in the menu.
+
+**Found on the way.**
+- The block's gallery lay flat on the floor before the block was built
+  (a slab scaled to nothing in height): a hairline in the white studio,
+  a dark strip on a real floor. A speck now, on the card only.
+- The land's trees and shrubs cast shadows from the moment the land is
+  there, before the clearing has reached them: on a bare floor, marks
+  with nothing to cast them. The floor's shadows now go before the land
+  comes.
+- Stains on the floor round the house, once the other two had gone
+  (developer, the same evening, with a screenshot). The occlusion pass
+  draws the whole scene, shown or not: the grass and shrubs the clearing
+  had not reached darkened the floor where they stand. On the page's own
+  colour that never showed; on a real floor it did. The land now keeps
+  out of that pass while the floor is there (`userData.unoccluded`,
+  read in `post.tsx`; set in `HeroScene`).
+- The baseline copy's dev server answered some page loads with "The URL
+  must be of scheme file" (its own error page) while it was bundling;
+  the next load was fine.
+
+**Not verified in this round.** A real phone or tablet; Safari and
+Firefox (the backdrop's gradient stops are `calc()` on `svh`, as
+before); a GPU slower than the
+test laptop's; a window resized by dragging, which fits again at every
+size it passes (15 to 50 ms each).

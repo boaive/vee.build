@@ -1,5 +1,6 @@
 ---
-import { primaryNav, sections, site } from '../../data/site';
+import { primaryNav, sections } from '../../data/site';
+import Brand from './Brand.astro';
 
 interface Props {
   home?: boolean;
@@ -12,14 +13,7 @@ const contact = primaryNav.find((n) => n.label === 'Contact');
 ---
 
 <header class="hdr" data-hdr>
-  <a class="brand" href="/" aria-label={`${site.name}, powered by ${site.poweredBy} — home`}>
-    <svg class="brand__mark" viewBox="0 0 34.5 12" aria-hidden="true">
-      <rect x="0.75" y="0.75" width="21" height="10.5"></rect>
-      <rect x="23.25" y="0.75" width="10.5" height="10.5"></rect>
-    </svg>
-    <span class="brand__word">VEE<i>.</i>BUILD</span>
-    <span class="brand__by" aria-hidden="true">Powered by {site.poweredBy}</span>
-  </a>
+  <Brand />
 
   <nav class="hdr__nav" aria-label="Primary">
     <span class="hdr__lines">

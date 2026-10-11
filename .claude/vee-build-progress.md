@@ -1,6 +1,6 @@
 # VEE.BUILD — progress
 
-Last updated: 2026-10-10, evening (the client's brief of that day, notes M and F10: the factory made again as one shell in one bay, seen on the diagonal, lifted by four hooks; the journey as a short film that holds the page; the installation placing one shell and assembling the rest by itself, lights last; doors and windows of 2.3; "Add-on" tags; jack piers on the hero's house; Powered by Hemisphere One under the wordmark; the catalogue hidden; "VEE" for "we"). Earlier the same day: the developer's two rounds (notes K and F9; notes L: the second burst, the accent settled as vermilion on paper and green on ink, the build in figures under the configurator's view). Before that: 2026-10-09 (the client's corrections sheet, notes J and F7).
+Last updated: 2026-10-11, evening (the client's second brief of that day, notes O and F12: the opening card made again: the three one behind another on a diagonal, on a polished floor that mirrors them, in warm light on a warm shade, fitted to any screen; jack piers under the deck and steps of "08 On site". That morning, notes N and F11: Powered by with the logo under the wordmark, rooms behind lit glass, the capsules at life size, each shell lifted by its own hooks in 2.2, prices in the configurator, the site's preparation as the first part of the installation film). Before that: 2026-10-10, evening (the client's brief of that day, notes M and F10: the factory made again as one shell in one bay, seen on the diagonal, lifted by four hooks; the journey as a short film that holds the page; the installation placing one shell and assembling the rest by itself, lights last; doors and windows of 2.3; "Add-on" tags; jack piers on the hero's house; Powered by Hemisphere One under the wordmark; the catalogue hidden; "VEE" for "we"). Earlier the same day: the developer's two rounds (notes K and F9; notes L: the second burst, the accent settled as vermilion on paper and green on ink, the build in figures under the configurator's view). Before that: 2026-10-09 (the client's corrections sheet, notes J and F7).
 
 ## Status
 
@@ -21,6 +21,8 @@ Last updated: 2026-10-10, evening (the client's brief of that day, notes M and F
 | 13 Developer's round of 2026-10-10 | done and measured, notes K and F9 |
 | 14 Developer's second round of 2026-10-10 | done, notes L; its measurements with M's in F10 (the second burst's cost not settled) |
 | 15 Client's brief of 2026-10-10 (evening) | all fifteen items done and looked at on the dev server at two sizes, notes M; measured, F10; open points under "Waiting for an answer" and "Not yet verified" |
+| 16 Client's brief of 2026-10-11 (morning) | six items done and measured, notes N and F11 |
+| 17 Client's second brief of 2026-10-11 | the opening card and the jack piers of "On site": done, looked at in nine window shapes and measured, notes O and F12 |
 
 `npm run check` → 0 errors. `npm run build` → 5 routes, sitemap, optimised images.
 
@@ -33,11 +35,13 @@ Last updated: 2026-10-10, evening (the client's brief of that day, notes M and F
 - **Main page, 13 sections shown, in this order** (numbered from the list
   in `src/data/site.ts`; the number is the chapter's; the catalogue is
   built and hidden, `shown.catalogue`): 01 `overview` (an
-  opening card: the headline over the three kinds of building in a row in
-  a studio, a modular house, a 20′ capsule home and a G+1 prefab block,
-  each named on the floor and lit once it stands, "Powered by Hemisphere
-  One" beside the headline, mist at their feet; scrolling lifts the other
-  two away, goes to the house, spreads its land out from under it and
+  opening card: the headline over the three kinds of building, a modular
+  house, a 20′ capsule home and a G+1 prefab block of four bays, standing
+  one behind another on a diagonal and seen on the diagonal, on a
+  polished floor of 3 m slabs that mirrors them, in warm light, on the
+  page's warm shade; each named on the floor and lit once it stands; the
+  camera fitted to the screen; scrolling lifts the other two away, goes
+  round to the house, grows its land from under it over the floor and
   brings the sky up; then the hero film: modular house, capsule homes,
   workforce housing, institutional building, each caption changing on its
   cut, the last three tagged "Coming soon"), 02 `how-it-works` (film, 5
@@ -65,19 +69,25 @@ Last updated: 2026-10-10, evening (the client's brief of that day, notes M and F
   concreting, de-shuttering, doors and windows, spray finish, and its
   dispatch by a crane's four-point lifting frame onto the truck), 08
   `delivery` (film "Delivery": the truck's drive down the road, 4 s, plays
-  by itself and holds the page), `site`, `installation` (film: one shell
-  placed on the foundation, the rest assembling by itself, lights last),
-  `build-yours`, [`catalogue`, hidden: 5 models, SVG isometric + plan],
+  by itself and holds the page), `installation` (film "On site", 5 steps:
+  the plot made ready, pegs, pits, plug footings, L plinths; then one
+  shell placed on the foundation, the rest assembling by itself, jack
+  piers set under the deck's posts and the steps, the add-ons landing on
+  them, lights last), `build-yours`, [`catalogue`, hidden: 5 models, SVG isometric + plan],
   09 `gallery`, 10 `contact`. Seven films and the configurator have a 3D
   stage; so do the capsule and prefab pages (`Showcase.tsx`).
 - **The capsule:** `kit/capsule.ts`, a hull rounded with two radii drawn
   as a skin over two parameters, so that glazing, frames, seams and light
   lines are patches of the same surface; one geometry of four material
   groups for each length (notes C9). `Capsule` in `kit/buildings.tsx`.
-- **The row on the opening card:** `ROW`, `ROW_COMPACT` and `Lineup` in
-  `kit/sets.tsx`; the camera's two views and the card's two parts in
-  `scenes/HeroScene.tsx` (`LINEUP`, the same number as `--lineup` in
-  film.css).
+- **The three on the opening card:** where they stand for a shape of
+  picture, `rowFor` in `kit/row.ts`; the camera fitted to the screen and
+  the names' places, `fitRow` in `kit/rowfit.ts` (pure geometry, runs in
+  Node too); the floor, `kit/plaza.tsx`; its reflections,
+  `kit/mirror.tsx`; the light, look `card`; the shade behind,
+  `.film__backdrop--studio` in film.css; the two that leave, `Lineup` in
+  `kit/sets.tsx`; the card's two parts in `scenes/HeroScene.tsx`
+  (`LINEUP`, the same number as `--lineup` in film.css).
 - **The shell:** one door per shell, openings after the client's model
   (notes H8, I3); a footprint of "How it works" keeps one main door of
   those (`mainDoor`, notes J7). `doorFaces` in `src/build/model.ts` decides the face,
@@ -137,6 +147,19 @@ Last updated: 2026-10-10, evening (the client's brief of that day, notes M and F
 - `?go=<section-id>:<0–1>` (dev server only): jump a film to a progress.
   The value counts a title card's scroll as well (the hero and the factory
   tour each start with one screen of it; `data-pre` on the section).
+- The opening card's fit, without a browser: `fitRow` (`kit/rowfit.ts`)
+  takes a camera and a band of numbers. Bundled with the repo's esbuild
+  (`--alias:three=…/three/build/three.module.js`) it runs in Node: one
+  script printed the arrangement, the camera's height and each
+  building's box for a dozen screen shapes, another tried every place on
+  the floor's joints (notes O1). In the dev build `window.__veeRow = 0.4`
+  before a resize holds the card to one arrangement, and the stage's
+  `rig.row` is the fit in use.
+- Captures are JPEG, with the fast encoder: headless Edge's PNG encoder
+  hung for good on some pictures (2026-10-11).
+- Two builds timed in turn can read 2× apart for the order alone (the
+  second load of each pair in the laptop's slow state, every round):
+  reverse the order before believing it (notes F12).
 - To time or capture inside a title card with a script that takes a film
   progress: a film's travel is its height less the pinned screen less the
   card, so the card's scroll q (0-1) is progress (q - 1) × card ÷ travel
@@ -326,8 +349,21 @@ factory: one long frame (34 to 52 ms, at its end) where there were 5 to
 14, after everything hidden is warmed at mount. The second burst of the
 components film was not separated from the laptop's power-state noise.
 
+Ninth and tenth rounds, 2026-10-11 (notes F11, F12): the opening card
+at rest 3.3 ms in the fast state, where it was 2.8 that morning and 2.4
+the day before, for rooms behind the glass, a real floor (0.5 ms) and
+its reflections (0.25 to 0.5); the film after it unchanged (5.2). The
+jack piers of "On site": 0.04 ms. A steady scroll through the hero: one
+long frame, at its end, in every build.
+
 ## Not yet verified
 
+- The two rounds of 2026-10-11 (notes N, O): a real phone or tablet;
+  Safari and Firefox; the floor, the reflections and the rooms behind
+  the glass on a GPU slower than the test laptop's; a window resized by
+  dragging (the card is fitted again at every size it passes, 15 to 50
+  ms each); the production build's pages (it builds; they were not
+  opened); the price breakdown with a screen reader.
 - The rounds of 2026-10-10 afternoon and evening (notes L, M): the hold of
   the road film on a real touch screen and in Safari or Firefox (it was
   driven in headless Edge only); real phones; tablet widths; GPU memory
@@ -395,6 +431,22 @@ for real drone video behind the journey (needs the video; the journey is
 now a 3D shot).
 
 ## Waiting for an answer
+
+From the two briefs of 2026-10-11 (notes N, O):
+- **The opening card: eye level or raised.** A low window and a very
+  wide screen see the three from eye level, as the reference does; a
+  16:9 laptop from 3.8 m; a larger or squarer screen from 7 to 13 m,
+  because they stand a fifth to a third larger that way (O2).
+- **The floor and the light** of the card are ours; "subtle and warm
+  shade" was read as a plain warm backdrop, not the reference's sky and
+  trees (O1).
+- **Jack piers in "On site" only**, as asked: the configurator and the
+  3D tour show the same house without them (O3).
+- **The reversed Hemisphere One logo** on ink is derived from theirs
+  (N1); **the card's block is four bays**, not six (N2); **the rooms'
+  furniture** is illustrative (N3); **every price** is ours (N5); **the
+  order of the site work** follows the client's model, the pegs and
+  string are ours (N6).
 
 From the client's brief of 2026-10-10 (notes M):
 - **"Tab"** in the hero was read as the step's mark and its caption; the
@@ -468,6 +520,15 @@ From earlier rounds:
    laid over a picture with a wash under it, against both the mobile rule
    and the plain-text rule in `.claude/CLAUDE.md`. Needs its own layout
    (canvas on top, caption below, as the opening card already does).
+29. The opening card is fitted again at every size a dragged window
+   passes through (15 to 50 ms each, main thread): the picture follows
+   the drag in steps. Fitting once the drag has paused would smooth it.
+30. On the card a name can stand on its building's reflection (the
+   house's deck is red under "MOD"): readable, not calm ground.
+31. The mist over the card's opening is now a colour of its own over a
+   floor of another, so its drifting shapes can be made out where they
+   were paper on paper; and a still picture taken while it is up differs
+   from the next by half a grey level for the drift alone (F12).
 16. The opening card has no button of its own: "Build your own" and "How it
    works" arrive with the film's first caption, one screen on.
 10. The 3D look rule in `.claude/CLAUDE.md` was rewritten on 2026-10-07 to
@@ -521,10 +582,8 @@ From earlier rounds:
    The dearest frames on the page are now the components film's
    foundation step (17 ms) and the opening card while the land spreads
    (13 ms).
-19. The opening card's row is composed for 16:9 and for an upright phone.
-   Between them the camera stands back in proportion, so on a 4:3 window
-   the three are a fifth smaller; on a portrait tablet in the desktop
-   layout (wider than 860 px) they are small. Not looked at.
+19. (Answered on 2026-10-11, notes O2: the card's three are fitted to
+   the screen they are seen on, whatever its shape.)
 20. The 3D tour's "Left" view looks towards the studio's fill light and
    the floor glares, as the scroll's own turn was kept from doing (I8).
    The keys keep a backing so they can be read there.
@@ -544,4 +603,4 @@ From earlier rounds:
    2.0 GB (notes F9). Not new, measured for the first time on 2026-10-10.
    Worth a look before the site goes to phones: the 4x still target and
    the 4096 shadow map are the large parts.
-6. A git repository exists since 2026-10-06 (four commits, the last "improved landing pages and improves steps placement"). The work of 2026-10-09 and of all three rounds of 2026-10-10 is in the working tree, not committed. `Delivery.astro` and `DeliveryRoute.tsx` were deleted in the last of them (the drawn road); they are in the last commit.
+6. A git repository exists since 2026-10-06 (five commits, the last "updated the corrections from vee.build and updated the factory tour", 2026-10-10). The two rounds of 2026-10-11 are in the working tree, not committed. `Delivery.astro` and `DeliveryRoute.tsx` were deleted in the last of them (the drawn road); they are in the last commit.

@@ -3,6 +3,7 @@ import {
   BufferGeometry,
   CylinderGeometry,
   Euler,
+  Float32BufferAttribute,
   InstancedMesh,
   Matrix4,
   Quaternion,
@@ -45,6 +46,25 @@ export function mergeGroups(lists: BufferGeometry[][]): BufferGeometry {
   if (!out) throw new Error('mergeGroups failed');
   parts.forEach((g) => g.dispose());
   return out;
+}
+
+/**
+ * The room behind a building's glass, as a box in the geometry's own space
+ * (`roomLo`, `roomHi` on every vertex): lit glazing shows a room in it
+ * (materials.ts, interiorGlass). A box of zero size: no room, plain glow.
+ * Returns the geometry.
+ */
+export function withRoom(g: BufferGeometry, lo: readonly number[], hi: readonly number[]): BufferGeometry {
+  const n = g.getAttribute('position').count;
+  const a = new Float32Array(n * 3);
+  const b = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    a.set(lo, i * 3);
+    b.set(hi, i * 3);
+  }
+  g.setAttribute('roomLo', new Float32BufferAttribute(a, 3));
+  g.setAttribute('roomHi', new Float32BufferAttribute(b, 3));
+  return g;
 }
 
 const cache = new Map<string, BufferGeometry>();

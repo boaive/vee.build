@@ -24,14 +24,27 @@ export const START = [0, 0.285, 0.348, 0.398, 0.448, 0.498, 0.548, 0.61, 0.8] as
 export const STATE = { pair: 0, firstFootprint: 1, villa: 7, midrise: 8 } as const;
 
 /**
- * "Lift & shift" (step 2.2): how far the two finished shells are off the
- * ground, in metres. Up by their hooks and set down again, before the
- * first of them is moved to make a footprint.
+ * "Lift & shift" (step 2.2): how far each finished shell is off the ground,
+ * in metres. Each goes up by its own four hooks, holds and is set down
+ * again, before the first of them is moved to make a footprint. Shell B
+ * first, Shell A a moment after it (client, 2026-10-11: "the 3 × 3 lifts
+ * first, followed by the 6 × 3"). A load on a crane starts and stops
+ * gently: it eases off the ground, hangs still a moment, and is let down
+ * slowly onto its seat.
  */
-export const liftAt = (p: number) => {
-  const t = clamp01((p - 0.175) / (0.272 - 0.175));
-  return 0.6 * Math.sin(Math.PI * t) ** 2;
+const LIFT = { B: [0.17, 0.246], A: [0.196, 0.272] } as const;
+const LIFT_H = 0.6;
+const smooth = (x: number) => {
+  const t = clamp01(x);
+  return t * t * t * (t * (t * 6 - 15) + 10);
 };
+export const liftOf = (type: 'A' | 'B', p: number) => {
+  const [a, b] = LIFT[type];
+  const t = clamp01((p - a) / (b - a));
+  return LIFT_H * Math.min(smooth(t / 0.4), 1 - smooth((t - 0.6) / 0.4));
+};
+/** The higher of the two, for what belongs to neither shell. */
+export const liftAt = (p: number) => Math.max(liftOf('A', p), liftOf('B', p));
 
 /** Which transition is under way: state index s and its local 0–1. */
 export function locate(p: number): { s: number; t: number } {

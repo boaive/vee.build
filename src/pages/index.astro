@@ -9,7 +9,6 @@ import YourHouse from '../components/sections/YourHouse.tsx';
 import CatalogueSection from '../components/sections/CatalogueSection.astro';
 import FactoryTour from '../components/sections/FactoryTour.tsx';
 import Transit from '../components/sections/Transit.tsx';
-import SitePrep from '../components/sections/SitePrep.astro';
 import Installation from '../components/sections/Installation.tsx';
 import Arrival from '../components/sections/Arrival.astro';
 import Gallery from '../components/sections/Gallery.astro';
@@ -33,7 +32,6 @@ import { shown } from '../data/site';
   <YourHouse client:idle />
   <FactoryTour client:idle />
   <Transit client:idle />
-  <SitePrep />
   <Installation client:idle />
   <Arrival />
   {/* Built, not shown for now (client, 2026-10-10): data/site.ts, `shown`. */}

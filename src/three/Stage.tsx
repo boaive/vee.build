@@ -7,7 +7,7 @@ import { ATMOS, patchAtmosphere, setClearing } from './kit/atmosphere';
 import { SkyDome } from './kit/env';
 import { memo } from './kit/geometry';
 import { LOOKS, type Look, type LookName } from './kit/looks';
-import Post, { NEUTRAL_GRADE, type Backdrop, type PostOptions } from './kit/post';
+import Post, { NEUTRAL_GRADE, type Backdrop, type Grade, type PostOptions } from './kit/post';
 import { createPhysicalSky, horizonHaze, paintPhysicalSky } from './kit/sky';
 import { groundGrain } from './kit/textures';
 
@@ -47,6 +47,17 @@ export interface Rig {
   look: Look;
   /** Retune sky, haze and lights in place (no rebuild). */
   setLook: (look: Look, fogRange?: [number, number]) => void;
+  /**
+   * Part way from one look to another, 0–1: lights, exposure and grade in
+   * between, the environment of the first up to half-way and of the second
+   * after it (each faded out and in round the change, so it does not jump),
+   * and the second's sky, haze and fog throughout. For a studio that becomes
+   * a place (the hero's opening card): `a` may be a studio look, `b` has
+   * the sky. Cheap enough to call every frame; nothing is rebuilt.
+   */
+  mixLook: (a: Look, b: Look, t: number) => void;
+  /** The grade in use when it is not the look's own (mixLook). */
+  grade: Grade | null;
   /** Build a look's environment map ahead of time, so switching to it later is instant. */
   prepare: (look: Look) => void;
   /** Write this stage's values into the uniforms every stage shares, before it draws. */
@@ -81,6 +92,12 @@ export interface Rig {
   clear: [number, number, number, number];
   /** How much of the sky is behind the scene, 0–1. Below 1 the page shows through it; at 0 it is not drawn at all. */
   sky: number;
+  /**
+   * Run just before each draw, once the world matrices are current: for
+   * what copies the scene as it stands (the opening card's reflections,
+   * kit/mirror.tsx). Add and remove; nothing in them may allocate.
+   */
+  beforeDraw: Set<() => void>;
 }
 
 interface StageProps extends SceneProps, StageOptions {
@@ -88,6 +105,22 @@ interface StageProps extends SceneProps, StageOptions {
 }
 
 const _sun = new THREE.Vector3();
+const _ca = new THREE.Color();
+const _cb = new THREE.Color();
+const _da = new THREE.Vector3();
+const _db = new THREE.Vector3();
+
+/** Where the sun stands in a look's sky: its key light's direction, unless the look says otherwise. */
+const skySun = (l: Look) => l.skySun ?? l.sun.dir;
+/** One environment for every look that has the same sky with the sun in the same place (the opening card and the sunset). */
+const skyIds = new WeakMap<object, number>();
+let skyCount = 0;
+function envKey(l: Look) {
+  if (!l.sky) return 'room';
+  let id = skyIds.get(l.sky);
+  if (!id) skyIds.set(l.sky, (id = ++skyCount));
+  return `${id}:${skySun(l).join(',')}`;
+}
 
 const _ndc = new THREE.Vector3();
 /**
@@ -178,8 +211,9 @@ interface Haze {
 /** Directional haze from the sky model (outdoors) or the flat studio colour. */
 function hazeOf(l: Look): Haze {
   if (l.sky) {
-    const h = horizonHaze(l.sun.dir, l.sky);
-    _sun.set(l.sun.dir[0], 0, l.sun.dir[2]).normalize();
+    const d = skySun(l);
+    const h = horizonHaze(d, l.sky);
+    _sun.set(d[0], 0, d[2]).normalize();
     return {
       sun: [_sun.x, 0, _sun.z, h.power],
       toward: [h.toward.r, h.toward.g, h.toward.b, l.fog?.thin ?? 0.8],
@@ -235,7 +269,7 @@ function Setup({
   const frames = useRef(0);
   const sunDir = useRef(new THREE.Vector3());
   const initial = useRef(rig.look).current;
-  const sky = useMemo(() => createPhysicalSky((initial.sky ?? LOOKS.day.sky)!, initial.sun.dir), [initial]);
+  const sky = useMemo(() => createPhysicalSky((initial.sky ?? LOOKS.day.sky)!, skySun(initial)), [initial]);
   /*
    * With a finish the sky is not drawn into the scene at all. It is drawn on
    * its own, into a small plain target (SKY_SCALE), and the finish puts it
@@ -274,22 +308,24 @@ function Setup({
    * neutral room. One map per look, made once and kept, so a scene that
    * moves between looks (the hero) pays for each only the first time.
    */
-  const envs = useRef<{ pmrem: THREE.PMREMGenerator | null; maps: Map<Look | 'room', THREE.WebGLRenderTarget>; warm: THREE.WebGLRenderTarget | null }>({
+  const envs = useRef<{ pmrem: THREE.PMREMGenerator | null; maps: Map<string, THREE.WebGLRenderTarget>; warm: THREE.WebGLRenderTarget | null }>({
     pmrem: null,
     maps: new Map(),
     warm: null,
   });
   const haze = useRef<Haze>(hazeOf(initial));
+  /** What mixLook last set: the two looks and how far between them. */
+  const mixed = useRef<{ a: Look | null; b: Look | null; t: number }>({ a: null, b: null, t: -1 }).current;
   const envFor = (l: Look): THREE.Texture => {
     const store = envs.current;
-    const key = l.sky ? l : 'room';
+    const key = envKey(l);
     const hit = store.maps.get(key);
     if (hit) return hit.texture;
     const pmrem = (store.pmrem ??= new THREE.PMREMGenerator(gl));
     let made: THREE.WebGLRenderTarget;
     if (l.sky) {
       const scene2 = new THREE.Scene();
-      const skyMat = createPhysicalSky({ ...l.sky, disc: 0 }, l.sun.dir);
+      const skyMat = createPhysicalSky({ ...l.sky, disc: 0 }, skySun(l));
       const domeGeo = new THREE.SphereGeometry(10, 48, 24);
       scene2.add(new THREE.Mesh(domeGeo, skyMat));
       made = pmrem.fromScene(scene2, 0.025);
@@ -336,6 +372,7 @@ function Setup({
       writeHaze(haze.current, rig.clear);
       // World matrices are brought up to date here, once, and not again inside the render (see below).
       scene.updateMatrixWorld();
+      for (const fn of rig.beforeDraw) fn();
       /*
        * The shadow map is redrawn when the light has moved, when a caster has,
        * or when something else was drawn into it (rig.warm shows a set that is
@@ -432,12 +469,78 @@ function Setup({
       // With a finish the sky goes behind the scene in the final pass (rig.begin); otherwise the dome draws it.
       if (backdrop) backdrop.on = !!l.sky;
       if (dome.current) dome.current.visible = !!l.sky;
-      if (l.sky) paintPhysicalSky(sky, l.sky, l.sun.dir);
+      if (l.sky) paintPhysicalSky(sky, l.sky, skySun(l));
       landMat.color.set(l.land ?? '#7e7e52');
       floorMat.color.set(l.fog?.color ?? '#0a0b0d');
       shadowMat.color.set(l.shadow.color);
       shadowMat.opacity = shadowOpacity ?? l.shadow.opacity;
+      rig.grade = null;
+      mixed.b = null;
       invalidate();
+    };
+    rig.mixLook = (a: Look, b: Look, t: number) => {
+      if (t >= 1) {
+        if (rig.look !== b || mixed.b !== null) rig.setLook(b);
+        return;
+      }
+      if (mixed.a === a && mixed.b === b && mixed.t === t && rig.look === b) return;
+      if (rig.look !== b || mixed.b !== b) {
+        // The second look's sky, haze and fog, set once.
+        rig.setLook(b);
+        mixed.b = b;
+      }
+      mixed.a = a;
+      mixed.t = t;
+      const k = (p: number, q: number) => p + (q - p) * t;
+      const sm = (e0: number, e1: number) => {
+        const x = Math.min(1, Math.max(0, (t - e0) / (e1 - e0)));
+        return x * x * (3 - 2 * x);
+      };
+      // The environment: the first look's, out by half-way; the second's, in from there. Where the two have one sky, nothing to change over.
+      const second = t >= 0.5;
+      if (envKey(a) === envKey(b)) {
+        scene.environment = envFor(b);
+        scene.environmentIntensity = envIntensity ?? k(a.env, b.env);
+      } else {
+        scene.environment = envFor(second ? b : a);
+        scene.environmentIntensity = second ? (envIntensity ?? b.env) * sm(0.5, 0.7) : (envIntensity ?? a.env) * (1 - sm(0.3, 0.5));
+      }
+      gl.toneMappingExposure = exposure ?? k(a.exposure, b.exposure);
+      if (hemi.current) {
+        hemi.current.color.lerpColors(_ca.set(a.hemi.sky), _cb.set(b.hemi.sky), t);
+        hemi.current.groundColor.lerpColors(_ca.set(a.hemi.ground), _cb.set(b.hemi.ground), t);
+        hemi.current.intensity = k(a.hemi.intensity, b.hemi.intensity);
+      }
+      if (light.current) {
+        light.current.color.lerpColors(_ca.set(a.sun.color), _cb.set(b.sun.color), t);
+        light.current.intensity = sunIntensity ?? k(a.sun.intensity, b.sun.intensity);
+      }
+      // The light swings round in the middle of the change only: each step of it redraws the shadow map.
+      const d = sm(0.25, 0.75);
+      _da.set(...a.sun.dir).normalize();
+      _db.set(...b.sun.dir).normalize();
+      sunDir.current.copy(_da).lerp(_db, d).normalize().multiplyScalar(80);
+      if (fill.current) {
+        fill.current.color.lerpColors(_ca.set(a.fill.color), _cb.set(b.fill.color), t);
+        fill.current.intensity = k(a.fill.intensity, b.fill.intensity);
+        _da.set(...a.fill.dir).normalize();
+        _db.set(...b.fill.dir).normalize();
+        fill.current.position.copy(_da).lerp(_db, t).normalize().multiplyScalar(40);
+      }
+      shadowMat.color.lerpColors(_ca.set(a.shadow.color), _cb.set(b.shadow.color), t);
+      shadowMat.opacity = shadowOpacity ?? k(a.shadow.opacity, b.shadow.opacity);
+      // A new object each time it changes: the finish applies a grade only when it is another object.
+      const ga = a.grade ?? NEUTRAL_GRADE;
+      const gb = b.grade ?? NEUTRAL_GRADE;
+      rig.grade = {
+        vignette: k(ga.vignette, gb.vignette),
+        saturation: k(ga.saturation, gb.saturation),
+        contrast: k(ga.contrast, gb.contrast),
+        shadows: [k(ga.shadows[0], gb.shadows[0]), k(ga.shadows[1], gb.shadows[1]), k(ga.shadows[2], gb.shadows[2])],
+        highlights: [k(ga.highlights[0], gb.highlights[0]), k(ga.highlights[1], gb.highlights[1]), k(ga.highlights[2], gb.highlights[2])],
+        grain: k(ga.grain, gb.grain),
+        aberration: k(ga.aberration, gb.aberration),
+      };
     };
     rig.setLook(rig.look);
   }, [rig, gl, scene, camera, sky, backdrop, floorMat, shadowMat, landMat, exposure, envIntensity, sunIntensity, shadowOpacity, fogRange, invalidate]);
@@ -575,6 +678,8 @@ export default function Stage(props: StageProps) {
       lightTarget: new THREE.Vector3(),
       look: LOOKS[look],
       setLook: () => {},
+      mixLook: () => {},
+      grade: null,
       prepare: () => {},
       sync: () => {},
       begin: () => null,
@@ -585,6 +690,7 @@ export default function Stage(props: StageProps) {
       shadowDirty: true,
       clear: [0, 0, 0, 0],
       sky: 1,
+      beforeDraw: new Set(),
     }),
     // The finish only decides the first value of `holding`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -612,7 +718,7 @@ export default function Stage(props: StageProps) {
       {finish && (
         <Post
           {...finish}
-          getGrade={() => rig.look.grade ?? NEUTRAL_GRADE}
+          getGrade={() => rig.grade ?? rig.look.grade ?? NEUTRAL_GRADE}
           before={() => rig.begin()}
           compile={() => rig.compile()}
           onWarmer={(draw) => {

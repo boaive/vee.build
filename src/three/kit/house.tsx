@@ -17,14 +17,29 @@ import {
   type Group,
   type InstancedMesh,
   type Material,
+  type Mesh,
 } from 'three';
 import { DEFAULT_FOUNDATION, FOUNDATION_HEIGHTS, trimFinishes, type AddOnId, type DeckSide, type Foundation, type ManualAddOn, type Plot, type ShellType } from '../../data/build';
 import type { DoorFace } from '../../data/system';
+import { ease, stagger } from '../../film/timeline';
 import { CELL, FRONT, JACK, STAIR, baseOf, doorFaces, foundationLayout, layoutAddOns, placeOf, stepRun, type AddOnLayout, type Seg, type Stair, type Unit } from '../../build/model';
 import { UNIT_BOX, merge, mergeGroups } from './geometry';
 import type { Look } from './looks';
 import { deckMat, instanced, mat, moduleMats, trimMat } from './materials';
-import { FOUNDATION, footingGeometry, footingReach, jackBaseGeometry, jackNutGeometry, jackScrewGeometry, moduleGeometry, plinthGeometry, slopedRoofGeometry } from './parts';
+import {
+  FOUNDATION,
+  addJackPier,
+  carriedStair,
+  carriedStairParts,
+  footingGeometry,
+  footingReach,
+  jackBaseGeometry,
+  jackNutGeometry,
+  jackScrewGeometry,
+  moduleGeometry,
+  plinthGeometry,
+  slopedRoofGeometry,
+} from './parts';
 import { latticeCard, tile } from './pbr';
 import { boxUV } from './textures';
 
@@ -202,7 +217,20 @@ export function stairGeometryOf(t: Stair): BufferGeometry {
   return g;
 }
 
+/**
+ * Jack piers, where a scene asks for them (the installation; client,
+ * 2026-10-11: "add jack pier to the deck and steps"): one under each deck
+ * post, the post standing on its head, and two under the foot of the steps,
+ * whose frame then ends in a level sole on the jacks' heads instead of
+ * running on into the ground. As "Componentized building" sets them, and at
+ * its heights: the head `post` above the ground under a post, `seat` under
+ * a stringer. Not under the shell, which has its footings.
+ */
+const PIER = { post: 0.26, seat: 0.16 } as const;
+
 interface AddOnMeshes {
+  /** The jack piers' precast pads (group 0) and jacks (group 1). Null without piers. */
+  piers: BufferGeometry | null;
   deck: BufferGeometry | null;
   trim: BufferGeometry | null;
   rails: BufferGeometry | null;
@@ -215,10 +243,12 @@ interface AddOnMeshes {
 
 const PANEL = { w: 1.66, d: 1.02 };
 
-function buildAddOns(l: AddOnLayout, skirting: boolean): AddOnMeshes {
+function buildAddOns(l: AddOnLayout, skirting: boolean, piers = false): AddOnMeshes {
   const deck: BufferGeometry[] = [];
   const trim: BufferGeometry[] = [];
   const lattice: BufferGeometry[] = [];
+  const pads: BufferGeometry[] = [];
+  const jacks: BufferGeometry[] = [];
   for (const r of l.decks) {
     const w = r.x1 - r.x0;
     const d = r.z1 - r.z0;
@@ -226,7 +256,13 @@ function buildAddOns(l: AddOnLayout, skirting: boolean): AddOnMeshes {
     // Joists under the boards read as the deck's underside.
     deck.push(placedBox(w - 0.1, 0.14, d - 0.1, (r.x0 + r.x1) / 2, l.deckY - 0.15, (r.z0 + r.z1) / 2));
   }
-  for (const [x, z] of l.posts) trim.push(placedBox(0.11, l.deckY - 0.08, 0.11, x, (l.deckY - 0.08) / 2, z));
+  // A post stands on the ground, or on the head of its jack pier.
+  const foot = piers ? PIER.post : 0;
+  for (const [x, z] of l.posts) {
+    const h = l.deckY - 0.08 - foot;
+    trim.push(placedBox(0.11, h, 0.11, x, foot + h / 2, z));
+    if (piers) addJackPier(pads, jacks, x, z, foot);
+  }
   // Upper floors: a walkway at each door, boards on a steel frame carried off the shells.
   for (const g of l.galleries) {
     const w = g.x1 - g.x0;
@@ -275,7 +311,26 @@ function buildAddOns(l: AddOnLayout, skirting: boolean): AddOnMeshes {
   for (const st of l.steps) {
     // From the ground, `run` out from the deck's edge, climbing towards the house.
     const [fx, fz] = FRONT[st.side];
-    flight(treads, stringers, st.x + fx * run, 0, st.z + fz * run, -fx, -fz, run, l.deckY, st.w, risers);
+    if (!piers) {
+      flight(treads, stringers, st.x + fx * run, 0, st.z + fz * run, -fx, -fz, run, l.deckY, st.w, risers);
+      continue;
+    }
+    // Carried at its foot: each stringer ends in a level sole, and a jack pier stands under the middle of each sole.
+    const width = st.w - 0.09;
+    const part = carriedStairParts(width, l.deckY, run, risers, PIER.seat);
+    const sole = carriedStair(l.deckY, run, risers, PIER.seat);
+    const bear = (sole.nose + sole.soleTo) / 2;
+    // The flight climbs along its own +x: turned to climb towards the house, its foot `run` out from the deck's edge.
+    const ry = Math.atan2(fz, -fx);
+    const ox = st.x + fx * run;
+    const oz = st.z + fz * run;
+    for (const g of part.treads) treads.push(g.rotateY(ry).translate(ox, 0, oz));
+    for (const g of part.stringers) stringers.push(g.rotateY(ry).translate(ox, 0, oz));
+    // The stringers run along the flight: the jacks' heads are turned to take them.
+    for (const side of [-1, 1]) {
+      const lz = (side * width) / 2;
+      addJackPier(pads, jacks, ox + bear * Math.cos(ry) + lz * Math.sin(ry), oz - bear * Math.sin(ry) + lz * Math.cos(ry), PIER.seat, ry);
+    }
   }
   for (const t of l.stairs) stairParts(t, deck, trim, treads, stringers, railExtra);
 
@@ -323,6 +378,7 @@ function buildAddOns(l: AddOnLayout, skirting: boolean): AddOnMeshes {
   const latticeGeo = mergeOr(lattice);
   if (latticeGeo) boxUV(latticeGeo, 0.6);
   return {
+    piers: pads.length ? mergeGroups([pads, jacks]) : null,
     deck: deckGeo,
     trim: mergeOr(trim),
     rails: mergeOr([...railParts(l.rails), ...railExtra]),
@@ -337,20 +393,38 @@ function buildAddOns(l: AddOnLayout, skirting: boolean): AddOnMeshes {
 /** Deck boards, trim and rails are shared by decks, steps, shades and the upper-floor access. */
 const ANY = ['deck', 'steps', 'shade', 'access'] as const;
 
-const built = new WeakMap<AddOnLayout, { skirting: boolean; meshes: AddOnMeshes }>();
+const built = new WeakMap<AddOnLayout, { skirting: boolean; piers: boolean; meshes: AddOnMeshes }>();
 /** The geometry of a layout, built once for as long as the layout lives. A scene with fixed layouts can call this ahead of mounting. */
-export function addOnMeshes(layout: AddOnLayout, skirting = false) {
+export function addOnMeshes(layout: AddOnLayout, skirting = false, piers = false) {
   let b = built.get(layout);
-  if (!b || b.skirting !== skirting) {
-    b = { skirting, meshes: buildAddOns(layout, skirting) };
+  if (!b || b.skirting !== skirting || b.piers !== piers) {
+    b = { skirting, piers, meshes: buildAddOns(layout, skirting, piers) };
     built.set(layout, b);
   }
   return b.meshes;
 }
 
-/** The meshes of an add-on layout. Used by House, and on its own where a scene draws the shells itself (how it works). */
-export function AddOnParts({ layout, skirting = false, deck, trim, deckHex }: { layout: AddOnLayout; skirting?: boolean; deck: Material; trim: Material; deckHex?: string }) {
-  const meshes = useMemo(() => addOnMeshes(layout, skirting), [layout, skirting]);
+/**
+ * The meshes of an add-on layout. Used by House, and on its own where a scene draws the shells itself (how it works).
+ * `piers`: the posts and the steps are made to stand on jack piers; the piers themselves are drawn by whoever asks,
+ * since they are set before what lands on them (House).
+ */
+export function AddOnParts({
+  layout,
+  skirting = false,
+  piers = false,
+  deck,
+  trim,
+  deckHex,
+}: {
+  layout: AddOnLayout;
+  skirting?: boolean;
+  piers?: boolean;
+  deck: Material;
+  trim: Material;
+  deckHex?: string;
+}) {
+  const meshes = useMemo(() => addOnMeshes(layout, skirting, piers), [layout, skirting, piers]);
   // Frees the GPU's copy; the geometry itself stays with its layout and is sent again if it is shown again.
   useLayoutEffect(() => () => Object.values(meshes).forEach((g) => g?.dispose()), [meshes]);
   return (
@@ -425,36 +499,88 @@ function foundationMeshes(units: readonly Unit[], f: Foundation): FoundationMesh
   return { footings: [...groups.values()], plinths, jacks: layout.footings.map((s) => [s.x, s.z]), above };
 }
 
-function Instances({ geo, material, spots, y = 0 }: { geo: BufferGeometry; material: Material; spots: [number, number][]; y?: number }) {
+/**
+ * The same piece at several spots. `arrive`: each spot's own 0–1 (lowered in
+ * from above as it goes from 0 to 1, a speck before that); called every
+ * frame when given.
+ */
+function Instances({ geo, material, spots, y = 0, arrive }: { geo: BufferGeometry; material: Material; spots: [number, number][]; y?: number; arrive?: (x: number, z: number) => number }) {
   const ref = useRef<InstancedMesh>(null);
-  useLayoutEffect(() => {
+  const last = useRef('');
+  const place = () => {
     const m = ref.current;
     if (!m) return;
+    let key = '';
     spots.forEach(([x, z], i) => {
-      _m.makeTranslation(x, y, z);
+      const t = arrive ? arrive(x, z) : 1;
+      key += t.toFixed(4);
+      if (t <= 0) _m.makeScale(0.0001, 0.0001, 0.0001).setPosition(x, y, z);
+      else _m.makeTranslation(x, y + (1 - ease.outQuart(t)) * 1.6, z);
       m.setMatrixAt(i, _m);
     });
+    if (key === last.current) return;
+    last.current = key;
     m.instanceMatrix.needsUpdate = true;
-  }, [spots, y]);
+  };
+  useLayoutEffect(place);
+  useFrame(() => {
+    if (arrive) place();
+  });
   if (!spots.length) return null;
   return <instancedMesh key={spots.length} ref={ref} args={[geo, instanced(material), spots.length]} castShadow receiveShadow frustumCulled={false} />;
 }
 
-/** Footings, L plinths and jacks under the ground floor (client's model, notes H1–H2). */
-export function FoundationParts({ units, foundation = DEFAULT_FOUNDATION, jacks = true }: { units: readonly Unit[]; foundation?: Foundation; jacks?: boolean }) {
+/**
+ * Footings, L plinths and jacks under the ground floor (client's model,
+ * notes H1–H2). `getFootings`, `getPlinths`: 0–1, for a scene that shows
+ * the foundation being set (the installation, 2026-10-11): the footings are
+ * lowered in one after another, front corner first, each with its jack,
+ * and then the plinth runs. Not given: all in place.
+ */
+export function FoundationParts({
+  units,
+  foundation = DEFAULT_FOUNDATION,
+  jacks = true,
+  getFootings,
+  getPlinths,
+}: {
+  units: readonly Unit[];
+  foundation?: Foundation;
+  jacks?: boolean;
+  getFootings?: () => number;
+  getPlinths?: () => number;
+}) {
   const m = useMemo(() => foundationMeshes(units, foundation), [units, foundation]);
   useLayoutEffect(() => () => m.plinths?.dispose(), [m]);
+  const plinths = useRef<Mesh>(null);
+  // The order the footings go in: from the front (the street) back, left to right.
+  const rank = useMemo(() => {
+    const order = [...m.jacks].sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+    return new Map(order.map(([x, z], i) => [`${x},${z}`, i]));
+  }, [m]);
+  const arrive = useMemo(
+    () => (getFootings ? (x: number, z: number) => stagger(getFootings(), rank.get(`${x},${z}`) ?? 0, Math.max(1, rank.size), 0.55) : undefined),
+    [getFootings, rank],
+  );
+  useFrame(() => {
+    const p = plinths.current;
+    if (!p || !getPlinths) return;
+    const t = getPlinths();
+    // Never hidden: before its turn it waits under the ground, so it is drawn (and on the GPU) from the start.
+    p.visible = true;
+    p.position.y = t <= 0.001 ? -3 : (1 - ease.outQuart(t)) * 1.2;
+  });
   return (
     <>
       {m.footings.map((f, i) => (
-        <Instances key={i} geo={f.geo} material={mat.concrete} spots={f.spots} />
+        <Instances key={i} geo={f.geo} material={mat.concrete} spots={f.spots} arrive={arrive} />
       ))}
-      {m.plinths && <mesh geometry={m.plinths} material={mat.concrete} castShadow receiveShadow />}
+      {m.plinths && <mesh ref={plinths} geometry={m.plinths} material={mat.concrete} castShadow receiveShadow />}
       {jacks && (
         <>
-          <Instances geo={jackBaseGeometry()} material={mat.galv} spots={m.jacks} y={m.above} />
-          <Instances geo={jackScrewGeometry()} material={mat.galv} spots={m.jacks} y={m.above + JACK} />
-          <Instances geo={jackNutGeometry()} material={mat.steel} spots={m.jacks} y={m.above + 0.055} />
+          <Instances geo={jackBaseGeometry()} material={mat.galv} spots={m.jacks} y={m.above} arrive={arrive} />
+          <Instances geo={jackScrewGeometry()} material={mat.galv} spots={m.jacks} y={m.above + JACK} arrive={arrive} />
+          <Instances geo={jackNutGeometry()} material={mat.steel} spots={m.jacks} y={m.above + 0.055} arrive={arrive} />
         </>
       )}
     </>
@@ -490,7 +616,14 @@ export interface HouseProps {
   plot?: Plot;
   /** Glazing of the scene's own, in place of the look's: for a house whose lights the scene brings up itself (materials.ts, litGlass). */
   glass?: Material;
+  /** Jack piers under the deck's posts and the foot of the steps (PIER). */
+  piers?: boolean;
+  /** 0–1: how far the piers have been set, ahead of the add-ons that land on them. Not given: they come with the add-ons. */
+  pierT?: () => number;
 }
+
+/** A jack pier's two materials: its precast pad, its jack. */
+const PIER_MATS = (): Material[] => [mat.concrete, mat.galv];
 
 function UnitsOf({ list, type, door, mats, pose, base }: { list: Unit[]; type: ShellType; door: DoorFace; mats: Material[]; pose?: HouseProps['pose']; base: number }) {
   const ref = useRef<InstancedMesh>(null);
@@ -553,6 +686,8 @@ export function House({
   addOnT,
   plot,
   glass,
+  piers = false,
+  pierT,
 }: HouseProps) {
   const base = baseOf(foundation);
   const mats = useMemo(() => {
@@ -563,6 +698,9 @@ export function House({
   const layout = useMemo(() => layoutAddOns(units, new Set(addOns), deckSide, manual, base, plot), [units, addOns, deckSide, manual, base, plot]);
   const skirting = addOns.includes('spandrel');
   const adds = useRef<Group>(null);
+  const set = useRef<Group>(null);
+  const pierGeo = useMemo(() => (piers ? addOnMeshes(layout, skirting, true).piers : null), [piers, layout, skirting]);
+  const pierMats = useMemo(PIER_MATS, []);
 
   useFrame(() => {
     const g = adds.current;
@@ -570,6 +708,12 @@ export function House({
     const t = addOnT();
     g.visible = t > 0.001;
     g.position.y = (1 - t) * 2.5;
+    // The piers are set just before what lands on them: lowered the last of the way, as the footings are.
+    const p = set.current;
+    if (!p) return;
+    const tp = pierT ? pierT() : t;
+    p.visible = tp > 0.001;
+    p.position.y = (1 - tp) * 0.9;
   });
 
   const deck = deckMat(deckHex);
@@ -580,8 +724,13 @@ export function House({
       {pools.map((p) => (
         <UnitsOf key={p.key} list={p.list} type={p.type} door={p.door} mats={mats} pose={pose} base={base} />
       ))}
+      {pierGeo && (
+        <group ref={set}>
+          <mesh geometry={pierGeo} material={pierMats} castShadow receiveShadow />
+        </group>
+      )}
       <group ref={adds}>
-        <AddOnParts layout={layout} skirting={skirting} deck={deck} trim={trim} deckHex={deckHex} />
+        <AddOnParts layout={layout} skirting={skirting} piers={piers} deck={deck} trim={trim} deckHex={deckHex} />
       </group>
     </group>
   );

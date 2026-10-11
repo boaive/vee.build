@@ -5,7 +5,7 @@ import { STOREY, doorFaces, doorSpot, floorDoors, layoutAddOns, mainDoor, street
 import type { AddOnId, ManualAddOn, Turn } from '../../data/build';
 import { filmStacks, footprints, type DoorFace, type Placement } from '../../data/system';
 import type { SceneProps } from '../../film/progress';
-import { SETTLE, START, STATE, liftAt, locate } from '../../film/systemTimeline';
+import { SETTLE, START, STATE, liftOf, locate } from '../../film/systemTimeline';
 import { ease, hold, lerp, sampleCamera, stagger, win, type CameraKey } from '../../film/timeline';
 import Stage, { aim, useLabel, type Rig } from '../Stage';
 import { UNIT_BOX, box, memo, merge, planCentre, pose, setInst } from '../kit/geometry';
@@ -195,8 +195,9 @@ function Pool({ type, progress }: { type: 'A' | 'B'; progress: SceneProps['progr
     // shells' shaders are compiled with the first frame.
     const birth = win(p, 0.075, 0.125, ease.out);
     const born = birth > 0.004;
-    // Lift & shift: the two finished shells go up by their hooks and come down again, before either is moved.
-    const lift = s === 1 ? liftAt(p) : 0;
+    // Lift & shift: each finished shell goes up by its hooks and comes down again, before either is moved: Shell B
+    // first, then Shell A (client, 2026-10-11). The one that is about to move and the one that stays alike.
+    const lift = s === 1 ? liftOf(type, p) : 0;
 
     let moving = 0;
     for (let i = 0; i < n; i++) if ((from[i] || to[i]) && !same(from[i], to[i])) moving++;
@@ -215,7 +216,7 @@ function Pool({ type, progress }: { type: 'A' | 'B'; progress: SceneProps['progr
       if (!a && !b) continue;
       if (same(a, b) && a) {
         if (s === 1 && !born) put(doorFrom[i], a[0], a[1], a[2], a[3], 0.0001);
-        else put(t >= 0.5 ? doorTo[i] : doorFrom[i], a[0], a[1], a[2], a[3], 1, s === 1 ? birth : 1, 1);
+        else put(t >= 0.5 ? doorTo[i] : doorFrom[i], a[0], a[1] + lift, a[2], a[3], 1, s === 1 ? birth : 1, 1);
         continue;
       }
       const ti = stagger(t, k++, Math.max(1, moving), 0.6);
@@ -353,6 +354,8 @@ const CORNERS = SHELLS.flatMap((s) => {
     [s.at[0] + hx, Z0 - 1.5, Math.PI / 2],
   ];
 });
+/** Which shell each corner's hook is on: it goes up and comes down with that shell, never by itself. */
+const CORNER_OF: ('A' | 'B')[] = SHELLS.flatMap((s) => Array<'A' | 'B'>(4).fill(s.id === 'a' ? 'A' : 'B'));
 const STEEL = new Color('#2f3134');
 const ACCENT = new Color('#d9431b');
 
@@ -364,8 +367,7 @@ function HookCleats({ progress }: Pick<SceneProps, 'progress'>) {
     if (!m) return;
     const p = progress.value;
     const v = hold(p, 0.14, 0.275, 0.03);
-    const lift = liftAt(p);
-    CORNERS.forEach(([x, z, ry], i) => setInst(m, i, x, 3 + lift + (1 - v) * 0.6, z, ry, Math.max(0.0001, v)));
+    CORNERS.forEach(([x, z, ry], i) => setInst(m, i, x, 3 + liftOf(CORNER_OF[i], p) + (1 - v) * 0.6, z, ry, Math.max(0.0001, v)));
     m.instanceMatrix.needsUpdate = true;
     tint.color.copy(STEEL).lerp(ACCENT, hold(p, 0.165, 0.265, 0.025));
   });
@@ -395,9 +397,13 @@ function LiftArrows({ progress }: Pick<SceneProps, 'progress'>) {
     const v = hold(p, 0.168, 0.27, 0.02);
     m.visible = v > 0.001;
     if (!m.visible) return;
-    const y = 3.32 + liftAt(p) * 1.9 + win(p, 0.165, 0.27, ease.out) * 0.2;
+    // Over its own hook, and up and down with it.
+    const y = 3.32 + win(p, 0.165, 0.27, ease.out) * 0.2;
     // The hook stands a little in from the corner, on the diagonal.
-    CORNERS.forEach(([x, z, ry], i) => setInst(m, i, x - Math.SQRT2 * 0.13 * Math.cos(ry + Math.PI / 4), y, z + Math.SQRT2 * 0.13 * Math.sin(ry + Math.PI / 4), 0, Math.max(0.0001, v)));
+    CORNERS.forEach(([x, z, ry], i) => {
+      const up = liftOf(CORNER_OF[i], p);
+      setInst(m, i, x - Math.SQRT2 * 0.13 * Math.cos(ry + Math.PI / 4), y + up, z + Math.SQRT2 * 0.13 * Math.sin(ry + Math.PI / 4), 0, Math.max(0.0001, v));
+    });
     m.instanceMatrix.needsUpdate = true;
   });
   return <instancedMesh ref={ref} args={[arrowGeometry(), instanced(mat.accent), CORNERS.length]} frustumCulled={false} />;

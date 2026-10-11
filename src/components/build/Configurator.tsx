@@ -20,7 +20,9 @@ import {
   type UnitSpec,
 } from '../../data/build';
 import { CELL, describe, floorName, totals, type Piece } from '../../build/model';
+import { estimate, formatPrice } from '../../build/price';
 import { build, encode, useBuild } from '../../build/store';
+import { pricingNote } from '../../data/pricing';
 import { createProgress, type PlaceLabel } from '../../film/progress';
 import type { AddOnHover, Hover, Orbit, Tool } from '../../three/scenes/BuildScene';
 import { requestEnquiry } from '../forms/prefill';
@@ -38,6 +40,37 @@ const SIDE_NAMES: { value: DeckSide; label: string }[] = [
 const SIDE_WORD = ['street side', 'right side', 'back', 'left side'];
 const nameOf = (k: ManualKind) => manualKinds.find((x) => x.id === k)?.name ?? '';
 const ACCESS_NOTE = 'The gallery and outer staircase come with the upper floor. They go when the shells they serve go.';
+
+/**
+ * A figure that counts to its new value when it changes (client, 2026-10-11: the area and the price "update
+ * continuously as the user customizes the house"), over a short moment; at once where motion is reduced.
+ */
+function useCounted(value: number, still: boolean, ms = 420) {
+  const [shown, setShown] = useState(value);
+  const from = useRef(value);
+  const now = useRef(value);
+  useEffect(() => {
+    if (still || from.current === value) {
+      from.current = now.current = value;
+      setShown(value);
+      return;
+    }
+    const start = performance.now();
+    const a = now.current;
+    let raf = 0;
+    const step = (t: number) => {
+      const k = Math.min(1, (t - start) / ms);
+      const v = a + (value - a) * (1 - Math.pow(1 - k, 3));
+      now.current = v;
+      setShown(v);
+      if (k < 1) raf = requestAnimationFrame(step);
+      else from.current = value;
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value, still, ms]);
+  return shown;
+}
 const EXTEND_LABEL = ['Extend toward the street', 'Extend right', 'Extend back', 'Extend left'];
 
 /** Section 5: pick a shell, place it, stack it, finish it. */
@@ -45,6 +78,11 @@ export default function Configurator() {
   const state = useBuild((s) => s);
   const { units, addOns } = state;
   const t = useMemo(() => totals(units), [units]);
+  // The indicative price of what stands on the plot, counted from the laid-out pieces (build/price.ts).
+  const price = useMemo(
+    () => estimate({ units, addOns, deckSide: state.deckSide, manual: state.addOnMode === 'manual' ? state.manual : null, foundation: state.foundation, plot: state.plot }),
+    [units, addOns, state.deckSide, state.addOnMode, state.manual, state.foundation, state.plot],
+  );
 
   const [tool, setTool] = useState<Tool>('A');
   const [addOnTool, setAddOnTool] = useState<ManualKind | null>(null);
@@ -272,7 +310,7 @@ export default function Configurator() {
     requestEnquiry({
       category: 'Modular Home',
       message: s.units.length
-        ? `My configuration: ${describe(s.units)}.\nPlot: ${s.plot.x * CELL} m × ${s.plot.z * CELL} m.\nFoundation: ${foundation}.\nAdd-ons: ${names.length ? names.join(', ') : 'none'}.\nFinish (indicative): ${shell} shell, ${deck} deck, ${trim} trim.\n${link}\n\nSite location: `
+        ? `My configuration: ${describe(s.units)}.\nPlot: ${s.plot.x * CELL} m × ${s.plot.z * CELL} m.\nFoundation: ${foundation}.\nAdd-ons: ${names.length ? names.join(', ') : 'none'}.\nFinish (indicative): ${shell} shell, ${deck} deck, ${trim} trim.\nEstimate shown (indicative, excl. GST): ${formatPrice(price.total)}.\n${link}\n\nSite location: `
         : 'I would like to discuss a modular home.\n\nSite location: ',
     });
   };
@@ -345,6 +383,8 @@ export default function Configurator() {
 
   const mount = hydrated && near;
   const floors = Math.max(1, t.floors);
+  const sqftShown = useCounted(t.sqft, reduced);
+  const priceShown = useCounted(price.total, reduced);
   const manualMode = state.addOnMode === 'manual';
   const placedCount = (k: ManualKind) => state.manual.filter((m) => m.k === k).length;
 
@@ -481,12 +521,20 @@ export default function Configurator() {
 
         {/* The build in figures, by itself under the view (developer, 2026-10-10): it used to be the last thing the panel scrolled to. */}
         <section className="sum" aria-label="Your build in figures">
-          <div className="sum__area">
-            <p className="sum__label">Your build</p>
-            <p className="sum__value">
-              {t.sqft} <small>sq.ft.</small>
-            </p>
-            <p className="sum__sub">{t.count ? `${t.sqm} m² · nominal area` : 'Nothing on the plot yet'}</p>
+          <p className="sr-only" aria-live="polite">{t.count ? `Your build: ${t.sqft} square feet, estimated ${formatPrice(price.total)}.` : ""}</p>
+          <div className="sum__head">
+            <div className="sum__area">
+              <p className="sum__label">Your build</p>
+              <p className="sum__value">
+                {Math.round(sqftShown)} <small>sq.ft.</small>
+              </p>
+              <p className="sum__sub">{t.count ? `${t.sqm} m² · nominal area` : 'Nothing on the plot yet'}</p>
+            </div>
+            <div className="sum__price">
+              <p className="sum__label">Estimated price</p>
+              <p className="sum__value">{price.total ? formatPrice(priceShown) : '—'}</p>
+              <p className="sum__sub">{price.total ? `${formatPrice(price.perSqft)} a sq.ft. · excl. GST · indicative` : 'Place a shell to see an estimate'}</p>
+            </div>
           </div>
           <dl className="sum__facts">
             <div>
@@ -539,6 +587,31 @@ export default function Configurator() {
               <p className="sum__none">None chosen</p>
             )}
           </div>
+          {price.total > 0 && (
+            <details className="sum__bill">
+              <summary>
+                <span className="sum__label">Price breakdown</span>
+                <span className="sum__bill-total">{formatPrice(price.total)}</span>
+              </summary>
+              <table>
+                <tbody>
+                  {price.lines.map((l) => (
+                    <tr key={l.id}>
+                      <th scope="row">{l.label}</th>
+                      <td>{l.detail}</td>
+                      <td>{formatPrice(Math.round(l.amount / 100) * 100)}</td>
+                    </tr>
+                  ))}
+                  <tr className="sum__bill-finish">
+                    <th scope="row">Finishes</th>
+                    <td>Shell, deck and trim colours</td>
+                    <td>Included</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p className="sum__bill-note">{pricingNote}</p>
+            </details>
+          )}
         </section>
       </div>
 

@@ -1,21 +1,45 @@
 /**
- * Choreography of the installation film. Two clocks, as the client set it
- * out on 2026-10-10.
+ * Choreography of the installation film, "On site". Since 2026-10-11 it
+ * begins with the site being made ready (client: "merge Ready before the
+ * shell arrives and On site into one continuous experience"), so it has
+ * three parts on two clocks.
  *
- * The scroll (0 to 1) brings the truck in with one shell and moves the
- * camera. Scrolling past `TRIGGER` is the one deliberate act that sets the
- * shell down: from there the film runs on a clock of its own, in seconds:
- * the crane lifts the shell off the trailer and places it on the
- * foundation, the truck leaves, the rest of the building comes together by
- * itself, its add-ons land, and only then do its lights come on.
- * Scrolling back above the trigger runs that clock back.
+ * The scroll (0 to 1) first prepares the plot: it is pegged out, the pits
+ * are dug, the plug footings are lowered in one after another, the L
+ * plinths laid between them, the pits backfilled and the strings taken up
+ * (`PREP`). Then, without a cut, the camera stands back as the truck comes
+ * in with one shell. Scrolling past `TRIGGER` is the one deliberate act
+ * that sets the shell down: from there the film runs on a clock of its
+ * own, in seconds: the crane lifts the shell off the trailer and places it
+ * on the foundation, the truck leaves, the rest of the building comes
+ * together by itself, the jack piers are set where its deck's posts and
+ * its steps will come down, its add-ons land on them, and only then do its
+ * lights come on. Scrolling back above the trigger runs that clock back.
  *
  * No three.js in here: the captions (data/narrative.ts) read the same numbers.
  */
 type Span = readonly [number, number];
 
+/**
+ * The site's preparation, on the scroll: each part between its two numbers.
+ * The foundation is complete at `done`; the camera leaves it for the
+ * arrival's wide view over `camera`, while the truck comes in.
+ */
+export const PREP = {
+  pegs: [0.0, 0.05] as Span,
+  dig: [0.04, 0.1] as Span,
+  footings: [0.09, 0.19] as Span,
+  plinths: [0.17, 0.25] as Span,
+  backfill: [0.235, 0.28] as Span,
+  strings: [0.25, 0.29] as Span,
+  done: 0.29,
+  camera: [0.27, 0.46] as Span,
+  /** The truck sets off down the lane. */
+  truck: 0.3,
+} as const;
+
 /** The scroll: the truck is in by `arrive`; the placement starts at `trigger`, and is undone below `rewind`. */
-export const INSTALL = { arrive: 0.24, trigger: 0.3, rewind: 0.26 } as const;
+export const INSTALL = { arrive: 0.47, trigger: 0.52, rewind: 0.495 } as const;
 
 /** The first shell, in seconds from the trigger. */
 export const PLACE = {
@@ -41,13 +65,16 @@ export function installClock(shells: number) {
   const rest = Math.max(0, shells - 1);
   const gap = rest > 1 ? Math.min(GAP, 2.6 / (rest - 1)) : 0;
   const built = rest ? REST_FROM + EACH + gap * (rest - 1) : PLACE.free[1];
-  const addOns: Span = [built + 0.12, built + 1.05];
+  // A jack pier is set with the add-on that lands on it, just before it (client, 2026-10-11; CLAUDE.md, the jack pier).
+  const piers: Span = [built + 0.12, built + 0.62];
+  const addOns: Span = [built + 0.5, built + 1.43];
   const lights: Span = [addOns[1] + 0.4, addOns[1] + 1.7];
   return {
     /** When the k-th of the remaining shells (0 first) comes down. */
     shell: (k: number): Span => [REST_FROM + gap * k, REST_FROM + gap * k + EACH],
     placed: PLACE.free[1],
     built,
+    piers,
     addOns,
     lights,
     end: lights[1],
@@ -56,10 +83,11 @@ export function installClock(shells: number) {
 
 /** Where each caption begins and where its picture is settled, on the scroll. */
 export const INSTALL_STEPS = {
-  arrive: { at: 0, pose: 0.2 },
-  place: { at: 0.28, pose: 0.5 },
-  assemble: { at: 0.56, pose: 0.76 },
-  home: { at: 0.84, pose: 1 },
+  prep: { at: 0, pose: 0.29 },
+  arrive: { at: 0.31, pose: 0.47 },
+  place: { at: 0.505, pose: 0.68 },
+  assemble: { at: 0.72, pose: 0.86 },
+  home: { at: 0.9, pose: 1 },
 } as const;
 
 /**

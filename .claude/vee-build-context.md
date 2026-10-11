@@ -53,7 +53,7 @@ distribution partners.
 
 | # | Section | Question it answers | Form |
 | --- | --- | --- | --- |
-| 1 | Hero banner | What can be built? | An opening card (the headline over the three kinds of building in a row in a studio: modular house, capsule home, prefab building, mist at their feet; scrolling lifts the other two away, goes to the house and brings its land and sky in), then a pinned film: four sets (modular house, capsule homes, workforce housing, institutional building), a cut between each |
+| 1 | Hero banner | What can be built? | An opening card (the headline over the three kinds of building: modular house, capsule home, prefab building, one behind another on a diagonal on a polished floor that mirrors them, in warm light on a warm shade, fitted to the screen; scrolling lifts the other two away, goes round to the house and brings its land and sky in), then a pinned film: four sets (modular house, capsule homes, workforce housing, institutional building), a cut between each |
 | 2 | How it works? | How does the system work / configure? | Pinned film: the 2 core shells → lift & shift ("building as a product") → six footprints, one main door each and a window on every street end → two stacks (the villa, "Net zero", with one main door a floor and a door onto its terrace; the mid-rise apartment) |
 | 3 | Componentized building | What are the components? | Pinned film: the finished home comes apart into foundation, module and add-ons, each named as it is shown, and then each of those into its own parts; then foundation (plug footings, L plinths), module (structural frame, insulated panels, micro concrete, then the standard door and windows), add-ons (the jack piers come with them; deck, steps and roof are tagged "Add-on") |
 | 4 | Key differences ("How is VEE different?") | Why this approach? | Six points on paper, all on show: a ledger of six cells (number, a drawn mark, word, claim, detail), then the brief's three comparisons with "the others" struck through |
@@ -63,7 +63,8 @@ distribution partners.
 | 8 | Contact | How do I start? | Enquiry form |
 
 The main page has grown beyond these: `configure` (the configurator),
-`your-house` (the "3D tour"), `delivery`, `site`, `installation` and
+`your-house` (the "3D tour"), `delivery`, `installation` ("On site",
+which since 2026-10-11 begins with the site being made ready) and
 `build-yours` sit between them. The factory tour follows `your-house` on
 the main page and opens with its own full-screen title. Since 2026-10-09
 the page is numbered as the client's notes number it: 01 Overview, 02 How
@@ -77,7 +78,9 @@ The client's one line for the last three chapters (2026-10-10):
 Illuminate.** The factory makes and finishes one shell and cranes it onto
 the truck; the truck drives at the viewer and away (a short film that
 plays by itself); on the plot the shell is placed on the foundation, the
-rest of the building assembles by itself, and the lights come on last.
+rest of the building assembles by itself, jack piers are set where its
+deck's posts and its steps come down and the add-ons land on them, and
+the lights come on last.
 
 ## Terminology from the brief (use exactly)
 
@@ -138,4 +141,7 @@ drawings for Hook & Cleat and foundations, floor plans for the 500 and 600
 models, pricing for VEE.BUILD, pages or content for Investors and
 Technology, the drone video the client would like behind Delivery, the
 thickness of the cast wall, the real lifting frame's and machines' sizes
-(a photograph of the lift came on 2026-10-10 and set the arrangement).
+(a photograph of the lift came on 2026-10-10 and set the arrangement),
+prices (the configurator's are ours, notes N5), anything about the
+opening card's floor and light (two AI-generated references came on
+2026-10-11 and set its arrangement and its warmth, notes O).

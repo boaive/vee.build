@@ -1,21 +1,37 @@
 import { lazy, useMemo } from 'react';
+import { layoutAddOns } from '../../build/model';
 import { shown, useBuild } from '../../build/store';
 import { installSteps } from '../../data/narrative';
-import Film from '../../film/Film';
+import Film, { type FilmLabel } from '../../film/Film';
 
 const Scene = lazy(() => import('../../three/scenes/InstallScene'));
 
+/** What the site's preparation names as it goes in (the brief's components). */
+const labels: FilmLabel[] = [
+  { id: 'prep-pegs', text: 'Plot marked out', kind: 'call' },
+  { id: 'prep-footing', text: 'Plug footing', kind: 'call' },
+  { id: 'prep-plinth', text: 'L plinth', kind: 'call' },
+];
+
 /**
- * Section 8, continued: one shell is craned off the truck onto the
- * foundation, and the rest of the build comes together by itself (client,
- * 2026-10-10). The scroll brings the truck in and sets the placement off;
- * what follows runs on the film's own clock (film/installTimeline.ts), so
- * the film is shorter than it was.
+ * Section 8, on site, in one film (client, 2026-10-11: "merge Ready before
+ * the shell arrives and On site"). The scroll first makes the plot ready:
+ * marked out, footings and plinths set and backfilled. The camera then
+ * stands back as the truck brings the shell in; past the trigger the shell
+ * is craned onto the foundation and the rest of the build comes together
+ * by itself (client, 2026-10-10), on the film's own clock
+ * (film/installTimeline.ts).
  */
 export default function Installation() {
   const state = useBuild((s) => s);
   const view = useMemo(() => shown(state), [state]);
-  const steps = useMemo(() => installSteps(view.units.length, view.sample), [view.units.length, view.sample]);
+  const plinth = view.foundation.type === 'plinth';
+  // The film sets a jack pier under each deck post and under the steps: said only where the build has one or the other.
+  const piers = useMemo(() => {
+    const l = layoutAddOns(view.units, new Set(view.addOns), view.deckSide, view.manual, view.base, view.plot);
+    return l.posts.length + l.steps.length > 0;
+  }, [view]);
+  const steps = useMemo(() => installSteps(view.units.length, view.sample, plinth, piers), [view.units.length, view.sample, plinth, piers]);
   return (
     <Film
       id="installation"
@@ -25,9 +41,10 @@ export default function Installation() {
       chapter="delivery"
       captions="track"
       steps={steps}
-      length={4.4}
-      lengthCompact={4}
+      length={6.4}
+      lengthCompact={5.8}
       Scene={Scene}
+      labels={labels}
     />
   );
 }

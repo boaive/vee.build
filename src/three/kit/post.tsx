@@ -718,12 +718,14 @@ class Finish {
     }
     const gl = this.gl;
     // Not part of the depth picture: overlays that ignore depth (a cut's card would flatten
-    // everything behind it), and depth-only helpers, which repeat what is already there.
+    // everything behind it), depth-only helpers, which repeat what is already there, and what a
+    // scene keeps out of it (userData.unoccluded: land that is there but not yet shown, whose
+    // occlusion would lie on the floor it has not reached as stains).
     const hidden = this.hidden;
     this.scene.traverseVisible((o) => {
       const m = (o as Mesh).material as Material | Material[] | undefined;
       const first = Array.isArray(m) ? m[0] : m;
-      if (first && (first.depthTest === false || first.colorWrite === false)) {
+      if (o.userData.unoccluded || (first && (first.depthTest === false || first.colorWrite === false))) {
         o.visible = false;
         hidden.push(o);
       }

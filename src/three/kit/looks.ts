@@ -24,6 +24,12 @@ export interface Look {
   fog: { color: string; near: number; far: number; thin?: number } | null;
   hemi: { sky: string; ground: string; intensity: number };
   sun: { color: string; intensity: number; dir: V3 };
+  /**
+   * Where the sun stands in the sky, where the key light is not the sun
+   * itself: a set lit like a studio under a real sky's light and
+   * reflections (the hero's opening card). Left out: `sun.dir`.
+   */
+  skySun?: V3;
   fill: { color: string; intensity: number; dir: V3 };
   /** Image-based light from the sky (or studio room). */
   env: number;
@@ -81,27 +87,32 @@ const GRADE_STUDIO: Grade = {
   aberration: 0.0008,
 };
 
+/** The farmhouse's sky, and where its sun stands: shared with the opening card, which is lit by it before the land is there. */
+const SUNSET_SKY: SkyParams = {
+  turbidity: 3.4,
+  rayleigh: 3.6,
+  mie: 0.002,
+  mieG: 0.96,
+  intensity: 5,
+  compress: 0.8,
+  disc: 2.2,
+  ground: '#3e3527',
+  tint: [1.02, 0.86, 1.1],
+  clouds: { coverage: 0.46, density: 0.8, scale: 1, elevation: 0.62, offset: [0.18, 0.4], light: 7 },
+};
+const SUNSET_SUN = sunAt(-132, 3.2);
+const SUNSET_FOG = { color: '#e9a37a', near: 140, far: 2600, thin: 0.85 };
+
 export const LOOKS = {
   /*
    * The farmhouse: a warm sunset. The sun sits low, left of the house as
    * the hero frames it (azimuth chosen against the hero camera).
    */
   sunset: {
-    sky: {
-      turbidity: 3.4,
-      rayleigh: 3.6,
-      mie: 0.002,
-      mieG: 0.96,
-      intensity: 5,
-      compress: 0.8,
-      disc: 2.2,
-      ground: '#3e3527',
-      tint: [1.02, 0.86, 1.1],
-      clouds: { coverage: 0.46, density: 0.8, scale: 1, elevation: 0.62, offset: [0.18, 0.4], light: 7 },
-    },
-    fog: { color: '#e9a37a', near: 140, far: 2600, thin: 0.85 },
+    sky: SUNSET_SKY,
+    fog: SUNSET_FOG,
     hemi: { sky: '#8f86a8', ground: '#5d4a32', intensity: 0.18 },
-    sun: { color: '#ffb46e', intensity: 3.6, dir: sunAt(-132, 3.2) },
+    sun: { color: '#ffb46e', intensity: 3.6, dir: SUNSET_SUN },
     fill: { color: '#ffc9a0', intensity: 0.32, dir: [0.55, 0.35, 0.76] },
     env: 0.55,
     exposure: 0.95,
@@ -264,6 +275,44 @@ export const LOOKS = {
     flora: 'day',
     land: '#88875f',
     grade: GRADE_DAY,
+  },
+  /*
+   * The hero's opening card (client, 2026-10-11, second brief: "realistic,
+   * not like how we have now; for colour keep whatever is in the hero
+   * sections, not the white one"). The three stand on a polished floor in
+   * late, warm light: a key from in front and to the left, on their fronts,
+   * high enough that the house's shadow stops short of the capsule behind
+   * it and the capsule's short of the block; a soft fill from the right for
+   * the ends they turn to the camera; and the farmhouse's own sunset in
+   * every reflection (its sky is this look's too, the sun in it where the
+   * farmhouse has it: `skySun`), let down so the floor stays pale and the
+   * names on it can be read. The sky itself is not drawn until the land
+   * comes in, when the scene goes over to the sunset (Stage, mixLook);
+   * before that the page's warm shade stands behind (film.css).
+   */
+  card: {
+    sky: SUNSET_SKY,
+    skySun: SUNSET_SUN,
+    fog: SUNSET_FOG,
+    hemi: { sky: '#fff6e8', ground: '#eadcc6', intensity: 0.7 },
+    sun: { color: '#ffd6a8', intensity: 2.3, dir: sunAt(-58, 31) },
+    fill: { color: '#f0e8ee', intensity: 0.34, dir: [0.5, 0.36, 0.78] },
+    env: 0.16,
+    exposure: 1,
+    shadow: { color: '#4a2c1a', opacity: 0.5 },
+    windows: 'dusk',
+    flora: 'gold',
+    land: '#7d7a4c',
+    grade: {
+      vignette: 0.12,
+      saturation: 1.06,
+      contrast: 1.05,
+      shadows: [0.98, 0.98, 1.03],
+      highlights: [1.04, 1.0, 0.95],
+      grain: 0.014,
+      aberration: 0.0008,
+    },
+    lamps: 1,
   },
   studioDark: {
     sky: null,

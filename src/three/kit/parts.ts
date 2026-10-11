@@ -6,7 +6,7 @@
 import { BufferGeometry, ExtrudeGeometry, Float32BufferAttribute, Shape, SphereGeometry, TorusGeometry } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { DOOR_AT, type DoorFace, type ModuleType } from '../../data/system';
-import { box, cyl, memo, merge, mergeGroups } from './geometry';
+import { box, cyl, memo, merge, mergeGroups, withRoom } from './geometry';
 import { boxUV } from './textures';
 
 /* ------------------------------------------------------------------ */
@@ -230,7 +230,9 @@ export function moduleGeometry(type: ModuleType, door: DoorFace = 'front', stree
         fittings.push(g);
       }
 
-    return mergeGroups([shell, dark, glass, frames, fittings]);
+    // The room behind its glass: inside the walls, from the floor over the base to the ceiling under the fascia.
+    const r = inset + 0.11;
+    return withRoom(mergeGroups([shell, dark, glass, frames, fittings]), [-L / 2 + r, base + 0.1, -D / 2 + r], [L / 2 - r, H - F - 0.06, D / 2 - r]);
   });
 }
 
@@ -328,28 +330,34 @@ export function stairGeometry(key: string, width: number, rise: number, run: num
  */
 export function carriedStairGeometry(key: string, width: number, rise: number, run: number, steps: number, seat: number): BufferGeometry {
   return memo(`stair-carried-${key}`, () => {
-    const treads: BufferGeometry[] = [];
-    const dr = rise / steps;
-    const dx = run / steps;
-    // The treads run through the stringers and show on their faces: seen from the side, a closed flight still reads as steps.
-    for (let i = 0; i < steps; i++) treads.push(box(dx * 0.92, 0.045, width + 0.09, dx * (i + 0.5), dr * (i + 1) - 0.0225, 0));
-    const { slope, top, depth, nose, soleTo } = carriedStair(rise, run, steps, seat);
-    // The stringer in profile: a level sole at the foot, a level cut where it meets the top, a plumb end against it.
-    const s = new Shape();
-    s.moveTo(nose, seat);
-    s.lineTo(soleTo, seat);
-    s.lineTo(run, slope * run + top - depth);
-    s.lineTo(run, rise);
-    s.lineTo((rise - top) / slope, rise);
-    s.lineTo(nose, slope * nose + top);
-    s.closePath();
-    const stringers = [-1, 1].map((side) => {
-      const g = new ExtrudeGeometry(s, { depth: 0.05, bevelEnabled: false });
-      g.translate(0, 0, (side * width) / 2 - 0.025);
-      return g;
-    });
+    const { treads, stringers } = carriedStairParts(width, rise, run, steps, seat);
     return mergeGroups([treads, stringers]);
   });
+}
+
+/** The same flight as its two lists of pieces, new each time, for a builder that turns it and merges it with others (house.tsx). */
+export function carriedStairParts(width: number, rise: number, run: number, steps: number, seat: number): { treads: BufferGeometry[]; stringers: BufferGeometry[] } {
+  const treads: BufferGeometry[] = [];
+  const dr = rise / steps;
+  const dx = run / steps;
+  // The treads run through the stringers and show on their faces: seen from the side, a closed flight still reads as steps.
+  for (let i = 0; i < steps; i++) treads.push(box(dx * 0.92, 0.045, width + 0.09, dx * (i + 0.5), dr * (i + 1) - 0.0225, 0));
+  const { slope, top, depth, nose, soleTo } = carriedStair(rise, run, steps, seat);
+  // The stringer in profile: a level sole at the foot, a level cut where it meets the top, a plumb end against it.
+  const s = new Shape();
+  s.moveTo(nose, seat);
+  s.lineTo(soleTo, seat);
+  s.lineTo(run, slope * run + top - depth);
+  s.lineTo(run, rise);
+  s.lineTo((rise - top) / slope, rise);
+  s.lineTo(nose, slope * nose + top);
+  s.closePath();
+  const stringers = [-1, 1].map((side) => {
+    const g = new ExtrudeGeometry(s, { depth: 0.05, bevelEnabled: false });
+    g.translate(0, 0, (side * width) / 2 - 0.025);
+    return g;
+  });
+  return { treads, stringers };
 }
 
 /** The stringer of a carried flight: its upper edge is `top` above the line through the nosings at x = 0, it is `depth` deep, and its sole runs from `nose` to `soleTo`. */

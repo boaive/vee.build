@@ -18,7 +18,7 @@ import { baseOf, type Unit } from '../../build/model';
 import type { Foundation } from '../../data/build';
 import { ease, win } from '../../film/timeline';
 import type { BuildingProps } from './buildings';
-import { box, memo, merge, mergeGroups } from './geometry';
+import { box, memo, merge, mergeGroups, withRoom } from './geometry';
 import { FoundationParts } from './house';
 import { deckMat, litGlass, mat, shellMat, trimMat } from './materials';
 import { MODULE, addJackPier, carriedStair, carriedStairGeometry, slopedRoofGeometry } from './parts';
@@ -140,7 +140,9 @@ function homeShellGeometry(): BufferGeometry {
         put(white, cu, cy, 0.022, ih, 0.016, 0.03);
       }
     }
-    return mergeGroups([walls, dark, glass, white]);
+    // The room behind its glass, inside the rendered walls.
+    const r = INSET + 0.12;
+    return withRoom(mergeGroups([walls, dark, glass, white]), [-L / 2 + r, 0.2, -D / 2 + r], [L / 2 - r, H - 0.22, D / 2 - r]);
   });
 }
 
