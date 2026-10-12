@@ -56,6 +56,7 @@ import {
   type WebGLRenderer,
 } from 'three';
 import type { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
+import { giveUp } from './gpu';
 
 export interface Grade {
   /** Darkening toward the corners, 0–1. */
@@ -187,7 +188,8 @@ class Monitor {
     }
     if (++this.strikes < STRIKES) return;
     this.strikes = 0;
-    quality.level++;
+    // Pixels the GPU was given over the plain canvas go first (gpu.ts): then, if it still cannot cope, the step down.
+    if (!giveUp()) quality.level++;
     this.hold(16);
   }
 }

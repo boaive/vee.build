@@ -25,7 +25,7 @@ import { ease, stagger } from '../../film/timeline';
 import { CELL, FRONT, JACK, STAIR, baseOf, doorFaces, foundationLayout, layoutAddOns, placeOf, stepRun, type AddOnLayout, type Seg, type Stair, type Unit } from '../../build/model';
 import { UNIT_BOX, merge, mergeGroups } from './geometry';
 import type { Look } from './looks';
-import { deckMat, instanced, mat, moduleMats, trimMat } from './materials';
+import { deckMat, instanced, kit, mat, moduleMats, trimMat } from './materials';
 import {
   FOUNDATION,
   addJackPier,
@@ -41,6 +41,7 @@ import {
   slopedRoofGeometry,
 } from './parts';
 import { latticeCard, tile } from './pbr';
+import { useRefined } from './refined';
 import { boxUV } from './textures';
 
 /* ------------------------------------------------------------------ */
@@ -553,6 +554,7 @@ export function FoundationParts({
   const m = useMemo(() => foundationMeshes(units, foundation), [units, foundation]);
   useLayoutEffect(() => () => m.plinths?.dispose(), [m]);
   const plinths = useRef<Mesh>(null);
+  const concrete = kit('concrete', useRefined());
   // The order the footings go in: from the front (the street) back, left to right.
   const rank = useMemo(() => {
     const order = [...m.jacks].sort((a, b) => b[1] - a[1] || a[0] - b[0]);
@@ -573,9 +575,9 @@ export function FoundationParts({
   return (
     <>
       {m.footings.map((f, i) => (
-        <Instances key={i} geo={f.geo} material={mat.concrete} spots={f.spots} arrive={arrive} />
+        <Instances key={i} geo={f.geo} material={concrete} spots={f.spots} arrive={arrive} />
       ))}
-      {m.plinths && <mesh ref={plinths} geometry={m.plinths} material={mat.concrete} castShadow receiveShadow />}
+      {m.plinths && <mesh ref={plinths} geometry={m.plinths} material={concrete} castShadow receiveShadow />}
       {jacks && (
         <>
           <Instances geo={jackBaseGeometry()} material={mat.galv} spots={m.jacks} y={m.above} arrive={arrive} />

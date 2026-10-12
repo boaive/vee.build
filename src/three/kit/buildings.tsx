@@ -5,15 +5,16 @@
  */
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { EdgesGeometry, ExtrudeGeometry, Object3D, Shape, type Group, type InstancedMesh, type Material, type Mesh } from 'three';
+import { Color, EdgesGeometry, ExtrudeGeometry, Object3D, Shape, type Group, type InstancedMesh, type Material, type Mesh } from 'three';
 import { layoutAddOns, type Stair, type Unit } from '../../build/model';
 import type { Turn } from '../../data/build';
 import type { DoorFace, ModuleType, Placement } from '../../data/system';
 import { clamp01, ease, stagger, win } from '../../film/timeline';
 import { UNIT_BOX, box, memo, merge, planCentre, pose, setInst } from './geometry';
 import type { Look } from './looks';
-import { instanced, litGlass, mat, moduleMats } from './materials';
+import { instanced, kit, litGlass, mat, moduleMats } from './materials';
 import { POD, POD_STEPS, capsuleGeometry } from './capsule';
+import { useRefined } from './refined';
 import { stairGeometryOf } from './house';
 import { moduleGeometry, railGeometry, stairGeometry, wallPanel36Geometry } from './parts';
 
@@ -33,6 +34,7 @@ export interface BuildingProps {
   look: Look;
 }
 
+const SHADE = new Color();
 const A = (x: number, z: number, y = 0, r: 0 | 1 = 0): Placement => ({ t: 'A', x, y, z, r });
 const B = (x: number, z: number, y = 0): Placement => ({ t: 'B', x, y, z });
 
@@ -54,12 +56,27 @@ interface DropProps {
   overlap?: number;
   /** The face that carries each shell's door. */
   door?: DoorFace;
+  /**
+   * Each shell a shade of its own, a few hundredths either way: shells cast
+   * on different days are never quite one colour, and a block of them that
+   * is reads as one moulding. For a refined scene (kit/refined.ts).
+   */
+  varied?: boolean;
 }
 
 /** Modules lowered into place one after another, as they are on site. */
-export function DropModules({ type, list, centre, base = 0, getT, materials, first = 0, total, drop = 7, overlap = 0.62, door = 'front' }: DropProps) {
+export function DropModules({ type, list, centre, base = 0, getT, materials, first = 0, total, drop = 7, overlap = 0.62, door = 'front', varied = false }: DropProps) {
   const ref = useRef<InstancedMesh>(null);
   const last = useRef(-1);
+  useLayoutEffect(() => {
+    const m = ref.current;
+    if (!m || !varied) return;
+    for (let i = 0; i < list.length; i++) {
+      const h = Math.sin((first + i) * 12.9898 + 4.1) * 43758.5453;
+      m.setColorAt(i, SHADE.setScalar(0.93 + 0.11 * (h - Math.floor(h))));
+    }
+    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+  }, [varied, list, first]);
   const poses = useMemo(() => list.map((p) => pose(p, centre[0], centre[1])), [list, centre]);
   const n = total ?? list.length;
 
@@ -193,8 +210,8 @@ const POD_X = POD_LEN.map((l, i) => -POD_SPAN / 2 + POD_LEN.slice(0, i).reduce((
 /** The dimension line runs along the ground in front of the steps. */
 const POD_DIM_Z = POD.D / 2 + POD_STEPS + 0.3;
 
-/** capsuleGeometry's groups: shell, dark metal, glazing (lit at dusk, with its light lines), timber steps. */
-const capsuleMats = (look: Look): Material[] => [mat.pod, mat.fascia, look.windows === 'dusk' ? mat.glassLit : mat.glass, mat.deck];
+/** capsuleGeometry's groups: shell, dark metal, glazing (lit at dusk, with its light lines), timber steps. `fine`: the shell and the metal in their refined finishes. */
+const capsuleMats = (look: Look, fine: boolean): Material[] => [kit('pod', fine), kit('fascia', fine), look.windows === 'dusk' ? mat.glassLit : mat.glass, mat.deck];
 
 interface CapsuleProps {
   feet: number;
@@ -213,12 +230,13 @@ interface CapsuleProps {
 export function Capsule({ feet, getT, look, position = [0, 0, 0], rotation = 0, drop = 5, getLit }: CapsuleProps) {
   const ref = useRef<Mesh>(null);
   const last = useRef(-1);
-  const glow = useMemo(() => (getLit && look.windows === 'dusk' ? litGlass() : null), [getLit, look]);
+  const fine = useRefined();
+  const glow = useMemo(() => (getLit && look.windows === 'dusk' ? litGlass(fine) : null), [getLit, look, fine]);
   useEffect(() => () => glow?.dispose(), [glow]);
   const mats = useMemo(() => {
-    const m = capsuleMats(look);
+    const m = capsuleMats(look, fine);
     return glow ? [m[0], m[1], glow.material, m[3]] : m;
-  }, [look, glow]);
+  }, [look, glow, fine]);
   const base = position[1];
   useFrame(() => {
     if (glow && getLit) glow.set(getLit());
@@ -383,12 +401,13 @@ export function WorkforceBlock({ x = 0, getA, getLit, look, crane = true, bays =
   const last = useRef<Mesh>(null);
   const extras = useRef<Group>(null);
   const hookY = useRef(HOOK_Y);
-  const glow = useMemo(() => (getLit && look.windows === 'dusk' ? litGlass() : null), [getLit, look]);
+  const fine = useRefined();
+  const glow = useMemo(() => (getLit && look.windows === 'dusk' ? litGlass(fine) : null), [getLit, look, fine]);
   useEffect(() => () => glow?.dispose(), [glow]);
   const mats = useMemo(() => {
-    const m = moduleMats(undefined, look.windows);
+    const m = moduleMats(undefined, look.windows, undefined, fine);
     return glow ? [m[0], m[1], glow.material, m[3], m[4]] : m;
-  }, [look, glow]);
+  }, [look, glow, fine]);
   const [lx, ly, lz, lry] = pose(WORK[WORK_LAST], WORK_C[0], WORK_C[1]);
   const front = 3;
   const rail = railGeometry(`work-gallery-${bays}`, [
@@ -398,7 +417,7 @@ export function WorkforceBlock({ x = 0, getA, getLit, look, crane = true, bays =
   ]);
   const stair = workStairOf(bays);
   // Landings and treads, frames and stringers, rails.
-  const stairMats = useMemo(() => [mat.concrete, mat.trim, mat.steel], []);
+  const stairMats = useMemo(() => [kit('concrete', fine), kit('trim', fine), kit('steel', fine)], [fine]);
   // The gallery's posts, as one mesh.
   const posts = memo(`work-posts-${bays}`, () => merge(Array.from({ length: bays + 1 }, (_, i) => box(0.12, 2.86, 0.12, -WORK_W / 2 + i * 3, 1.43, front + 1.42))));
 
@@ -424,13 +443,13 @@ export function WorkforceBlock({ x = 0, getA, getLit, look, crane = true, bays =
 
   return (
     <group position-x={x}>
-      <DropModules type="A" door="left" list={crane ? WORK_SET : WORK} centre={WORK_C} base={GROUND} materials={mats} getT={() => win(getA(), 0, crane ? 0.6 : 0.78, ease.linear)} overlap={0.72} />
+      <DropModules type="A" door="left" list={crane ? WORK_SET : WORK} centre={WORK_C} base={GROUND} materials={mats} getT={() => win(getA(), 0, crane ? 0.6 : 0.78, ease.linear)} overlap={0.72} varied={fine} />
       {crane && <mesh ref={last} geometry={moduleGeometry('A', 'left')} material={mats} position={[lx, GROUND + ly, lz]} rotation-y={lry} castShadow receiveShadow />}
 
       <group ref={extras} position-y={GROUND}>
-        <mesh geometry={UNIT_BOX} material={mat.concrete} scale={[WORK_W + 0.1, 0.14, 1.5]} position={[0, WORK_GALLERY - 0.07, front + 0.75]} castShadow receiveShadow />
-        <mesh geometry={posts} material={mat.trim} castShadow />
-        <mesh geometry={rail} material={mat.steel} position-y={WORK_GALLERY} castShadow />
+        <mesh geometry={UNIT_BOX} material={kit('concrete', fine)} scale={[WORK_W + 0.1, 0.14, 1.5]} position={[0, WORK_GALLERY - 0.07, front + 0.75]} castShadow receiveShadow />
+        <mesh geometry={posts} material={kit('trim', fine)} castShadow />
+        <mesh geometry={rail} material={kit('steel', fine)} position-y={WORK_GALLERY} castShadow />
         {/* The rule works in the plot's own coordinates: the block is drawn about its centre. */}
         {stair && <mesh geometry={stairGeometryOf(stair)} material={stairMats} position={[-WORK_C[0], 0, -WORK_C[1]]} castShadow receiveShadow />}
       </group>

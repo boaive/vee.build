@@ -164,6 +164,15 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   factory film reaches farther, `reach`). Do not widen that: a mounted
   stage holds 300 to 500 MB of GPU memory (notes F9). Frameloop is
   `demand`; a stage out of sight draws nothing.
+- How many pixels a canvas has is decided in one place, by the GPU
+  (`kit/gpu.ts`; developer, 2026-10-12; notes P7): it is measured once a
+  visit before the first frame, against the test laptop, and a canvas
+  gets the screen's own pixels as far as that budget goes. Never fewer
+  than the 1.5 to the CSS pixel it had, never more than 3840 by 2160,
+  and one decision for the visit: not a resolution that changes with the
+  scroll. Do not give a `<Canvas>` a `dpr` of its own, and do not raise
+  `KEEP` or `CEILING` without measuring frame time and GPU memory at the
+  size they allow (about 155 MB a megapixel for each mounted stage).
 - What is drawn besides the scene belongs to the stage and the finish, not
   to scenes: the sky (drawn on its own and put behind the scene), the shadow
   map (redrawn only when the light or a caster has moved, or after
@@ -323,6 +332,29 @@ Astro (static HTML per route) + React islands + React Three Fiber.
 - The configurator shows an estimated price, counted from what is laid
   out (`build/price.ts`, rates in `data/pricing.ts`; client, 2026-10-11).
   CONFIRM: every rate is ours (notes N5); do not quote them elsewhere.
+- The opening card's three are in refined finishes, and they alone
+  (developer, 2026-10-12, with a reference picture as the benchmark of
+  realism, not of design; notes P): floated micro concrete with a tooth,
+  standing-seam roofing, coated steel, the capsule's semi-gloss panels,
+  polished panes, photovoltaic cells, each shell of the block a shade of
+  its own, a floor that gives the lit windows back. The scene asks for
+  them (`<Refined>` in `HeroScene`, `kit/refined.ts`); the kit's
+  components hand `useRefined()` to `kit`, `shellMat`, `trimMat`,
+  `moduleMats` and `litGlass` (`kit/materials.ts`). Every other scene,
+  the hero's own later sets included, has the materials as they were: do
+  not put another scene inside `<Refined>`, or change a material's own
+  definition to its refined recipe, without being asked. The house keeps
+  its finishes into the sunset that follows the card: it is the same
+  house. No plants, furniture outside, lamps, sky or mountains from the
+  reference, and never the reference itself.
+  CONFIRM: the sloped roof's covering is ours, one entry (`roofing` in
+  `src/data/build.ts`; notes P2).
+- The refined finishes' maps are files in `public/textures/`, baked by
+  `node scripts/textures.mjs` from seeded noise (nothing downloaded,
+  nothing scanned), 512 px, fetched and decoded off the main thread
+  (`fileTexture`, `kit/textures.ts`). Change a map in the script and
+  bake again; do not edit the files, and do not draw a refined map on a
+  canvas at page load.
 - 3D look, as built: every stage goes through one photographic finish (sun
   shadows, ambient occlusion, bloom on the sun and lit glass, filmic tone
   mapping, a light grade). Studio stages stand on the page colour with a
@@ -368,7 +400,12 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   changing CSS too: the dev server serves a stylesheet with a broken rule
   in it without a word, and the build stops on it (2026-10-10).
 - `?noboot` skips the boot screen. `?q=1` shows the one emergency
-  resolution step, `?q=0` rules it out.
+  resolution step, `?q=0` rules it out. `?px=<megapixels>` fixes the
+  canvas's pixel budget (`?px=0`: as before the GPU was measured; `?px=8.3`
+  with the screen emulated at 3: what a fast GPU on a dense screen
+  gets). In the dev build `window.__veeGpu` has the reading. To see a
+  zoomed window in a script, emulate it: 640 by 360 at 3 is this laptop's
+  1280 by 720 at 200%.
 - The opening card's fit runs without a browser (`kit/rowfit.ts` is pure
   geometry on a camera; `vee-build-progress.md`, QA aids). In the dev
   build `window.__veeRow = <s>` holds the card to one arrangement.
@@ -379,6 +416,11 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   app's browser pane does not draw frames while hidden). Details in
   `vee-build-progress.md`, QA aids.
 - `node scripts/og-image.mjs` regenerates `public/og.png`.
+- `node scripts/textures.mjs` bakes `public/textures/*.webp` again (the
+  same files from the same seeds) and prints their sizes.
+- To time a set of materials against another, swap them inside one page
+  and time round-robin: two page loads cannot be told apart to half a
+  millisecond on this laptop, and often not to five (notes P5).
 - In a scripted edit, a replacement passed as a function does not expand
   `$1`: it is written into the file as text. Eight CSS rules lost their
   heads that way on 2026-10-10.

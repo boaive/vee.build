@@ -1,9 +1,10 @@
 /**
  * Procedural textures, drawn once on a canvas at runtime: stucco for the
  * shells (as the client's render), timber decking, gravel, ground grain.
- * Nothing is downloaded. Server-side (no document) they resolve to null.
+ * Server-side (no document) they resolve to null. The refined finishes'
+ * maps are not drawn here: they are baked to files (fileTexture, below).
  */
-import { CanvasTexture, Float32BufferAttribute, RepeatWrapping, SRGBColorSpace, type BufferGeometry, type Texture } from 'three';
+import { CanvasTexture, Float32BufferAttribute, RepeatWrapping, SRGBColorSpace, Texture, type BufferGeometry } from 'three';
 
 export type Draw = (g: CanvasRenderingContext2D, size: number) => void;
 
@@ -22,6 +23,67 @@ export function canvasTexture(key: string, size: number, draw: Draw, color = tru
   t.anisotropy = 8;
   if (color) t.colorSpace = SRGBColorSpace;
   cache.set(key, t);
+  return t;
+}
+
+/* ------------------------------------------------------------------ */
+/* Baked maps                                                          */
+/* ------------------------------------------------------------------ */
+
+interface Sheet {
+  /** The one texture that holds the file; every use is a clone of it, and three keeps one copy on the GPU for all of them. */
+  base: Texture;
+  users: Texture[];
+}
+const sheets = new Map<string, Sheet>();
+
+/** Asked for by the stages: a baked map has arrived, draw again. */
+export const TEXTURES_EVENT = 'vee:textures';
+
+/**
+ * A map baked to public/textures (scripts/textures.mjs), laid `per` UV
+ * units to the tile. Nothing of it is drawn on the main thread: the file is
+ * fetched and decoded off it, and until it is in the surface carries one
+ * pixel of the map's own mean (`flat`, 0-255), so a material has its maps
+ * from its first frame, compiles once, and looks nearly as it will. Each
+ * call returns a texture of its own with its own tiling.
+ */
+export function fileTexture(name: string, flat: [number, number, number], per = 1, color = false): Texture | null {
+  if (typeof document === 'undefined') return null;
+  let sheet = sheets.get(name);
+  if (!sheet) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 1;
+    const g = c.getContext('2d');
+    if (!g) return null;
+    g.fillStyle = `rgb(${flat[0]},${flat[1]},${flat[2]})`;
+    g.fillRect(0, 0, 1, 1);
+    const base: Texture = new Texture(c);
+    base.wrapS = base.wrapT = RepeatWrapping;
+    base.anisotropy = 8;
+    // The file is turned over as it is decoded (below): three does not flip a bitmap.
+    base.flipY = false;
+    if (color) base.colorSpace = SRGBColorSpace;
+    const made: Sheet = (sheet = { base, users: [] });
+    sheets.set(name, made);
+    fetch(`${import.meta.env.BASE_URL}textures/${name}.webp`)
+      .then((r) => (r.ok ? r.blob() : Promise.reject(new Error(String(r.status)))))
+      .then((b) => createImageBitmap(b, { imageOrientation: 'flipY', premultiplyAlpha: 'none', colorSpaceConversion: 'none' }))
+      .then((bitmap) => {
+        // A texture's size cannot change once it is on the GPU: each use lets go of the pixel and takes the file.
+        for (const t of made.users) t.dispose();
+        base.image = bitmap;
+        base.source.needsUpdate = true;
+        for (const t of made.users) t.needsUpdate = true;
+        window.dispatchEvent(new Event(TEXTURES_EVENT));
+      })
+      // Without the file the surface keeps its mean: plainer, not wrong.
+      .catch(() => {});
+  }
+  const t = sheet.base.clone();
+  t.repeat.set(1 / per, 1 / per);
+  t.needsUpdate = true;
+  sheet.users.push(t);
   return t;
 }
 

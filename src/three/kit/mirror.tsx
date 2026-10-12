@@ -30,6 +30,7 @@ import {
   OneMinusSrcAlphaFactor,
   ShaderMaterial,
   Vector3,
+  Vector4,
   type DirectionalLight,
   type Group,
   type HemisphereLight,
@@ -65,6 +66,8 @@ uniform float uPlane;
 uniform vec3 uKeyDir;
 uniform vec3 uKey;
 uniform vec3 uFill;
+uniform vec4 uGrid;
+uniform float uLit;
 varying vec3 vN;
 varying vec3 vW;
 void main() {
@@ -74,16 +77,28 @@ void main() {
   vec3 n = normalize( vN );
   n.y = - n.y;
   vec3 col = uColor * ( uFill * ( 0.65 + 0.35 * n.y ) + uKey * max( dot( n, uKeyDir ), 0.0 ) ) + uGlow;
-  vec3 v = normalize( cameraPosition - vW );
+  vec3 toP = vW - cameraPosition;
+  vec3 v = - normalize( toP );
   float graze = pow( 1.0 - abs( v.y ), 3.0 );
-  float a = uK * mix( 0.3, 1.0, graze ) * ( 1.0 - smoothstep( 0.0, uFade, uPlane - vW.y ) );
+  // A lamp behind glass is given back more strongly than a wall in the last light, and farther from its foot.
+  float a = uK * mix( 0.3, 1.0, graze ) * ( 1.0 - smoothstep( 0.0, uFade, uPlane - vW.y ) ) * ( 1.0 + uLit );
+  // It is seen in the floor, not over it: where the line of sight meets the floor, that slab's own polish, and a joint is matt (plaza.tsx).
+  vec2 at = cameraPosition.xz + toP.xz * ( ( uPlane - cameraPosition.y ) / toP.y );
+  vec2 q = vec2( dot( at, vec2( uGrid.x, - uGrid.y ) ), dot( at, uGrid.yx ) ) / uGrid.z + vec2( 0.0, 0.5 );
+  vec2 w = max( fwidth( q ), vec2( 1e-6 ) );
+  float tone = fract( sin( dot( floor( q ), vec2( 12.9898, 78.233 ) ) ) * 43758.5453 );
+  vec2 d = abs( fract( q - 0.5 ) - 0.5 );
+  vec2 l = 1.0 - smoothstep( vec2( 0.0025 ), vec2( 0.0025 ) + w * 1.25, d );
+  float joint = max( l.x, l.y ) * ( 1.0 - smoothstep( 0.05, 0.3, max( w.x, w.y ) ) );
+  a = min( 1.0, a * ( 0.7 + 0.3 * tone ) * ( 1.0 - 0.85 * joint ) );
   gl_FragColor = vec4( col * a, a );
 }`;
 
 /** One set of light and coverage values, shared by every reflected surface. */
 const shared = {
   uK: { value: 0 },
-  uFade: { value: 2.1 },
+  uFade: { value: 3.3 },
+  uGrid: { value: new Vector4(1, 0, 3, 0) },
   uPlane: { value: PLAZA_Y },
   uKeyDir: { value: new Vector3(0, 1, 0) },
   uKey: { value: new Color(1, 1, 1) },
@@ -110,7 +125,7 @@ function reflectionOf(m: Material): Reflected {
     const material = new ShaderMaterial({
       vertexShader: VERTEX,
       fragmentShader: FRAGMENT,
-      uniforms: { ...shared, uColor: { value: color }, uGlow: { value: new Color(0, 0, 0) } },
+      uniforms: { ...shared, uColor: { value: color }, uGlow: { value: new Color(0, 0, 0) }, uLit: { value: glow ? 1.3 : 0 } },
       blending: CustomBlending,
       blendSrc: OneFactor,
       blendDst: OneMinusSrcAlphaFactor,
@@ -144,11 +159,13 @@ function shownUp(o: Object3D) {
  * reflection is, 0 to 1 (0: not drawn). Lit by the stage's own key light
  * and its sky light as they are at the moment (the card's light changes).
  */
-export function useMirror(rig: Rig, into: RefObject<Group | null>, sources: RefObject<Object3D | null>[], getK: () => number) {
+export function useMirror(rig: Rig, into: RefObject<Group | null>, sources: RefObject<Object3D | null>[], getK: () => number, grid?: Vector4) {
   const pairs = useRef<Pair[]>([]);
   useEffect(() => {
     const root = into.current;
     if (!root) return;
+    // The floor's slabs, as the floor itself has them: one vector, read each frame.
+    if (grid) shared.uGrid.value = grid;
     const list: Pair[] = [];
     for (const ref of sources) {
       ref.current?.traverse((o) => {
@@ -199,7 +216,7 @@ export function useMirror(rig: Rig, into: RefObject<Group | null>, sources: RefO
       for (const r of used) {
         if (!r.glow) continue;
         const s = r.source as MeshStandardMaterial;
-        (r.material.uniforms.uGlow.value as Color).copy(s.emissive).multiplyScalar(s.emissiveIntensity * 0.55);
+        (r.material.uniforms.uGlow.value as Color).copy(s.emissive).multiplyScalar(s.emissiveIntensity * 0.7);
       }
       for (const p of pairs.current) {
         const on = k > 0.003 && shownUp(p.src);

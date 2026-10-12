@@ -1,6 +1,6 @@
 # VEE.BUILD — progress
 
-Last updated: 2026-10-11, evening (the client's second brief of that day, notes O and F12: the opening card made again: the three one behind another on a diagonal, on a polished floor that mirrors them, in warm light on a warm shade, fitted to any screen; jack piers under the deck and steps of "08 On site". That morning, notes N and F11: Powered by with the logo under the wordmark, rooms behind lit glass, the capsules at life size, each shell lifted by its own hooks in 2.2, prices in the configurator, the site's preparation as the first part of the installation film). Before that: 2026-10-10, evening (the client's brief of that day, notes M and F10: the factory made again as one shell in one bay, seen on the diagonal, lifted by four hooks; the journey as a short film that holds the page; the installation placing one shell and assembling the rest by itself, lights last; doors and windows of 2.3; "Add-on" tags; jack piers on the hero's house; Powered by Hemisphere One under the wordmark; the catalogue hidden; "VEE" for "we"). Earlier the same day: the developer's two rounds (notes K and F9; notes L: the second burst, the accent settled as vermilion on paper and green on ink, the build in figures under the configurator's view). Before that: 2026-10-09 (the client's corrections sheet, notes J and F7).
+Last updated: 2026-10-12 (the developer's brief of that day, notes P: the opening card's three in refined finishes, on the real-time 3D as it is: plaster, standing-seam roof, coated steel, the capsule's coat, polished glass, a floor that mirrors the lit windows, more light and shade; the card only). Before that: 2026-10-11, evening (the client's second brief of that day, notes O and F12: the opening card made again: the three one behind another on a diagonal, on a polished floor that mirrors them, in warm light on a warm shade, fitted to any screen; jack piers under the deck and steps of "08 On site". That morning, notes N and F11: Powered by with the logo under the wordmark, rooms behind lit glass, the capsules at life size, each shell lifted by its own hooks in 2.2, prices in the configurator, the site's preparation as the first part of the installation film). Before that: 2026-10-10, evening (the client's brief of that day, notes M and F10: the factory made again as one shell in one bay, seen on the diagonal, lifted by four hooks; the journey as a short film that holds the page; the installation placing one shell and assembling the rest by itself, lights last; doors and windows of 2.3; "Add-on" tags; jack piers on the hero's house; Powered by Hemisphere One under the wordmark; the catalogue hidden; "VEE" for "we"). Earlier the same day: the developer's two rounds (notes K and F9; notes L: the second burst, the accent settled as vermilion on paper and green on ink, the build in figures under the configurator's view). Before that: 2026-10-09 (the client's corrections sheet, notes J and F7).
 
 ## Status
 
@@ -23,6 +23,7 @@ Last updated: 2026-10-11, evening (the client's second brief of that day, notes 
 | 15 Client's brief of 2026-10-10 (evening) | all fifteen items done and looked at on the dev server at two sizes, notes M; measured, F10; open points under "Waiting for an answer" and "Not yet verified" |
 | 16 Client's brief of 2026-10-11 (morning) | six items done and measured, notes N and F11 |
 | 17 Client's second brief of 2026-10-11 | the opening card and the jack piers of "On site": done, looked at in nine window shapes and measured, notes O and F12 |
+| 18 Developer's brief of 2026-10-12 | the opening card's three in refined finishes: done, looked at in five window shapes and measured, notes P; waiting for the developer's review before any other scene takes them. The same day: a canvas's pixels by the GPU (zoomed windows and dense screens no longer stretched), every stage, measured on the laptop only, notes P7 |
 
 `npm run check` → 0 errors. `npm run build` → 5 routes, sitemap, optimised images.
 
@@ -305,8 +306,11 @@ likely the next film's scene mounting; not traced on the second day.
 | each scene | 1-15 kB | 1-6 kB | when its section nears the viewport |
 | CSS | 56 kB | — | render-blocking, one file |
 
-No GLB, HDR or texture downloads: all geometry is procedural, the
-environment is generated at runtime. One canvas mounts near the viewport at
+No GLB or HDR downloads: all geometry is procedural, the environment is
+generated at runtime. Since 2026-10-12 the hero fetches eleven small maps
+for its refined finishes (`public/textures`, 298 kB in all, baked by
+`scripts/textures.mjs`; notes P4); every other texture is still drawn
+at runtime. One canvas mounts near the viewport at
 a time; the others unmount. Frameloop is on demand.
 
 Sixth round, 2026-10-09 (notes F7 has the method and every row): the
@@ -431,6 +435,20 @@ for real drone video behind the journey (needs the video; the journey is
 now a 3D shot).
 
 ## Waiting for an answer
+
+From the developer's brief of 2026-10-12 (notes P):
+- **Pixels by the GPU**: what a GPU faster than the test laptop's is
+  given rests on one synthetic measure; no such machine, no 120 Hz
+  screen and no phone was at hand (P7).
+- **The opening card as it now looks**, for review. Only then do the
+  other scenes take the refined finishes (one argument each: P3).
+- **The sloped roof's covering**: standing-seam metal in the trim's
+  colour is ours (P2).
+- **The house keeps its refined finishes into the sunset slide** that
+  follows the card (it is the same house); the brief's scope was the
+  card (P3).
+- **Scanned textures**, if wanted in place of the baked ones: a download
+  of third-party files, which needs a yes (P4).
 
 From the two briefs of 2026-10-11 (notes N, O):
 - **The opening card: eye level or raised.** A low window and a very

@@ -2049,3 +2049,201 @@ Firefox (the backdrop's gradient stops are `calc()` on `svh`, as
 before); a GPU slower than the
 test laptop's; a window resized by dragging, which fits again at every
 size it passes (15 to 50 ms each).
+
+## P. The developer's brief of 2026-10-12 and how it was carried out
+
+The opening card ("One system. Many buildings."): its three buildings
+were to look like architectural photographs and not like models, with a
+reference picture as the benchmark of realism (the card's own three,
+repainted by an image service: plaster with a tooth, a seamed metal
+roof, a wet floor mirroring lit windows, a sunset behind). Not of
+design: no sky, mountains, plants or objects from it, and the picture
+itself never used. Scope: the card only. A first pass the same day
+(calmer maps, the same light) was refused in one line: "you are making
+no actual changes". It was right; at the size the three are shown
+(about 90 screen pixels to the metre) a better map alone does not read.
+
+1. **Real time, as it is; not a pre-rendered picture.** Weighed as asked.
+   A picture cannot be the card: the three are arranged and the camera
+   fitted for every window (`rowfit.ts`), each is lowered in and lit, the
+   scroll lifts two away and goes round to the house while the land
+   grows under it, and the names are placed from the scene. A picture
+   for each of those would be a second site, and a picture that hands
+   over to the scene would be two pictures of one thing (the rule that a
+   moving and a still picture are the same). And what the reference has
+   that the card lacked is not costly in real time: a surface's response
+   to light, a floor that gives the windows back, light and shade. So:
+   the existing models, geometry untouched but for the roof's seams
+   (30 by 44 mm, were 35 by 30).
+
+2. **What changed, on the card.**
+   - Walls: micro concrete, sprayed and floated. One grain all over
+     (sand, and the float's stipple a finger's breadth across, which is
+     what still reads at that size), each hollow a little darker, no
+     blotches or stains; colour and relief on one tile of 1.9 m, the
+     roughness on another of 3.1 m.
+   - Roof: standing-seam metal with a factory coat, pans 0.5 m, the
+     seam's turn-up and two stiffening ribs in its normal map, the
+     sheet's slight waviness along the fall, its verges and eave plain.
+     **CONFIRM (P2):** the brief names the sloped roof as an add-on and
+     not what covers it. Ours, in the trim's colour; one entry to change
+     (`roofing` in `src/data/build.ts`: `surface: 'plain'` is the coat
+     alone).
+   - Steel (rail, stair, fascia, trim, the capsule's frames): a powder
+     coat, not a bare metal. As metals they had only a plain floor to
+     show and went dead black.
+   - The capsule: semi-gloss coated panels, a sheet not perfectly flat.
+   - Glass: polished, and it gives back the sky it faces over the room
+     behind it.
+   - Photovoltaic panels: frame, ten cells by six, busbars. Seen from a
+     phone's raised camera; from eye level only just.
+   - The block: each shell a shade of its own (0.93 to 1.04), as shells
+     cast on different days are (`varied` on `DropModules`).
+   - The floor's reflection (`kit/mirror.tsx`): more of each building's
+     height (3.3 m, was 2.1), stronger (0.72, was 0.46), lit glazing
+     given back more strongly than a wall, and seen in the floor rather
+     than over it: each slab its own polish, a joint matt.
+   - Light (`card` in `kit/looks.ts`): the same directions and colours,
+     more key and less fill (sun 2.7, was 2.3; sky light 0.5, was 0.7;
+     fill 0.26, was 0.34; shadows on the floor 0.58, was 0.5). Fronts and
+     floor come out as bright as before; ends and shadows are deeper.
+     Raising the sky's light for the card instead (0.16 to 0.45) washed
+     every wall out and was undone: the refined sheet metal, coat and
+     glass ask for several times a plain material's share of it.
+
+3. **Kept to the card.** The scene asks (`<Refined>`, `kit/refined.ts`);
+   the kit's components pass `useRefined()` as the last argument of
+   `kit`, `shellMat`, `trimMat`, `moduleMats`, `litGlass`. A material's
+   own definition is as it was, to the character, and a refined scene
+   never makes the old one (so it never draws the old maps). The hero's
+   pods, workforce block and campus, the sub-pages and every other film
+   have the kit as it was. When a scene is to take the finishes it is
+   put inside `<Refined>`; when all have, each recipe becomes its
+   material's definition and the argument goes.
+   **CONFIRM (P3):** the house keeps its finishes through the slide that
+   follows the card ("Modular house", the sunset): it is the same house,
+   and the camera goes to it without a cut. Its roof gives back more
+   there than on the card, the sky being three times as strong in that
+   look. The capsule's hull has metre UVs now and the roof of the hero's
+   house too: no picture changes for that anywhere else.
+
+4. **The maps are files.** `scripts/textures.mjs` bakes eleven 512 px
+   maps to `public/textures` from seeded noise (298 kB in all, the
+   wall's normal map 135 of them). Nothing is downloaded and nothing
+   scanned. `fileTexture` (`kit/textures.ts`) gives a material a
+   one-pixel map of the file's mean at once, so it compiles once and
+   looks nearly right, fetches and decodes the file off the main thread
+   and swaps it in; the stages draw again on `vee:textures`. 512 px is
+   already three times what the screen shows of a wall.
+   **CONFIRM (P4):** scanned sets (ambientCG, Poly Haven: free for
+   commercial use) would go into the same slots, if wanted; they are a
+   download of someone else's files and were not fetched.
+
+5. **Measured** (2026-10-12, test laptop, headless Edge, timer queries;
+   the baseline is the tree before the round).
+   - Two page loads could not be compared that day: one pose read 3.9 to
+     12 ms in either build, in both orders. What settled it was swapping
+     the materials inside one page, round-robin (the script builds the
+     pairs from `kit(name, true)` and `kit(name, false)`).
+   - The refined materials against the kit's, the card, moving frames:
+     3.74 against 3.69 ms (+0.06, ten rounds, every round within 0.2);
+     the house alone on the card 2.42 against 2.40 (+0.02). At a phone's
+     size (390 by 844 at 3) 1.63 against 1.88, a noisy batch, low ends
+     1.45 and 1.47: none that can be shown.
+   - The floor's reflection, on against off: 0.34 ms now, 0.31 before.
+   - So about a tenth of a millisecond on a card of 3.7. Draw calls and
+     triangles as before (148 or 156 with the shadow pass, 168 725).
+   - Moving against still, the card, the house alone, the sunset: 0.91,
+     0.41 and 1.92 grey levels mean, no region more than 0.24 (grain).
+   - A steady scroll through the hero at 1500 px/s: 56.0 fps twice,
+     54.9 and 52.4 on the baseline; one long frame in each, at the hero's
+     end where the next film is mounted, as before.
+   - Startup, production builds, loads alternated, both orders (taken
+     after the first pass; not again after the second, which added one
+     9 kB map and no work at load): first picture 2.5 to 2.9 s median
+     against 3.0 to 3.1, the same build ranging from 1.2 to 4.7 s. No
+     difference can be claimed either way.
+   - On a line of 200 kB/s with 150 ms latency: first picture at 4.9
+     and 6.5 s (baseline 6.6); the maps were in between 4.2 and 6.8 s,
+     all but the last one or two before the first picture. No long frame
+     that the baseline did not also have after its first picture.
+
+6. **Looked at.** The card at 1280 by 720 at 1.5, a phone (390 by 844),
+   a tablet (820 by 1180), a short window (1267 by 427) and 4:3; the
+   lowering-in; the lift-away, the house alone, the mist and the sunset;
+   the hero's other three sets against the baseline (unchanged);
+   "How it works" and "Componentized building" against the baseline
+   (unchanged); `/capsule/`, `/prefab/` and `?still` for console errors
+   (none). `npm run check`, `npm run build`, the legacy-name search.
+
+7. **A canvas's pixels by the GPU** (developer, the same day, after the
+   card: "when I zoom in I can see the pixels break; what if someone
+   with a powerful GPU does?", then "can we keep it based on gpu").
+   Every canvas had at most 1.5 pixels to the CSS pixel, whoever drew
+   it: all there are on the test laptop at 100%, too few in a window
+   zoomed in (200% leaves it a quarter of the CSS pixels: a 937 by 540
+   canvas stretched over 1920 by 1080) and on any denser screen. A
+   stronger GPU changed nothing. Now (`kit/gpu.ts`):
+   - The GPU is measured once a visit, before the first stage's first
+     frame: a fixed piece of shading (1024 by 1024, forty turns of
+     arithmetic a pixel), each run waited for by reading a pixel back,
+     the least of three. The laptop reads 3.3 to 3.5 ms; the whole
+     measure holds the page 22 to 26 ms, once for the tab (kept in
+     `sessionStorage`). A GPU well behind the laptop on a quarter of the
+     piece is asked no more.
+   - That gives a budget in pixels: the laptop's 1920 by 1080 times how
+     much faster this GPU is, times 0.8 (0.6 where the pointer is coarse:
+     a phone slows as it warms), never over 3840 by 2160. A canvas has
+     the screen's own pixels as far as the budget goes, at most 3 to the
+     CSS pixel, in eighths; and never fewer than it had.
+   - One decision for the visit. Only the emergency step takes it back
+     (`Monitor` in `post.tsx`): the extra pixels go first, then the step
+     down as before.
+   - `?px=<megapixels>` fixes the budget (0: as it was); `__veeGpu` in
+     the dev build has the reading.
+
+   **Measured** (the laptop, timer queries, budgets switched inside one
+   page). A frame's cost follows its pixels: the card at 2.05, 3.64, 5.14
+   and 8.20 megapixels is 3.84, 6.40, 9.52 and 14.86 ms, and the GPU
+   process holds 1138, 1431, 1636 and 2091 MB (about 155 MB a megapixel
+   for a mounted stage; two can be mounted, which is what the ceiling is
+   for). The laptop itself: at 100% nothing changes (1897 by 1080, as
+   before). At 200% the card's canvas is 1640 by 945 where it was 937 by
+   540, 1.84 ms where it was 1.43; at 150% 1676 by 960 where it was 1257
+   by 720: the factory 3.70 ms where it was 2.49 (6.30 unzoomed),
+   "How it works" 2.69 where it was 1.89 (3.58 unzoomed). So a zoomed
+   window still costs less than the same window unzoomed. The picture at
+   four times the pixels is the same picture, finer (looked at side by
+   side at one size: the glow, the shadows and the occlusion as wide as
+   they were; floor joints and plaster finer). Moving against still in
+   the zoomed window: 0.37 and 2.06 grey levels (grain). The emergency
+   path, called by hand: 1640 by 945 back to 937 by 540.
+
+   **CONFIRM (P7):** what a GPU faster than the laptop's is given rests
+   on one synthetic measure and on the laptop as the standard (its own
+   frame times, less a fifth). No such GPU was at hand: a discrete card,
+   an Apple laptop, a 120 Hz screen (which would rather have its frames
+   than its pixels) and any phone are unverified. `KEEP`, `KEEP_TOUCH`
+   and `CEILING` at the top of `gpu.ts` are the three figures to move.
+
+**How far it is from the reference.** Nearer, not there. The reference
+is a repainting: its floor is wet and dark, its sky is a sunset, its
+rooms have furniture and plants, its block has a lamp at every door.
+The card keeps its pale floor and shade (asked for), adds nothing to a
+building that the brief does not name, and is drawn in 4 ms.
+
+**Found on the way.**
+- The baseline copy's dev server answers with its own error page laid
+  over a working page ("The URL must be of scheme file", from the fonts
+  it cannot reach through the junction): a capture of it is a capture of
+  the error. Remove `vite-error-overlay` before each capture.
+- `sed -i` in Git Bash writes a CRLF file back with LF endings.
+- A heredoc in Git Bash, quoted or not, loses backslashes, and fails on
+  an apostrophe: a script or a text with either is written with the
+  Write tool.
+
+**Not verified in this round.** A real phone or tablet (sizes were
+emulated on the laptop); Safari and Firefox; a GPU slower than the test
+laptop's; the names on the floor against their buildings' reflections
+at every window shape (they were read at five; the reflections are
+stronger than they were, progress file, known issue 30).

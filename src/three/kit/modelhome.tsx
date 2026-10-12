@@ -20,9 +20,10 @@ import { ease, win } from '../../film/timeline';
 import type { BuildingProps } from './buildings';
 import { box, memo, merge, mergeGroups, withRoom } from './geometry';
 import { FoundationParts } from './house';
-import { deckMat, litGlass, mat, shellMat, trimMat } from './materials';
+import { deckMat, kit, litGlass, mat, roofMat, shellMat, trimMat } from './materials';
 import { MODULE, addJackPier, carriedStair, carriedStairGeometry, slopedRoofGeometry } from './parts';
 import { latticeCard, tile } from './pbr';
+import { useRefined } from './refined';
 import { boxUV } from './textures';
 
 /** Shell A: 6 × 3 m on plan. */
@@ -281,19 +282,30 @@ const PANEL = { w: 1.66, d: 1.02 };
 /** Height of the roof surface above the shell's top at plan depth z. */
 const roofY = (z: number) => ROOF.eave + (ROOF.rise - ROOF.eave) * (0.5 - z / ROOF.depth);
 
-/** Mono-pitch roof with standing seams. Origin: centre of the shell's top. Falls to the front. */
+/**
+ * Mono-pitch roof with standing seams. Origin: centre of the shell's top.
+ * Falls to the front. Its UVs are metres on plan, as the roofing's material
+ * expects them (materials.ts, roofMat): the seams stand half a metre apart
+ * from x = -3, so each stands on an edge of the map's tile. Only what
+ * faces up is roofing: the verges and the eave are flat sheet, and take one
+ * point of the map, the middle of a pan.
+ */
 function roofGeometry(): BufferGeometry {
-  return memo('model-home-roof-v2', () => {
+  return memo('model-home-roof-v4', () => {
     const wedge = slopedRoofGeometry(ROOF.length, ROOF.depth, ROOF.rise, ROOF.eave).clone();
     const parts: BufferGeometry[] = [wedge.index ? wedge.toNonIndexed() : wedge];
     const len = ROOF.depth / Math.cos(PITCH);
     for (let x = -ROOF.length / 2 + 0.15; x <= ROOF.length / 2 - 0.1; x += 0.5) {
-      const seam = box(0.035, 0.03, len - 0.04);
+      const seam = box(0.03, 0.044, len - 0.04);
       seam.rotateX(PITCH);
-      seam.translate(x, roofY(0) + 0.015, 0);
+      seam.translate(x, roofY(0) + 0.022, 0);
       parts.push(seam.toNonIndexed());
     }
-    return merge(parts);
+    const g = boxUV(merge(parts), 1);
+    const n = g.attributes.normal;
+    const uv = g.attributes.uv;
+    for (let i = 0; i < n.count; i++) if (n.getY(i) < 0.5) uv.setXY(i, 0.25, 0);
+    return g;
   });
 }
 
@@ -343,12 +355,18 @@ export function ModelHome({ getA, getLit, look, shellHex, deckHex, trimHex }: Mo
   const piers = useRef<Group>(null);
   const landing = useRef<Group>(null);
   const dusk = look.windows === 'dusk';
-  const glow = useMemo(() => (dusk && getLit ? litGlass() : null), [dusk, getLit]);
+  const fine = useRefined();
+  const glow = useMemo(() => (dusk && getLit ? litGlass(fine) : null), [dusk, getLit, fine]);
   useEffect(() => () => glow?.dispose(), [glow]);
-  const shellMats = useMemo(() => [shellMat(shellHex), trimMat(trimHex), glow ? glow.material : dusk ? mat.glassLit : mat.glass, mat.frame], [shellHex, trimHex, dusk, glow]);
-  const pierMats = useMemo(() => [mat.concrete, mat.galv], []);
+  const shellMats = useMemo(
+    () => [shellMat(shellHex, fine), trimMat(trimHex, fine), glow ? glow.material : dusk ? mat.glassLit : mat.glass, mat.frame],
+    [shellHex, trimHex, dusk, glow, fine],
+  );
+  const pierMats = useMemo(() => [kit('concrete', fine), mat.galv], [fine]);
+  const solarMats = useMemo(() => [kit('solar', fine), mat.galv], [fine]);
   const timber = deckMat(deckHex);
-  const trim = trimMat(trimHex);
+  // The roofing is a material of its own in a refined scene; elsewhere the roof is still the trim's paint.
+  const roof = fine ? roofMat(trimHex) : trimMat(trimHex);
 
   useFrame(() => {
     const a = getA();
@@ -379,8 +397,8 @@ export function ModelHome({ getA, getLit, look, shellHex, deckHex, trimHex }: Mo
       <mesh ref={shell} geometry={homeShellGeometry()} material={shellMats} position-y={UNDERSIDE} castShadow receiveShadow />
       <group ref={top}>
         <group position-y={UNDERSIDE + H + 0.005}>
-          <mesh geometry={roofGeometry()} material={trim} castShadow receiveShadow />
-          <mesh geometry={solarGeometry()} material={[mat.solar, mat.galv]} castShadow />
+          <mesh geometry={roofGeometry()} material={roof} castShadow receiveShadow />
+          <mesh geometry={solarGeometry()} material={solarMats} castShadow />
         </group>
       </group>
       <group ref={piers}>
@@ -388,7 +406,7 @@ export function ModelHome({ getA, getLit, look, shellHex, deckHex, trimHex }: Mo
       </group>
       <group ref={landing}>
         <mesh geometry={landingTimberGeometry()} material={timber} castShadow receiveShadow />
-        <mesh geometry={landingRailGeometry()} material={mat.steel} castShadow />
+        <mesh geometry={landingRailGeometry()} material={kit('steel', fine)} castShadow />
         <mesh geometry={landingDeckGeometry()} material={gratingMat()} castShadow receiveShadow />
       </group>
     </group>

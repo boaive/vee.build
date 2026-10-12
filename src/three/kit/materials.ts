@@ -1,6 +1,7 @@
 import { CanvasTexture, DoubleSide, MeshPhysicalMaterial, MeshStandardMaterial, SRGBColorSpace, Vector2, type Material, type MeshStandardMaterialParameters } from 'three';
-import { deckFinishes, shellFinishes, trimFinishes } from '../../data/build';
+import { deckFinishes, roofing, shellFinishes, trimFinishes } from '../../data/build';
 import { asphaltSet, concreteSet, gravelSet, renderSet, ribSet, soilSet, tile, timberSet } from './pbr';
+import { fileTexture } from './textures';
 
 const std = (color: string, roughness = 0.9, metalness = 0, extra: MeshStandardMaterialParameters = {}) =>
   new MeshStandardMaterial({ color, roughness, metalness, ...extra });
@@ -228,6 +229,62 @@ const once = <T>(make: () => T) => {
   return () => (made === undefined ? (made = make()) : made);
 };
 
+/* ------------------------------------------------------------------ */
+/* Refined finishes                                                    */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Some of the kit's materials have a refined finish: the same surface, in
+ * the same colour, as it is when it comes out of a factory and is looked
+ * at closely (developer, 2026-10-12: "photo realistic",
+ * "precision-manufactured", not dirty, not weathered). A scene asks for it
+ * with the last argument of `kit`, `shellMat`, `trimMat` and
+ * `moduleMats`; the material as it was is made only where that is asked
+ * for, so a refined scene never draws the old maps.
+ *
+ * For now only the hero asks (kit/refined.ts): the developer reviews it
+ * there before the other scenes take it. When they do, each recipe below
+ * becomes its material's own definition and the argument goes.
+ *
+ * Their maps are files (scripts/textures.mjs), not drawings: 512 px, which
+ * is already more than a screen shows of a wall, and what they add is not
+ * sharpness but what the light does on the surface. A wall's three maps
+ * are laid at three sizes that share no measure, so no patch of it repeats.
+ */
+
+/** Micro concrete on a shell's walls (UVs: 1.5 m to the unit, as boxUV lays them on a shell). */
+const fineShell = (hex: string) => () =>
+  std(hex, 1, 0, {
+    map: fileTexture('render-c', [236, 235, 234], 1.9 / 1.5, true),
+    normalMap: fileTexture('render-n', [128, 128, 255], 1.9 / 1.5),
+    roughnessMap: fileTexture('render-r', [228, 228, 228], 3.1 / 1.5),
+    normalScale: new Vector2(0.68, 0.68),
+  });
+
+/** Precast concrete out of a steel mould (UVs in metres). */
+const finePrecast = (hex: string) => () =>
+  std(hex, 1, 0, {
+    map: fileTexture('precast-c', [226, 225, 224], 1.4, true),
+    normalMap: fileTexture('precast-n', [128, 128, 255], 1.4),
+    roughnessMap: fileTexture('precast-r', [194, 194, 194], 2.3),
+    normalScale: new Vector2(0.6, 0.6),
+  });
+
+/**
+ * A factory coat on steel: powder coat is a paint, not a bare metal. As a
+ * metal a dark member has only its surroundings to show and, where those
+ * are plain, goes dead black; as a coat it takes a soft highlight from the
+ * light itself.
+ *
+ * What a refined surface gives back of the sky is set for the opening
+ * card, whose look lets the sky's light down to a third of the other
+ * looks' (kit/looks.ts, card: env 0.16): the sheet metal, the capsule's
+ * coat and the glass ask for several times a plain material's share. The
+ * house keeps them into the sunset that follows, where its roof and panes
+ * give back that much more of a sky that is then really there.
+ */
+const fineCoat = (hex: string, roughness: number) => () => std(hex, roughness, 0.1, { envMapIntensity: 1.2 });
+
 /*
  * Materials that carry procedural textures. Drawing a texture set takes tens
  * of milliseconds on the main thread, so each is made the first time a scene
@@ -375,6 +432,42 @@ export const mat = {
 
 export type MatName = keyof typeof mat;
 
+/** The kit's materials that have a refined finish (above), each made the first time it is asked for. */
+const fineKit: Partial<Record<MatName, () => Material>> = {
+  concrete: once(finePrecast('#c9c5bc')),
+  // Coated panels, semi-gloss: the coat's own sheen (its map, let down), and a sheet that is not perfectly flat (UVs in metres round the hull).
+  pod: once(() =>
+    std('#f1efea', 0.62, 0, {
+      normalMap: fileTexture('coat-n', [128, 128, 255], 1.7),
+      roughnessMap: fileTexture('coat-r', [115, 115, 115], 2.9),
+      normalScale: new Vector2(0.4, 0.4),
+      envMapIntensity: 9,
+    }),
+  ),
+  // Photovoltaic panels with their cells, frame and busbars (UVs: one panel to the face), under the same glass.
+  solar: once(
+    () =>
+      new MeshPhysicalMaterial({
+        color: '#ffffff',
+        map: fileTexture('solar-c', [30, 40, 56], 1, true),
+        roughness: 0.18,
+        metalness: 0.5,
+        envMapIntensity: 3.5,
+        clearcoat: 1,
+        clearcoatRoughness: 0.05,
+      }),
+  ),
+  trim: once(fineCoat('#55585b', 0.58)),
+  fascia: once(fineCoat('#2f3236', 0.5)),
+  steel: once(fineCoat('#2a2c2f', 0.46)),
+};
+
+/** A kit material by name. `fine`: in its refined finish, where it has one. */
+export function kit(name: MatName, fine = false): Material {
+  const make = fine ? fineKit[name] : undefined;
+  return make ? make() : mat[name];
+}
+
 const instancedOf = new WeakMap<Material, Material>();
 const instancedSets = new WeakMap<Material[], Material[]>();
 
@@ -413,8 +506,9 @@ function cached(key: string, make: () => MeshStandardMaterial) {
   return m;
 }
 
-/** Shell body material for a finish colour: render over precast, as the client's render. */
-export function shellMat(hex: string) {
+/** Shell body material for a finish colour: render over precast, as the client's render. `fine`: its refined finish. */
+export function shellMat(hex: string, fine = false) {
+  if (fine) return cached(`fine-shell-${hex}`, fineShell(hex));
   return cached(`shell-${hex}`, () => {
     const r = renderSet();
     return std(hex, 0.9, 0, { map: r.map, normalMap: r.normalMap, roughnessMap: r.roughnessMap, normalScale: new Vector2(0.9, 0.9) });
@@ -429,20 +523,41 @@ export function deckMat(hex: string) {
   });
 }
 
-/** Painted metal for fascia and frames in a trim finish. */
-export function trimMat(hex: string) {
+/** Painted metal for fascia and frames in a trim finish. `fine`: its refined finish. */
+export function trimMat(hex: string, fine = false) {
+  if (fine) return cached(`fine-trim-${hex}`, fineCoat(hex, 0.5));
   return cached(`trim-${hex}`, () => std(hex, 0.5, 0.35));
 }
 
 /**
- * Material array for moduleGeometry(): shell, fascia, glass, frames, fittings.
- * `windows: 'dusk'` lights the glazing from inside.
+ * The sloped roof's covering, in a trim colour. What it is made of is one
+ * entry in the data (`roofing`, data/build.ts; CONFIRM, notes P2): as
+ * proposed, standing-seam metal with a factory coat, its pans `roofing.pan`
+ * wide. Expects UVs in metres on plan, the seams along v, one at u = 0.
+ * `plain`: the coat alone, for a covering that has no profile of its own.
  */
-export function moduleMats(shellHex: string = shellFinishes[0].hex, windows: 'day' | 'dusk' = 'day', trimHex: string = trimFinishes[0].hex): Material[] {
-  const key = `${shellHex}-${windows}-${trimHex}`;
+export function roofMat(hex: string) {
+  return cached(`roof-${roofing.surface}-${hex}`, () => {
+    if (roofing.surface === 'plain') return std(hex, 0.5, 0.1, { envMapIntensity: 1.2 });
+    const n = fileTexture('seam-n', [128, 128, 255]);
+    const r = fileTexture('seam-r', [110, 110, 110]);
+    // One pan across the tile; along the fall the sheet's waviness is laid long.
+    n?.repeat.set(1 / roofing.pan, 1 / 2.6);
+    r?.repeat.set(1 / 1.9, 1 / 3.7);
+    return std(hex, 0.8, 0.1, { normalMap: n, roughnessMap: r, normalScale: new Vector2(1, 1), envMapIntensity: 5.5 });
+  });
+}
+
+/**
+ * Material array for moduleGeometry(): shell, fascia, glass, frames, fittings.
+ * `windows: 'dusk'` lights the glazing from inside. `fine`: the shell and
+ * the fascia in their refined finishes.
+ */
+export function moduleMats(shellHex: string = shellFinishes[0].hex, windows: 'day' | 'dusk' = 'day', trimHex: string = trimFinishes[0].hex, fine = false): Material[] {
+  const key = `${shellHex}-${windows}-${trimHex}${fine ? '-fine' : ''}`;
   let set = moduleSets.get(key);
   if (!set) {
-    set = [shellMat(shellHex), trimMat(trimHex), windows === 'dusk' ? mat.glassLit : mat.glass, mat.frame, mat.galv];
+    set = [shellMat(shellHex, fine), trimMat(trimHex, fine), windows === 'dusk' ? mat.glassLit : mat.glass, mat.frame, mat.galv];
     moduleSets.set(key, set);
   }
   return set;
@@ -455,10 +570,16 @@ const moduleSets = new Map<string, Material[]>();
  * together in view. Its windows are dark while it is lowered in and come on
  * once it stands (client, 2026-10-10: "the lights turn on before the house
  * has been placed"). `set` takes 0 to 1; `material` goes where the dusk
- * glazing went, and its copy for instanced meshes follows it.
+ * glazing went, and its copy for instanced meshes follows it. `fine`: its
+ * refined finish, for a refined scene (kit/refined.ts).
  */
-export function litGlass() {
+export function litGlass(fine = false) {
   const material = interiorGlass(mat.glassLit.clone());
+  // Refined: a pane is polished, and gives back the sky it faces over the room behind it, most at a glancing angle.
+  if (fine) {
+    material.roughness = 0.03;
+    material.envMapIntensity = 3;
+  }
   const full = material.emissiveIntensity;
   material.emissiveIntensity = 0;
   const twin = instanced(material);

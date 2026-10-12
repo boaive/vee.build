@@ -116,6 +116,14 @@ export const trimFinishes: Finish[] = [
   { id: 'bronze', name: 'Bronze', hex: '#5d4b3b' },
   { id: 'white', name: 'White', hex: '#e6e4df' },
 ];
+/**
+ * CONFIRM: what the sloped roof is covered with. The brief names the
+ * add-on and not its material (notes P2). Proposed, 2026-10-12:
+ * standing-seam metal in the trim colour, pans half a metre wide. This is
+ * the one place to change it: `surface` picks the material's profile
+ * (three/kit/materials.ts, roofMat), `pan` is the seams' spacing in metres.
+ */
+export const roofing: { name: string; surface: 'seam' | 'plain'; pan: number } = { name: 'Standing-seam metal', surface: 'seam', pan: 0.5 };
 export const finishNote = 'Finishes are indicative. Confirm availability with VEE.BUILD.';
 
 export interface Preset {

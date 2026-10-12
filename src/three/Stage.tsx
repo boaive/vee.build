@@ -1,15 +1,16 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { SceneProps } from '../film/progress';
 import { ATMOS, patchAtmosphere, setClearing } from './kit/atmosphere';
 import { SkyDome } from './kit/env';
 import { memo } from './kit/geometry';
+import { dprOf, gauge, gpu, plainDpr } from './kit/gpu';
 import { LOOKS, type Look, type LookName } from './kit/looks';
 import Post, { NEUTRAL_GRADE, type Backdrop, type Grade, type PostOptions } from './kit/post';
 import { createPhysicalSky, horizonHaze, paintPhysicalSky } from './kit/sky';
-import { groundGrain } from './kit/textures';
+import { TEXTURES_EVENT, groundGrain } from './kit/textures';
 
 patchAtmosphere();
 
@@ -562,6 +563,13 @@ function Setup({
     };
   }, [progress, invalidate]);
 
+  /* A baked map has arrived (kit/textures.ts, fileTexture): the picture is drawn again with it. */
+  useEffect(() => {
+    const again = () => invalidate();
+    window.addEventListener(TEXTURES_EVENT, again);
+    return () => window.removeEventListener(TEXTURES_EVENT, again);
+  }, [invalidate]);
+
   /* Coming back on screen: draw the current state straight away. */
   useEffect(() => {
     if (active) invalidate();
@@ -662,6 +670,29 @@ function Setup({
   );
 }
 
+/**
+ * The canvas's pixels (kit/gpu.ts): the GPU is measured before the first
+ * stage's first frame, and the stage is told how many pixels to the CSS
+ * pixel a canvas of its size may have, again whenever its size, the
+ * screen's density (a zoom) or the budget changes.
+ */
+function Resolution({ ceiling, set }: { ceiling: number; set: (dpr: number) => void }) {
+  const gl = useThree((s) => s.gl);
+  const size = useThree((s) => s.size);
+  useLayoutEffect(() => gauge(gl), [gl]);
+  useLayoutEffect(() => {
+    const apply = () => set(dprOf(size.width, size.height, ceiling));
+    apply();
+    gpu.listeners.add(apply);
+    window.addEventListener('resize', apply);
+    return () => {
+      gpu.listeners.delete(apply);
+      window.removeEventListener('resize', apply);
+    };
+  }, [size, ceiling, set]);
+  return null;
+}
+
 const DEFAULT_POST: PostOptions = { ao: true, bloom: 0.32, bloomThreshold: 1.6 };
 const DEFAULT_POST_COMPACT: PostOptions = { ao: false, bloom: 0.25, bloomThreshold: 1.6 };
 
@@ -673,6 +704,9 @@ const DEFAULT_POST_COMPACT: PostOptions = { ao: false, bloom: 0.25, bloomThresho
 export default function Stage(props: StageProps) {
   const { active, compact, children, look = 'studioLight', post = DEFAULT_POST, postCompact = DEFAULT_POST_COMPACT } = props;
   const finish = compact ? postCompact : post;
+  // What a canvas has where the GPU has nothing more to give (kit/gpu.ts): at most this many pixels to the CSS pixel.
+  const ceiling = compact || finish ? 1.5 : 1.75;
+  const [dpr, setDpr] = useState(() => plainDpr(ceiling));
   const rig = useMemo<Rig>(
     () => ({
       lightTarget: new THREE.Vector3(),
@@ -701,7 +735,7 @@ export default function Stage(props: StageProps) {
     <Canvas
       shadows="percentage"
       frameloop={active ? 'demand' : 'never'}
-      dpr={compact ? [1, 1.5] : [1, finish ? 1.5 : 1.75]}
+      dpr={dpr}
       // With a finish the scene is drawn into its own target; the canvas only receives the final pass.
       gl={{ antialias: !finish, alpha: true, powerPreference: 'high-performance', stencil: false, depth: !finish }}
       camera={{ fov: 28, near: 0.5, far: 1200, position: [20, 14, 26] }}
@@ -713,6 +747,7 @@ export default function Stage(props: StageProps) {
       resize={{ scroll: false, offsetSize: true }}
       style={{ position: 'absolute', inset: 0 }}
     >
+      <Resolution ceiling={ceiling} set={setDpr} />
       <Setup {...props} rig={rig} finished={!!finish} />
       {children(rig)}
       {finish && (

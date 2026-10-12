@@ -8,6 +8,7 @@ import Stage, { aim, useLabel, type Rig } from '../Stage';
 import { useMirror } from '../kit/mirror';
 import { LOOKS } from '../kit/looks';
 import { PLAZA_Y, PlazaFloor, plazaMaterial } from '../kit/plaza';
+import { Refined } from '../kit/refined';
 import { FARM_YAW, ROW_BAYS } from '../kit/row';
 import { fitRow, type Band, type RowFit } from '../kit/rowfit';
 import { CampusSet, FarmSet, Lineup, PodSet, SETS, WorkSet, type SetName } from '../kit/sets';
@@ -86,7 +87,7 @@ const LIFT = 0.62;
 /** How dark the shadows lie on the floor: the card's. */
 const FLOOR_SHADOW = LOOKS.card.shadow.opacity;
 /** How strongly the floor mirrors what stands on it (kit/mirror.tsx), at a grazing angle. */
-const GLOSS = 0.46;
+const GLOSS = 0.72;
 /** Over this part of the card's second part (0–1) the card's light becomes the sunset's, while the mist is up. */
 const LIGHT_IN: [number, number] = [0.04, 0.6];
 /**
@@ -283,12 +284,12 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
   const plazaHold = useRef<Group>(null);
   /** How strongly the floor reflects, 0–1: full on the card, gone as the land comes in. */
   const gloss = useRef(0);
-  useMirror(rig, mirror, [house, others], () => gloss.current);
+  // The floor's slabs lie square to the house; where it ends is set with the three (viewOfRow).
+  const plaza = useMemo(() => plazaMaterial(FARM_YAW), []);
+  useMirror(rig, mirror, [house, others], () => gloss.current, plaza.grid);
   const floor = useRef<Mesh>(null);
   const gl = useThree((s) => s.gl);
   const aspect = size.width / size.height;
-  // The floor's slabs lie square to the house; where it ends is set with the three (viewOfRow).
-  const plaza = useMemo(() => plazaMaterial(FARM_YAW), []);
   useEffect(() => () => plaza.material.dispose(), [plaza]);
   const spots = useMemo(() => [new Vector4(0, 0, 6, 13), new Vector4(0, 0, 6, 12), new Vector4(0, 0, 12, 22)], []);
   const floorMat = useMemo(() => shadowFloor(LOOKS.card.shadow.color, FLOOR_SHADOW, spots), [spots]);
@@ -621,19 +622,22 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
     <>
       <group ref={slot(0)}>
         <PlazaFloor plaza={plaza} hold={plazaHold} />
-        <FarmSet getA={getters.first} getLit={getters.firstLit} look={looks[0]} land={land} house={house} />
-        <Lineup
-          getCapsule={getters.capsule}
-          getPrefab={getters.prefab}
-          getCapsuleLit={getters.capsuleLit}
-          getPrefabLit={getters.prefabLit}
-          look={looks[0]}
-          hold={others}
-          capsule={capsule}
-          prefab={prefab}
-          feet={20}
-          bays={ROW_BAYS}
-        />
+        {/* The opening card's three are in the kit's refined finishes (kit/refined.ts): they alone, not the sets that follow. */}
+        <Refined value>
+          <FarmSet getA={getters.first} getLit={getters.firstLit} look={looks[0]} land={land} house={house} />
+          <Lineup
+            getCapsule={getters.capsule}
+            getPrefab={getters.prefab}
+            getCapsuleLit={getters.capsuleLit}
+            getPrefabLit={getters.prefabLit}
+            look={looks[0]}
+            hold={others}
+            capsule={capsule}
+            prefab={prefab}
+            feet={20}
+            bays={ROW_BAYS}
+          />
+        </Refined>
         <group ref={mirror} />
         <mesh ref={floor} material={floorMat} rotation-x={-Math.PI / 2} position={[0, SHADOW_Y, -20]} receiveShadow>
           <planeGeometry args={[220, 220]} />

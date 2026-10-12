@@ -14,6 +14,7 @@
  */
 import { BufferGeometry, Float32BufferAttribute } from 'three';
 import { box, cyl, memo, mergeGroups, withRoom } from './geometry';
+import { boxUV } from './textures';
 
 const FT = 0.3048;
 
@@ -136,7 +137,7 @@ const onWall = (y: number) => 1 + (y - POD.rb) / (POD.H - POD.rt - POD.rb);
  * columns along the perimeter; `ts` gives each column's samples up the
  * section (the same count in every column).
  */
-function skin(rim: Rim, cols: number[], ts: (u: number) => number[], out: number, uv?: (u: number, y: number) => [number, number]): BufferGeometry {
+function skin(rim: Rim, cols: number[], ts: (u: number) => number[], out: number, uv?: (u: number, y: number, t: number) => [number, number]): BufferGeometry {
   const pos: number[] = [];
   const nor: number[] = [];
   const uvs: number[] = [];
@@ -149,7 +150,7 @@ function skin(rim: Rim, cols: number[], ts: (u: number) => number[], out: number
       const r = POD.R + off + out * nh;
       pos.push(cx + nx * r, y + out * ny, cz + nz * r);
       nor.push(nx * nh, ny, nz * nh);
-      const st = uv ? uv(u, y) : [0, 0];
+      const st = uv ? uv(u, y, t) : [0, 0];
       uvs.push(st[0], st[1]);
     }
     if (c === 0) return;
@@ -236,8 +237,11 @@ export function capsuleGeometry(feet: number): BufferGeometry {
 
     /* Hull: one skin from the underside to the roof, and the two flat middles. */
     const up = [-1, 0, 0.34, 0.67, 1, 2, 2.2, 2.4, 2.6, 2.8, 3, 4];
-    shell.push(skin(rim, rim.columns(0, rim.P), () => up, 0));
-    shell.push(box(2 * hx, 0.002, 2 * hz, 0, H - 0.001, 0), box(2 * hx, 0.002, 2 * hz, 0, 0.001, 0));
+    // Its UVs are metres: round the hull, and up its section (on over the roof and under the floor, where the height stands still).
+    const over3 = POD.R - POD.rt;
+    const under = POD.R - rb;
+    shell.push(skin(rim, rim.columns(0, rim.P), () => up, 0, (u, y, t) => [u, t > 3 ? y + (t - 3) * over3 : t < 0 ? y + t * under : y]));
+    shell.push(boxUV(box(2 * hx, 0.002, 2 * hz, 0, H - 0.001, 0), 1), boxUV(box(2 * hx, 0.002, 2 * hz, 0, 0.001, 0), 1));
 
     /* Seams: the hull reads as segments, a joint round it every metre or so, and a belt where wall meets roof. */
     const bays = Math.max(1, Math.round((2 * hx) / 1.15));
