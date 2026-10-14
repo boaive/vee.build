@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { FilmStep } from '../data/narrative';
+import { COMPACT_QUERY, SIDEWAYS_QUERY } from './device';
 import { holdPage } from './hold';
 import { FilmContext, createProgress, type PlaceLabel, type SceneProps } from './progress';
 import { clamp01 } from './timeline';
@@ -34,9 +35,33 @@ export interface FilmLabel {
 export interface Prelude {
   /** Scroll length in viewport heights. */
   length: number;
+  /** The same on a compact layout (film/device.ts), where it differs. */
+  lengthCompact?: number;
   content: ReactNode;
   tone?: 'paper' | 'ink';
   opening?: 'window' | 'mist';
+}
+
+/**
+ * Compact layouts only (film/device.ts): the film's steps as cards to
+ * choose from, under the picture, instead of a long scroll (the mobile and
+ * tablet round, 2026-10-14: "scroll horizontal to view those three, and
+ * vertical to move hero sections"; "in mobile who wants to view such a
+ * long process?? ... use card options"). A card, an arrow or a sideways
+ * swipe on the picture chooses a step; the page's own scroll moves on past
+ * the film. Desktop never has them: the film is scrolled through as it was.
+ */
+export interface Pick {
+  /** What the group of cards is, read out. */
+  label: string;
+  /** One card a step: its picture (a file in public/), a small line and its name. */
+  cards: { src?: string; code?: string; name: string }[];
+  /**
+   * How long the scene's progress takes from one step's pose to the
+   * chosen one's, in seconds, as a time-lapse of what lies between; 0: at
+   * once, for a scene that moves itself from step to step.
+   */
+  seconds: number;
 }
 
 interface FilmProps {
@@ -81,6 +106,8 @@ interface FilmProps {
    * step's settled pose.
    */
   play?: { seconds: number };
+  /** Compact layouts: the steps as cards (Pick). */
+  pick?: Pick;
 }
 
 const DAMPING = 6.5;
@@ -145,6 +172,7 @@ export default function Film({
   prelude,
   onReady: onReadyProp,
   play,
+  pick,
 }: FilmProps) {
   const root = useRef<HTMLElement>(null);
   const sticky = useRef<HTMLDivElement>(null);
@@ -157,12 +185,27 @@ export default function Film({
   }, [prelude]);
 
   const [active, setActive] = useState(0);
+  /** Compact layouts with cards (`pick`): the step chosen. */
+  const [picked, setPicked] = useState(0);
+  const pickOn = useRef(false);
+  const pickRaf = useRef(0);
+  const pickedRef = useRef(0);
+  pickedRef.current = picked;
+  /**
+   * A film that plays by itself does so on desktop only. On a compact layout
+   * it follows the scroll like any other and never holds the page
+   * (developer, 2026-10-14: "the delivery video, make it skippable or
+   * scrollable").
+   */
+  const playOn = useRef(!!play);
+  const cards = useRef<HTMLOListElement>(null);
   const [near, setNear] = useState(false);
   /** Mounted ahead of time: within reach, and the page has stood still. */
   const [early, setEarly] = useState(false);
   const [visible, setVisible] = useState(false);
   const [ready, setReady] = useState(false);
   const [compact, setCompact] = useState(false);
+  const compactRef = useRef(false);
   const [reduced, setReduced] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   /** The title card has opened all the way: it and its clip are taken off the stage. */
@@ -174,16 +217,18 @@ export default function Film({
   const playing = useRef({ on: false, done: false, raf: 0, input: 0, lastY: 0, ready: false, release: null as (() => void) | null });
 
   const state = useRef({ raf: 0, last: 0, active: 0, reduced: false, visible: false, pre: '', open: false, risen: false, seen: false, soon: false, early: false });
-  const preLen = prelude?.length ?? 0;
+  const preLen = (compact ? prelude?.lengthCompact : undefined) ?? prelude?.length ?? 0;
+  const preLenC = prelude?.lengthCompact ?? prelude?.length ?? 0;
 
   /* Environment queries */
   useEffect(() => {
     setHydrated(true);
-    const mqCompact = window.matchMedia('(max-width: 860px)');
+    const mqCompact = window.matchMedia(COMPACT_QUERY);
     const mqReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     // `?still` shows every film in its settled poses (QA and screenshots).
     const still = new URLSearchParams(window.location.search).has('still');
     const sync = () => {
+      compactRef.current = mqCompact.matches;
       setCompact(mqCompact.matches);
       setReduced(still || mqReduced.matches);
       state.current.reduced = still || mqReduced.matches;
@@ -196,6 +241,76 @@ export default function Film({
       mqReduced.removeEventListener('change', sync);
     };
   }, []);
+
+  /*
+   * Compact layouts (film/device.ts): the building is framed in the part of
+   * the stage that the words and the controls leave free (Stage, `band`).
+   * The words stand at the top, or at the left on a phone held sideways;
+   * the controls at the foot. Whatever marks itself [data-band] counts:
+   * "words" or "foot". The captions are stacked in one place, so the band
+   * is the tallest of them and the picture does not move when the caption
+   * changes. On desktop nothing here runs and the band stays null.
+   */
+  useEffect(() => {
+    const pin = sticky.current;
+    if (!compact || !pin) {
+      if (progress.band) {
+        progress.band = null;
+        progress.invalidate?.();
+      }
+      return;
+    }
+    const mqSide = window.matchMedia(SIDEWAYS_QUERY);
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const measure = () => {
+      const box = pin.getBoundingClientRect();
+      const W = box.width || 1;
+      const H = box.height || 1;
+      const side = mqSide.matches;
+      const gap = 0.9 * rem;
+      let l = 0;
+      let t = 0;
+      let r = W;
+      let b = H;
+      pin.querySelectorAll<HTMLElement>('[data-band]').forEach((el) => {
+        // Counted whether or not it is showing at the moment (a caption's extras, the counter): the band does not move with the step.
+        const rr = el.getBoundingClientRect();
+        if (!rr.width || !rr.height) return;
+        if (el.dataset.band === 'words') {
+          if (side) l = Math.max(l, rr.right - box.left + gap);
+          else t = Math.max(t, rr.bottom - box.top + gap);
+        } else if (!side || rr.right - box.left > l) b = Math.min(b, rr.top - box.top - gap);
+      });
+      // However much the words take, the building keeps at least two fifths of the screen.
+      if (side) l = Math.min(l, W * 0.55);
+      else t = Math.min(t, H * 0.58, b - H * 0.32);
+      const band: [number, number, number, number] = [l / W, t / H, r / W, Math.max(t + 1, b) / H];
+      const was = progress.band;
+      if (was && band.every((v, k) => Math.abs(v - was[k]) < 0.002)) return;
+      progress.band = band;
+      progress.invalidate?.();
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    const watch = () => {
+      ro.disconnect();
+      ro.observe(pin);
+      pin.querySelectorAll<HTMLElement>('[data-band]').forEach((el) => ro.observe(el));
+      measure();
+    };
+    watch();
+    // A control that mounts after the film (a section's own, shown only on compact layouts) is counted when it comes.
+    const hud = pin.querySelector('.film__hud');
+    const mo = new MutationObserver(watch);
+    if (hud) mo.observe(hud, { childList: true });
+    mqSide.addEventListener('change', measure);
+    document.fonts?.ready.then(measure);
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+      mqSide.removeEventListener('change', measure);
+    };
+  }, [compact, progress, steps]);
 
   /* Damping loop: runs only while the value is still catching up. */
   const tick = useCallback(
@@ -270,7 +385,7 @@ export default function Film({
           }
         }
       }
-      if (!play) progress.target = travel > 0 ? clamp01((-r.top - prePx) / travel) : 0;
+      if (!playOn.current && !pickOn.current) progress.target = travel > 0 ? clamp01((-r.top - prePx) / travel) : 0;
       kick();
     };
 
@@ -359,7 +474,7 @@ export default function Film({
    */
   const startPlay = useCallback(() => {
     const pl = playing.current;
-    if (!play || pl.on) return;
+    if (!play || !playOn.current || pl.on) return;
     pl.on = true;
     const ms = play.seconds * 1000;
     const end = () => {
@@ -390,7 +505,8 @@ export default function Film({
   }, [play, progress]);
 
   useEffect(() => {
-    if (!play) return;
+    playOn.current = !!play && !compact;
+    if (!play || compact) return;
     const el = root.current;
     const pin = sticky.current;
     const pl = playing.current;
@@ -422,7 +538,7 @@ export default function Film({
       pl.release?.();
       pl.release = null;
     };
-  }, [play, startPlay]);
+  }, [play, startPlay, compact]);
 
   /** Again, from the top of its stage. */
   const replay = () => {
@@ -458,7 +574,103 @@ export default function Film({
     el.style.visibility = 'visible';
     el.style.opacity = opacity.toFixed(3);
     el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+    /*
+     * Compact layouts: a green call-out box stands at the edge of the screen
+     * on its point's side, its tick running in to the point, so that the
+     * building is not under it (developer, 2026-10-14: "the green thing makes
+     * the house not visible"; film.css). Desktop: as it was.
+     */
+    if (compactRef.current && el.classList.contains('lbl--box')) {
+      const w = sticky.current?.clientWidth || window.innerWidth;
+      const g = Math.min(64, Math.max(16, 0.04 * window.innerWidth));
+      const left = x < w / 2;
+      if (el.classList.contains('is-left') !== left || !el.classList.contains(left ? 'is-left' : 'is-right')) {
+        el.classList.toggle('is-left', left);
+        el.classList.toggle('is-right', !left);
+      }
+      el.style.setProperty('--edge', `${(left ? g - x : w - g - x).toFixed(1)}px`);
+    }
   }, []);
+
+  /*
+   * Cards (compact layouts, `pick`): the step is chosen, the caption changes
+   * at once, and the scene's progress goes to that step's pose, at once or
+   * as a short time-lapse. The scroll no longer moves it.
+   */
+  const picking = compact && !!pick;
+  useEffect(() => {
+    pickOn.current = picking;
+    progress.pick = picking;
+    if (picking) progress.target = progress.value = steps[pickedRef.current]?.pose ?? 0;
+    progress.listeners.forEach((fn) => fn(progress.value));
+    progress.invalidate?.();
+    // The step itself is set by `choose`: this follows the mode only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [picking, progress]);
+  const choose = useCallback(
+    (to: number) => {
+      const i = Math.max(0, Math.min(steps.length - 1, to));
+      setPicked(i);
+      cancelAnimationFrame(pickRaf.current);
+      const from = progress.value;
+      const goal = steps[i].pose;
+      const ms = state.current.reduced ? 0 : (pick?.seconds ?? 0) * 1000;
+      const put = (v: number) => {
+        progress.target = progress.value = v;
+        progress.listeners.forEach((fn) => fn(v));
+        progress.invalidate?.();
+      };
+      if (ms <= 0 || Math.abs(goal - from) < 1e-4) {
+        put(goal);
+        return;
+      }
+      const t0 = performance.now();
+      const run = (now: number) => {
+        const t = Math.min(1, (now - t0) / ms);
+        put(from + (goal - from) * (t * t * (3 - 2 * t)));
+        if (t < 1) pickRaf.current = requestAnimationFrame(run);
+      };
+      pickRaf.current = requestAnimationFrame(run);
+    },
+    [steps, progress, pick],
+  );
+  useEffect(() => () => cancelAnimationFrame(pickRaf.current), []);
+  // The chosen card is brought into view in its row.
+  useEffect(() => {
+    if (!picking) return;
+    const row = cards.current;
+    const el = row?.children[picked] as HTMLElement | undefined;
+    if (el && row) row.scrollTo({ left: el.offsetLeft - (row.clientWidth - el.offsetWidth) / 2, behavior: state.current.reduced ? 'auto' : 'smooth' });
+  }, [picked, picking]);
+  // A sideways swipe on the picture: the next step, or the one before. Up and down is still the page's scroll.
+  useEffect(() => {
+    const pin = sticky.current;
+    if (!picking || !pin) return;
+    let x = 0;
+    let y = 0;
+    let id = -1;
+    const down = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse' || (e.target as HTMLElement).closest('.film__pick, a, button')) return;
+      id = e.pointerId;
+      x = e.clientX;
+      y = e.clientY;
+    };
+    const up = (e: PointerEvent) => {
+      if (e.pointerId !== id) return;
+      id = -1;
+      const dx = e.clientX - x;
+      const dy = e.clientY - y;
+      if (Math.abs(dx) > 44 && Math.abs(dx) > Math.abs(dy) * 1.4) choose(pickedRef.current + (dx < 0 ? 1 : -1));
+    };
+    pin.addEventListener('pointerdown', down);
+    pin.addEventListener('pointerup', up);
+    pin.addEventListener('pointercancel', up);
+    return () => {
+      pin.removeEventListener('pointerdown', down);
+      pin.removeEventListener('pointerup', up);
+      pin.removeEventListener('pointercancel', up);
+    };
+  }, [picking, choose]);
 
   const goTo = (i: number) => {
     const el = root.current;
@@ -477,7 +689,7 @@ export default function Film({
     // The picture was not up when the visitor scrolled onto a film that plays by itself: it starts now, if they are still on it.
     const el = root.current;
     const pin = sticky.current;
-    if (play && el && pin && !pl.on && !pl.done && !state.current.reduced && performance.now() - pl.input < 1500) {
+    if (playOn.current && el && pin && !pl.on && !pl.done && !state.current.reduced && performance.now() - pl.input < 1500) {
       const r = el.getBoundingClientRect();
       if (r.top <= 0 && r.bottom - pin.offsetHeight > 8) startPlay();
     }
@@ -487,7 +699,9 @@ export default function Film({
   }, [onReadyProp, id, play, startPlay]);
 
   /* A step can switch the caption theme (a dark sky needs light text). */
-  const stepTheme = steps[active].theme ?? theme;
+  /** The step on show: chosen with the cards, or where the scroll is. */
+  const shown = picking ? picked : active;
+  const stepTheme = steps[shown].theme ?? theme;
   /* What stands under the header: an ink title card until it has opened, then the film. */
   const headerTheme = prelude?.tone === 'ink' && !risen ? 'dark' : stepTheme;
   useEffect(() => {
@@ -507,19 +721,19 @@ export default function Film({
   const Heading = headingTag;
   const StepTitle = stepTag;
   const len = length + preLen;
-  const lenC = (lengthCompact ?? length) + preLen;
+  const lenC = (lengthCompact ?? length) + preLenC;
 
   return (
     <FilmContext.Provider value={progress}>
       <section
         id={id}
         ref={root}
-        className={`film film--${variant} theme-${stepTheme}${reduced ? ' is-still' : ''}${prelude ? ` has-prelude has-prelude--${prelude.opening ?? 'window'}` : ''}${open ? ' is-open' : ''}`}
+        className={`film film--${variant} theme-${stepTheme}${reduced ? ' is-still' : ''}${prelude ? ` has-prelude has-prelude--${prelude.opening ?? 'window'}` : ''}${open ? ' is-open' : ''}${picking ? ' is-picking' : ''}`}
         data-theme={headerTheme}
         data-bare=""
         data-pre={preLen || undefined}
         data-chapter={chapter ?? id}
-        data-step={steps[active].id}
+        data-step={steps[shown].id}
         data-play={play ? (played ? 'done' : '') : undefined}
         aria-labelledby={`${id}-heading`}
         style={{ '--film-len': len, '--film-len-c': lenC } as CSSProperties}
@@ -558,20 +772,20 @@ export default function Film({
           )}
 
           <div className="film__hud">
-            <header className="film__head">
+            <header className="film__head" data-band="words">
               <span className="film__index">{index}</span>
               <Heading id={`${id}-heading`} className="film__heading">
                 {heading}
               </Heading>
             </header>
 
-            <ol className="film__steps" data-captions={captions}>
+            <ol className="film__steps" data-captions={captions} data-band="words">
               {steps.map((s, i) => (
                 <li
                   key={s.id}
-                  className={`film__step${i === active ? ' is-active' : i < active ? ' is-past' : ''}`}
-                  aria-current={i === active ? 'step' : undefined}
-                  aria-hidden={i === active ? undefined : true}
+                  className={`film__step${i === shown ? ' is-active' : i < shown ? ' is-past' : ''}`}
+                  aria-current={i === shown ? 'step' : undefined}
+                  aria-hidden={i === shown ? undefined : true}
                 >
                   <p className="t-label film__kicker">
                     {s.kicker}
@@ -595,7 +809,7 @@ export default function Film({
                   {s.note && <p className="film__note">{s.note}</p>}
                   {stepExtras?.[s.id]}
                   {s.link && (
-                    <a className="link film__link" href={s.link.href} tabIndex={i === active ? 0 : -1}>
+                    <a className="link film__link" href={s.link.href} tabIndex={i === shown ? 0 : -1}>
                       {s.link.label}
                     </a>
                   )}
@@ -611,18 +825,51 @@ export default function Film({
               </button>
             )}
 
-            <div className="film__ticks" role="group" aria-label={`${heading}: steps`}>
+            <div className="film__ticks" role="group" aria-label={`${heading}: steps`} data-band="foot">
               {steps.map((s, i) => (
                 <button
                   key={s.id}
                   type="button"
-                  className={`film__tick${i === active ? ' is-active' : ''}`}
+                  className={`film__tick${i === shown ? ' is-active' : ''}`}
                   aria-label={`Step ${i + 1} of ${steps.length}: ${s.title}`}
-                  aria-current={i === active ? 'step' : undefined}
-                  onClick={() => goTo(i)}
+                  aria-current={i === shown ? 'step' : undefined}
+                  onClick={() => (picking ? choose(i) : goTo(i))}
                 />
               ))}
             </div>
+
+            {/* Compact layouts: where the film is, as the references number it ("2 / 4"), beside the step marks (film.css). */}
+            {steps.length > 1 && (
+              <p className="film__count" aria-hidden="true">
+                <b>{shown + 1}</b> / {steps.length}
+              </p>
+            )}
+
+            {/* Compact layouts: the steps as cards (Pick), with arrows. */}
+            {picking && pick && (
+              <div className="film__pick" data-band="foot">
+                <div className="film__pick-bar">
+                  <p className="t-label film__pick-count" aria-hidden="true">
+                    <b>{String(shown + 1).padStart(2, '0')}</b> / {String(steps.length).padStart(2, '0')}
+                  </p>
+                  <button type="button" className="film__arrow film__arrow--prev" aria-label="Previous" disabled={shown === 0} onClick={() => choose(shown - 1)} />
+                  <button type="button" className="film__arrow film__arrow--next" aria-label="Next" disabled={shown === steps.length - 1} onClick={() => choose(shown + 1)} />
+                </div>
+                <ol className="film__cards" ref={cards} aria-label={pick.label}>
+                  {pick.cards.map((c, i) => (
+                    <li key={i}>
+                      <button type="button" className={`film__card${i === shown ? ' is-on' : ''}`} aria-pressed={i === shown} onClick={() => choose(i)}>
+                        {c.src && <img src={c.src} alt="" width={240} height={150} loading="lazy" decoding="async" />}
+                        <span className="film__card-text">
+                          {c.code && <small>{c.code}</small>}
+                          {c.name}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
           </div>
 
           {prelude && (

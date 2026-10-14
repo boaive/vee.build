@@ -59,7 +59,7 @@ export interface Row {
 /** The card's block: two floors of four bays, the brief's G+1 at a length that sits in a row with the other two. */
 export const ROW_BAYS = 4;
 
-type Box = [number, number, number, number, number];
+export type Box = [number, number, number, number, number];
 
 /** A point on the house's own plan (x along it, z out of its front), as it lies in the set. */
 export function onPlan(x: number, z: number): P3 {
@@ -80,11 +80,11 @@ function hullOf(at: P3, turn: number, [x0, x1, z0, z1, h]: Box): P3[] {
 }
 
 /** The house's box on its own plan: roof overhang, landing and steps included, up to the ridge. */
-const HOUSE_BOX: Box = [-3.2, 3.25, -1.7, 3.25, 4.2];
+export const HOUSE_BOX: Box = [-3.2, 3.25, -1.7, 3.25, 4.2];
 /** The 20′ capsule's, steps included. */
-const CAPSULE_BOX: Box = [-3.08, 3.08, -1.55, 2.2, 3.2];
+export const CAPSULE_BOX: Box = [-3.08, 3.08, -1.55, 2.2, 3.2];
 /** The block's: its staircase stands against its left flank, its gallery along the front. */
-const blockBox = (bays: number): Box => [-bays * 1.5 - 2.15, bays * 1.5 + 0.1, -3.05, 4.65, 6.2];
+export const blockBox = (bays: number): Box => [-bays * 1.5 - 2.15, bays * 1.5 + 0.1, -3.05, 4.65, 6.2];
 
 const mix = (p: number, q: number, t: number) => p + (q - p) * t;
 /** To the floor's joints: the slabs are 3 m, laid from the house's own walls. */

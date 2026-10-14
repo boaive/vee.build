@@ -1,10 +1,15 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { COMPACT_QUERY } from '../../film/device';
 import type { FilmLabel } from '../../film/Film';
 import { createProgress, type PlaceLabel } from '../../film/progress';
 import type { ShowcaseKind } from '../../three/scenes/ShowcaseScene';
 import { POD_FEET_LABELS } from './labels';
 
 const Scene = lazy(() => import('../../three/scenes/ShowcaseScene'));
+/** Phones and tablets held upright: the building alone on the polished floor (ShowcaseStudioScene). Only fetched there. */
+const Studio = lazy(() => import('../../three/scenes/ShowcaseStudioScene'));
+/** The capsule's three lengths (the brief's), one at a time on a compact layout. */
+const FEET = [10, 16, 20] as const;
 
 const LABELS: Record<ShowcaseKind, FilmLabel[]> = {
   house: [],
@@ -37,11 +42,13 @@ export default function Showcase({ kind, description, note }: Props) {
   const [ready, setReady] = useState(false);
   const [compact, setCompact] = useState(false);
   const [reduced, setReduced] = useState(false);
+  /** Compact layouts: the capsule on show. */
+  const [feet, setFeet] = useState<number>(20);
 
   useEffect(() => {
     const el = root.current;
     if (!el) return;
-    const mqC = window.matchMedia('(max-width: 860px)');
+    const mqC = window.matchMedia(COMPACT_QUERY);
     const mqR = window.matchMedia('(prefers-reduced-motion: reduce)');
     const still = new URLSearchParams(window.location.search).has('still');
     const sync = () => {
@@ -57,17 +64,39 @@ export default function Showcase({ kind, description, note }: Props) {
     ioNear.observe(el);
     ioVisible.observe(el);
 
+    /*
+     * A finger drawn across the picture turns it (compact layouts; a touch
+     * that moves up or down is the page's scroll: touch-action, sections.css).
+     * It stays where it was left. A mouse turns it as it moves over it, as
+     * before, and lets it go back when it leaves.
+     */
+    const drag = { id: -1, x: 0, from: 0.5 };
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse') return;
+      drag.id = e.pointerId;
+      drag.x = e.clientX;
+      drag.from = progress.target;
+    };
     const onMove = (e: PointerEvent) => {
-      if (e.pointerType === 'touch') return;
       const r = el.getBoundingClientRect();
-      progress.target = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+      if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+        if (e.pointerId !== drag.id) return;
+        progress.target = Math.min(1, Math.max(0, drag.from - ((e.clientX - drag.x) / r.width) * 1.3));
+      } else progress.target = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
       progress.invalidate?.();
     };
-    const onLeave = () => {
+    const onUp = (e: PointerEvent) => {
+      if (e.pointerId === drag.id) drag.id = -1;
+    };
+    const onLeave = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse') return;
       progress.target = 0.5;
       progress.invalidate?.();
     };
+    el.addEventListener('pointerdown', onDown);
     el.addEventListener('pointermove', onMove);
+    el.addEventListener('pointerup', onUp);
+    el.addEventListener('pointercancel', onUp);
     el.addEventListener('pointerleave', onLeave);
 
     return () => {
@@ -75,7 +104,10 @@ export default function Showcase({ kind, description, note }: Props) {
       mqR.removeEventListener('change', sync);
       ioNear.disconnect();
       ioVisible.disconnect();
+      el.removeEventListener('pointerdown', onDown);
       el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerup', onUp);
+      el.removeEventListener('pointercancel', onUp);
       el.removeEventListener('pointerleave', onLeave);
     };
   }, [progress]);
@@ -99,11 +131,16 @@ export default function Showcase({ kind, description, note }: Props) {
   const onReady = useCallback(() => setReady(true), []);
 
   return (
-    <div className={`showcase${reduced ? ' is-still' : ''}`} ref={root} role="img" aria-label={description}>
-      <div className={`showcase__stage${ready ? ' is-ready' : ''}`}>
+    <div className={`showcase showcase--${kind}${compact && kind === 'capsule' ? ' on-ink' : ''}${reduced ? ' is-still' : ''}`} ref={root} role={compact ? undefined : 'img'} aria-label={compact ? undefined : description}>
+      {/* With controls under it (compact), the picture alone is the image. */}
+      <div className={`showcase__stage${ready ? ' is-ready' : ''}`} role={compact ? 'img' : undefined} aria-label={compact ? description : undefined}>
         {near && (
           <Suspense fallback={null}>
-            <Scene kind={kind} progress={progress} place={place} compact={compact} active={visible} reduced={reduced} onReady={onReady} />
+            {compact ? (
+              <Studio kind={kind} feet={feet} progress={progress} place={place} compact={compact} active={visible} reduced={reduced} onReady={onReady} />
+            ) : (
+              <Scene kind={kind} progress={progress} place={place} compact={compact} active={visible} reduced={reduced} onReady={onReady} />
+            )}
           </Suspense>
         )}
         <div className="showcase__labels" aria-hidden="true">
@@ -123,6 +160,25 @@ export default function Showcase({ kind, description, note }: Props) {
         </div>
       </div>
       {note && <p className="t-label showcase__note">{note}</p>}
+      {compact && (
+        <div className="showcase__foot">
+          {kind === 'capsule' && (
+            <div className="showcase__pick" role="group" aria-label="Capsule length">
+              {FEET.map((f) => (
+                <button key={f} type="button" className="showcase__len" aria-pressed={feet === f} onClick={() => setFeet(f)}>
+                  <svg viewBox="0 0 44 14" aria-hidden="true">
+                    <rect x={(44 - f * 2) / 2 + 0.75} y="0.75" width={f * 2 - 1.5} height="12.5" rx="4" />
+                  </svg>
+                  {f}′
+                </button>
+              ))}
+            </div>
+          )}
+          <p className="t-label showcase__hint" aria-hidden="true">
+            Drag to turn
+          </p>
+        </div>
+      )}
     </div>
   );
 }

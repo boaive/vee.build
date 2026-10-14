@@ -64,7 +64,8 @@ export const shown = { catalogue: false } as const;
 
 /**
  * The main page's chapters, in order (5 Build your own, 6 3D tour, 7 The
- * factory, 8 Delivery, as the client's notes of 2026-10-09 number them).
+ * factory, 8 Delivery, as the client's notes of 2026-10-09 number them; 9
+ * On site since 2026-10-14).
  * The numbers are counted from this list, so a hidden chapter leaves no gap.
  */
 const chapters: { id: string; label: string; show?: boolean }[] = [
@@ -76,6 +77,8 @@ const chapters: { id: string; label: string; show?: boolean }[] = [
   { id: 'your-house', label: '3D tour' },
   { id: 'factory', label: 'The factory' },
   { id: 'delivery', label: 'Delivery' },
+  // A chapter of its own since 2026-10-14 (developer: "if it is marked as 08, then onsite should follow 09 not the same 08").
+  { id: 'installation', label: 'On site' },
   { id: 'catalogue', label: 'Catalogue', show: shown.catalogue },
   { id: 'gallery', label: 'Photo gallery' },
   { id: 'contact', label: 'Contact' },

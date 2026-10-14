@@ -695,17 +695,80 @@ button {
   padding-top: 0.2rem;
 }
 
-@media (max-width: 860px) {
+/*
+ * Phones, narrow windows and tablets held upright (film/device.ts,
+ * COMPACT_QUERY): the lockup on the left; on the right the Contact pill and
+ * the menu as three bars, as in the developer's reference screens of
+ * 2026-10-14. The word "Menu" is still read out.
+ */
+@media (max-width: 860px), (max-width: 1100px) and (orientation: portrait) and (hover: none) and (pointer: coarse) {
+  .hdr {
+    gap: 0.75rem;
+  }
   .hdr__nav {
+    margin-left: auto;
+  }
+  .hdr__lines {
     display: none;
+  }
+  .hdr__link--cta {
+    min-height: 2.4rem;
+    padding-inline: 1.05rem;
+    font-size: 0.86rem;
   }
   .hdr__toggle {
     display: inline-flex;
+    justify-content: center;
+    width: 2.75rem;
+    padding-inline: 0;
+  }
+  .hdr__toggle > span:first-child {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .hdr__toggle-bars {
+    width: 1.45rem;
+    height: 0.95rem;
+    background: linear-gradient(currentColor, currentColor) center / 100% 1.75px no-repeat;
+    transition: background-size 0.25s var(--ease);
+  }
+  .hdr__toggle-bars::before,
+  .hdr__toggle-bars::after {
+    height: 1.75px;
+  }
+  .hdr__toggle[aria-expanded='true'] .hdr__toggle-bars {
+    background-size: 0 1.75px;
+  }
+  .hdr__toggle[aria-expanded='true'] .hdr__toggle-bars::before {
+    transform: translateY(0.42rem) rotate(45deg);
+  }
+  .hdr__toggle[aria-expanded='true'] .hdr__toggle-bars::after {
+    transform: translateY(-0.42rem) rotate(-45deg);
   }
 }
 @media (min-width: 861px) {
   .menu {
     display: none;
+  }
+}
+/* A tablet held upright and wider than that has the menu too. */
+@media (max-width: 1100px) and (orientation: portrait) and (hover: none) and (pointer: coarse) {
+  .menu {
+    display: grid;
+  }
+}
+/* Very narrow phones: the pill keeps its word, a little tighter. */
+@media (max-width: 359px) {
+  .hdr__link--cta {
+    padding-inline: 0.8rem;
+    font-size: 0.8rem;
+  }
+  .brand__word {
+    font-size: 0.9rem;
   }
 }
 

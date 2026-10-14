@@ -55,7 +55,7 @@ function Counter() {
   });
 
   return (
-    <div className="counter" ref={root} aria-hidden="true">
+    <div className="counter" ref={root} aria-hidden="true" data-band="foot">
       <div className="counter__value">
         <span ref={value}>{footprints[0].sqft}</span>
         <small>sq.ft.</small>

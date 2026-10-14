@@ -272,6 +272,20 @@ export function FarmSet({ getA, getLit, look, land, house }: Omit<BuildingProps,
   );
 }
 
+/**
+ * The farmhouse set's house alone, with its porch light, turned as it
+ * stands there: no meadow, no path, nothing of its land is built. For the
+ * phone's hero (HeroMobileScene), where it stands on the polished floor.
+ */
+export function HouseAlone({ getLit, look, house }: { getLit?: () => number; look: Look; house?: Ref<Group> }) {
+  return (
+    <group rotation-y={FARM_YAW} ref={house}>
+      <ModelHome getA={whole} getLit={getLit} look={look} shellHex={HOME_FINISH.shell} deckHex={HOME_FINISH.deck} trimHex={HOME_FINISH.trim} />
+      <Lamp at={HOME_LAMP} intensity={(look.lamps ?? 0) * 0.55} distance={6} getOn={getLit} />
+    </group>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* The opening card: the other two of the three kinds of building      */
 /* ------------------------------------------------------------------ */

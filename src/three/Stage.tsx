@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, 
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { SceneProps } from '../film/progress';
+import { isLite } from '../film/tier';
 import { ATMOS, patchAtmosphere, setClearing } from './kit/atmosphere';
 import { SkyDome } from './kit/env';
 import { memo } from './kit/geometry';
@@ -40,6 +41,12 @@ export interface StageOptions {
   post?: PostOptions | false;
   /** Lighter finish on small screens: no AO. */
   postCompact?: PostOptions | false;
+  /**
+   * Compact layouts with a band only: how much nearer than its desktop
+   * composition the scene's camera comes (`aim`), so that the building
+   * fills the band. Desktop never reads it.
+   */
+  zoomCompact?: number;
 }
 
 /** Shared with the scene: where to shadow, and the current mood. */
@@ -105,6 +112,8 @@ interface StageProps extends SceneProps, StageOptions {
   children: (rig: Rig) => ReactNode;
 }
 
+/** The stage camera's own lens: its vertical angle, in degrees (the Canvas's camera, below). */
+const BASE_FOV = 28;
 const _sun = new THREE.Vector3();
 const _ca = new THREE.Color();
 const _cb = new THREE.Color();
@@ -259,9 +268,11 @@ function Setup({
   envIntensity,
   exposure,
   localClipping = false,
+  zoomCompact = 1,
   rig,
   finished,
-}: StageProps & { rig: Rig; finished: boolean }) {
+  lite,
+}: StageProps & { rig: Rig; finished: boolean; lite: boolean }) {
   const { gl, scene, camera, size, invalidate, advance, get } = useThree();
   const light = useRef<THREE.DirectionalLight>(null);
   const hemi = useRef<THREE.HemisphereLight>(null);
@@ -577,13 +588,56 @@ function Setup({
 
   /* Off-centre framing: put the look target where the layout leaves room. */
   const [fx, fy] = compact ? focusCompact : focus;
-  useLayoutEffect(() => {
+  /*
+   * Compact layouts with a band (Film measures it: the part of the stage
+   * between the words and the controls): the picture is composed for the
+   * band as if it were the whole screen. The lens sees the scene's own
+   * angle across the band's height and the look target stands in its
+   * middle; `aim` pulls the camera back for the band's shape, not the
+   * screen's (camera.userData.frameAspect). The rest of the canvas is the
+   * same picture carried on round it. A scene with a lens of its own (the
+   * road) leaves it in camera.userData.lens. Desktop never has a band.
+   */
+  const framed = useRef('');
+  const frame = () => {
     const cam = camera as THREE.PerspectiveCamera;
     const { width: w, height: h } = size;
-    cam.setViewOffset(w, h, (0.5 - fx) * w, (0.5 - fy) * h, w, h);
+    const band = compact ? progress.band : null;
+    const lens: number = cam.userData.lens ?? BASE_FOV;
+    const key = band ? `${w}x${h}:${band.join(',')}:${lens}:${zoomCompact}` : `${w}x${h}:${fx},${fy}`;
+    if (key === framed.current) return false;
+    framed.current = key;
+    if (band) {
+      const [l, t, r, b] = band;
+      const bw = Math.max(1, (r - l) * w);
+      const bh = Math.max(1, (b - t) * h);
+      cam.fov = (2 * Math.atan(Math.tan((lens * Math.PI) / 360) * (h / bh)) * 180) / Math.PI;
+      cam.userData.frameAspect = bw / bh;
+      cam.userData.frameZoom = zoomCompact;
+      cam.setViewOffset(w, h, w / 2 - ((l + r) / 2) * w, h / 2 - ((t + b) / 2) * h, w, h);
+    } else {
+      if (cam.userData.frameAspect !== undefined) {
+        delete cam.userData.frameAspect;
+        delete cam.userData.frameZoom;
+        cam.fov = lens;
+        cam.updateProjectionMatrix();
+      }
+      cam.setViewOffset(w, h, (0.5 - fx) * w, (0.5 - fy) * h, w, h);
+    }
+    return true;
+  };
+  useLayoutEffect(() => {
+    const cam = camera as THREE.PerspectiveCamera;
+    framed.current = '';
+    frame();
     invalidate();
-    return () => cam.clearViewOffset();
-  }, [camera, size, fx, fy, invalidate]);
+    return () => {
+      cam.clearViewOffset();
+      framed.current = '';
+    };
+    // `frame` reads only what is listed and the band, which is read again on every frame (below).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [camera, size, fx, fy, compact, invalidate]);
 
   /*
    * Key light follows the action in steps of an eighth of the shadowed
@@ -591,10 +645,13 @@ function Setup({
    * and between steps the light does not move at all: a camera that drifts
    * a few centimetres no longer forces the shadow map to be redrawn.
    */
-  const mapSize = compact ? 2048 : 4096;
+  // A budget touch device (film/tier.ts) has the smallest map: its shadows are softer, the same in every frame.
+  const mapSize = lite ? 1024 : compact ? 2048 : 4096;
   const lit = useRef({ x: NaN, z: NaN, sx: NaN, sy: NaN, sz: NaN });
   const casters = useRef(NaN);
   useFrame(() => {
+    // Compact layouts: the band can change without the canvas changing size (the fonts arriving, a caption's extras).
+    if (compact) frame();
     rig.sync();
     const l = light.current;
     if (l) {
@@ -641,7 +698,7 @@ function Setup({
         shadow-mapSize={[mapSize, mapSize]}
         shadow-bias={-0.00025}
         shadow-normalBias={0.035}
-        shadow-radius={compact ? 2 : 2.6}
+        shadow-radius={lite ? 1.6 : compact ? 2 : 2.6}
       >
         <orthographicCamera attach="shadow-camera" args={[-shadowExtent, shadowExtent, shadowExtent, -shadowExtent, 1, 220]} />
       </directionalLight>
@@ -676,12 +733,13 @@ function Setup({
  * pixel a canvas of its size may have, again whenever its size, the
  * screen's density (a zoom) or the budget changes.
  */
-function Resolution({ ceiling, set }: { ceiling: number; set: (dpr: number) => void }) {
+function Resolution({ ceiling, set, plain = false }: { ceiling: number; set: (dpr: number) => void; plain?: boolean }) {
   const gl = useThree((s) => s.gl);
   const size = useThree((s) => s.size);
   useLayoutEffect(() => gauge(gl), [gl]);
   useLayoutEffect(() => {
-    const apply = () => set(dprOf(size.width, size.height, ceiling));
+    // `plain`: a budget touch device (film/tier.ts) keeps the ceiling, whatever the budget says.
+    const apply = () => set(plain ? plainDpr(ceiling) : dprOf(size.width, size.height, ceiling));
     apply();
     gpu.listeners.add(apply);
     window.addEventListener('resize', apply);
@@ -689,7 +747,7 @@ function Resolution({ ceiling, set }: { ceiling: number; set: (dpr: number) => v
       gpu.listeners.delete(apply);
       window.removeEventListener('resize', apply);
     };
-  }, [size, ceiling, set]);
+  }, [size, ceiling, set, plain]);
   return null;
 }
 
@@ -703,9 +761,15 @@ const DEFAULT_POST_COMPACT: PostOptions = { ao: false, bloom: 0.25, bloomThresho
  */
 export default function Stage(props: StageProps) {
   const { active, compact, children, look = 'studioLight', post = DEFAULT_POST, postCompact = DEFAULT_POST_COMPACT } = props;
-  const finish = compact ? postCompact : post;
+  /*
+   * A budget touch device (film/tier.ts, measured once a visit before this
+   * mounts; never a desktop): the compact finish, one pixel to the CSS
+   * pixel, the smallest shadow map. Decided before the first frame.
+   */
+  const lite = useMemo(() => isLite(), []);
+  const finish = compact || lite ? postCompact : post;
   // What a canvas has where the GPU has nothing more to give (kit/gpu.ts): at most this many pixels to the CSS pixel.
-  const ceiling = compact || finish ? 1.5 : 1.75;
+  const ceiling = lite ? 1 : compact || finish ? 1.5 : 1.75;
   const [dpr, setDpr] = useState(() => plainDpr(ceiling));
   const rig = useMemo<Rig>(
     () => ({
@@ -738,7 +802,7 @@ export default function Stage(props: StageProps) {
       dpr={dpr}
       // With a finish the scene is drawn into its own target; the canvas only receives the final pass.
       gl={{ antialias: !finish, alpha: true, powerPreference: 'high-performance', stencil: false, depth: !finish }}
-      camera={{ fov: 28, near: 0.5, far: 1200, position: [20, 14, 26] }}
+      camera={{ fov: BASE_FOV, near: 0.5, far: 1200, position: [20, 14, 26] }}
       /*
        * The stage's own box, not its painted bounds: the hero scales the
        * stage while its title card opens, and a canvas measured through that
@@ -747,8 +811,8 @@ export default function Stage(props: StageProps) {
       resize={{ scroll: false, offsetSize: true }}
       style={{ position: 'absolute', inset: 0 }}
     >
-      <Resolution ceiling={ceiling} set={setDpr} />
-      <Setup {...props} rig={rig} finished={!!finish} />
+      <Resolution ceiling={ceiling} set={setDpr} plain={lite} />
+      <Setup {...props} rig={rig} finished={!!finish} lite={lite} />
       {children(rig)}
       {finish && (
         <Post
@@ -804,7 +868,10 @@ export function aim(
   composedAspect = 1.5,
   strength = 0.85,
 ) {
-  const fit = aspect < composedAspect ? 1 + (composedAspect / aspect - 1) * strength : 1;
+  // Compact layouts compose for the band the picture is framed in (Setup, `frame`), not for the whole canvas, and come nearer by the stage's zoomCompact.
+  const shape = (camera.userData.frameAspect as number | undefined) ?? aspect;
+  const near = (camera.userData.frameZoom as number | undefined) ?? 1;
+  const fit = (shape < composedAspect ? 1 + (composedAspect / shape - 1) * strength : 1) / near;
   camera.position.set(
     look[0] + (pos[0] - look[0]) * fit,
     look[1] + (pos[1] - look[1]) * fit,

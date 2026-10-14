@@ -132,6 +132,25 @@ export const heroSteps: FilmStep[] = [
   },
 ];
 
+/**
+ * The opening card on a phone or a tablet held upright (developer,
+ * 2026-10-14: "the landing page shows that 3 building in that card option";
+ * "scroll horizontal to view those three, and vertical to move hero
+ * sections"): the three kinds as cards, one standing on the floor at a
+ * time, swiped sideways; the four steps after the card are scrolled
+ * through as on desktop. One card a kind: the menu's code and the kind's
+ * name. The pictures are the real-time model's own, captured from the
+ * phone's hero (public/images/cards; notes R).
+ */
+export const heroCards = kinds.map((k) => ({ src: `/images/cards/kind-${k.id}.webp`, code: k.soon ? `${k.code} · Soon` : k.code, name: k.name }));
+
+/**
+ * The capsule's step on a phone or a tablet held upright: its three
+ * lengths to choose from under it (the developer's capsule screen; the
+ * brief's 10′, 16′ and 20′). The one chosen stands on the floor.
+ */
+export const podLengths = [10, 16, 20] as const;
+
 /* ---------- 02 How it works ---------- */
 
 /*
@@ -375,6 +394,15 @@ export const factorySteps: FilmStep[] = [
     body: 'A mobile crane lifts the finished shell by its four hooks, sets it on the trailer and lets go. Next stop: your site.',
   },
 ];
+
+/**
+ * On a phone or a tablet held upright the factory is a station at a time,
+ * chosen with cards (developer, 2026-10-14: "in mobile who wants to view
+ * such a long process?? ... use card options"; Film, `pick`). Each card is
+ * a station's number and title; its picture is the bay at that station,
+ * captured from the real-time model (public/images/cards; notes R).
+ */
+export const factoryCards = factorySteps.map((s, i) => ({ src: `/images/cards/factory-${s.id}.webp`, code: String(i + 1).padStart(2, '0'), name: s.title.replace(' – core shell', '') }));
 
 /* ---------- 08 Delivery: on the road ---------- */
 

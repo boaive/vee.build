@@ -207,6 +207,7 @@ const organisation = {
     <Footer />
 
     <script>
+      import { COMPACT_QUERY } from '../film/device';
       // Header: solid once the page has moved, themed by the chapter beneath it.
       // Watched with an observer on a 24px marker at the top of the page, so scrolling itself runs no script here.
       const hdr = document.querySelector<HTMLElement>('[data-hdr]');
@@ -269,7 +270,8 @@ const organisation = {
           toggle.focus();
         }
       });
-      window.matchMedia('(min-width: 861px)').addEventListener('change', (e) => e.matches && setMenu(false));
+      // The menu is the compact layouts' (film/device.ts): leaving them closes it.
+      window.matchMedia(COMPACT_QUERY).addEventListener('change', (e) => !e.matches && setMenu(false));
 
       // Reveal document-flow content as it enters.
       const reveal = new IntersectionObserver(

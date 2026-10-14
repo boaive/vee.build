@@ -1065,6 +1065,102 @@
   color: #3b3e43;
 }
 
+/*
+ * The product pages on a phone or a tablet held upright (film/device.ts,
+ * COMPACT_QUERY; the developer's reference screens of 2026-10-14): the
+ * head as a poster, the name as large as the screen allows, and the
+ * building under it from edge to edge on the polished floor, in the
+ * page's warm shade (ShowcaseStudioScene); the capsule at dusk, on ink,
+ * with its three lengths to choose from under it. A finger drawn across
+ * the picture turns it; up and down is still the page's scroll.
+ */
+@media (max-width: 860px), (max-width: 1100px) and (orientation: portrait) and (hover: none) and (pointer: coarse) {
+  .page-hero {
+    padding-top: calc(var(--hdr) + clamp(1.4rem, 5svh, 2.75rem));
+    padding-bottom: clamp(1.25rem, 3.5svh, 2.25rem);
+  }
+  .page-hero .t-display {
+    font-size: clamp(3rem, 14.5vw, 5.8rem);
+    line-height: 0.92;
+  }
+  .page-hero__meta {
+    margin-bottom: 1.1rem;
+  }
+  .page-hero__lead {
+    margin-top: 1.05rem;
+  }
+  .page-hero__actions {
+    margin-top: 1.4rem;
+  }
+  .showcase {
+    height: clamp(25rem, 66svh, 46rem);
+    margin-inline: 0;
+    border-radius: 0;
+    background: linear-gradient(180deg, #f7f0e4 0%, #f8e7cf 42%, #f6dcbd 58%, #f0e0cb 78%, #efe2d0 100%);
+    touch-action: pan-y;
+  }
+  .showcase--capsule {
+    background:
+      radial-gradient(ellipse 80% 24% at 50% 52%, rgb(214 136 98 / 0.5) 0%, rgb(214 136 98 / 0) 72%),
+      linear-gradient(180deg, #121521 0%, #1f2233 30%, #3b3346 50%, #574050 60%, #2a2533 80%, #1c1a24 100%);
+  }
+  .showcase__note {
+    top: 1rem;
+    bottom: auto;
+    left: var(--gutter);
+    font-size: 0.6rem;
+  }
+  .showcase__foot {
+    position: absolute;
+    left: var(--gutter);
+    right: var(--gutter);
+    bottom: calc(0.9rem + env(safe-area-inset-bottom, 0px));
+    display: grid;
+    justify-items: center;
+    gap: 0.75rem;
+    pointer-events: none;
+  }
+  .showcase__pick {
+    display: flex;
+    gap: 0.5rem;
+    pointer-events: auto;
+  }
+  .showcase__len {
+    display: grid;
+    justify-items: center;
+    gap: 0.35rem;
+    min-width: 5rem;
+    min-height: 3.6rem;
+    padding: 0.6rem 0.8rem 0.55rem;
+    border: 1px solid var(--line-strong);
+    border-radius: 0.9rem;
+    background: rgb(var(--scrim) / 0.35);
+    color: var(--text-2);
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition:
+      color 0.25s var(--ease),
+      border-color 0.25s var(--ease);
+  }
+  .showcase__len svg {
+    width: 2.75rem;
+    height: auto;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.2;
+  }
+  .showcase__len[aria-pressed='true'] {
+    border-color: var(--accent-line);
+    color: var(--accent);
+  }
+  .showcase__hint {
+    font-size: 0.6rem;
+    letter-spacing: 0.16em;
+    color: var(--mute);
+  }
+}
+
 .facts {
   display: grid;
   gap: 0;

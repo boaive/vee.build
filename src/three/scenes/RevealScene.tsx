@@ -167,7 +167,7 @@ function Reveal({ progress, rig, reduced }: SceneProps & { rig: Rig }) {
 
 export default function RevealScene(props: SceneProps) {
   return (
-    <Stage {...props} look="studioDark" ground="floor" focus={[0.64, 0.54]} focusCompact={[0.5, 0.36]} shadowExtent={22} fogRange={[60, 160]}>
+    <Stage {...props} look="studioDark" ground="floor" focus={[0.64, 0.54]} focusCompact={[0.5, 0.36]} zoomCompact={1.4} shadowExtent={22} fogRange={[60, 160]}>
       {(rig) => <Reveal {...props} rig={rig} />}
     </Stage>
   );

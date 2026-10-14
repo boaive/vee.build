@@ -26,7 +26,8 @@ export default function Transit() {
       captions="fade"
       steps={transitSteps}
       length={1.6}
-      lengthCompact={1.5}
+      // On a compact layout the drive follows the scroll (Film, `play` is desktop's): a little more of it to scroll through.
+      lengthCompact={2.3}
       Scene={Scene}
       play={{ seconds: 4 }}
     />

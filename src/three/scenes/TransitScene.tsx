@@ -137,9 +137,12 @@ function Transit({ progress, rig }: SceneProps & { rig: Rig }) {
     const was = camera.fov;
     // An upright screen sees less to each side: a wider lens there, so the truck is whole as it passes.
     camera.fov = upright ? EYE.fovUpright : EYE.fov;
+    // On a compact layout the stage frames the picture in the band under the words, with this lens (Stage, `frame`).
+    camera.userData.lens = camera.fov;
     camera.updateProjectionMatrix();
     return () => {
       camera.fov = was;
+      delete camera.userData.lens;
       camera.updateProjectionMatrix();
     };
   }, [camera, upright]);

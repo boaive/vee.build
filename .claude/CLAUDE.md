@@ -222,6 +222,44 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   first time it shows.
 - No drei, no GSAP, no smooth-scroll library. Add a dependency only if it
   materially improves the product; note why in `vee-build-notes.md`.
+- Devices are told apart in one place, `src/film/device.ts` (the mobile
+  and tablet round, 2026-10-14; notes R). *Compact*: up to 860 px wide,
+  or a touch screen up to 1100 px held upright; *touch*: `(hover: none)
+  and (pointer: coarse)`; *sideways*: a compact screen up to 520 px tall
+  held sideways. The stylesheets write the same queries out in full: keep
+  them the same. Everything for phones and tablets sits inside those
+  queries, behind `compact` (false on desktop) or behind the budget tier
+  (never on desktop). **The desktop is not to change**: a desktop window
+  wider than 860 px must render the same, element for element (notes R
+  has how that is checked).
+- On a compact layout a film's building is framed in the band its words
+  and controls leave (`progress.band`, measured by `Film.tsx` from
+  `[data-band="words"|"foot"]`): the stage composes the picture for the
+  band (`frame` in `Stage.tsx`; `camera.userData.frameAspect`, read by
+  `aim`), and a scene may come nearer there (`zoomCompact`). Desktop has
+  no band. A control placed under the picture marks itself
+  `data-band="foot"`.
+- A phone or a tablet held upright has a hero of its own
+  (`HeroMobileScene.tsx`) and so have the product pages
+  (`ShowcaseStudioScene.tsx`): each building alone on the polished floor,
+  framed by `kit/frame.ts`. The desktop's scenes are fetched only on
+  desktop; do not merge the two. The phone's hero (developer,
+  2026-10-14, twice): the opening card shows the three kinds one at a
+  time, chosen with cards, arrows or a sideways swipe
+  (`film/heroChoice.ts`); the four steps after it are scrolled through,
+  vertically, as on desktop; only the capsule's step has cards of its own
+  (its three lengths). Do not put the four steps on cards.
+- Cards (`pick` on a film, compact only, `Film.tsx`): the factory and "On
+  site" are a step at a time on a phone, chosen with cards that carry a
+  picture of the step; the scene goes to the chosen pose as a short
+  time-lapse and the page's scroll moves on past the film. The pictures
+  are the scenes' own (`public/images/cards`): when a step's picture
+  changes, capture them again (vee-build-progress.md, QA aids).
+- A budget touch device (`src/film/tier.ts`: its GPU measured once a
+  visit before its first stage, slower than four times the test laptop) is
+  *lite*: one pixel to the CSS pixel, no ambient occlusion, a 1024 px
+  shadow map, the hero's showroom and the factory without the back of its
+  yard. Decided before anything is drawn, never changed in a visit.
 
 ## Design rules
 
@@ -392,8 +430,18 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   instruction, 2026-10-07). No resolution drop while scrolling and no effect
   that exists only at rest; speed comes from removing work that does not
   show. Compare a frame captured while scrolling with the settled one.
-- Mobile is designed, not shrunk: canvas on top, caption below, never text
-  over canvas. No horizontal page scroll.
+- Mobile is designed, not shrunk (the developer's reference screens of
+  2026-10-14, notes R): on a compact layout a film's words stand at the
+  top and the building under them, large, framed in the band the words
+  leave, never under them; at the foot the steps as dashes and a count,
+  or cards where a long process is better chosen than scrolled (the
+  factory, "On site").
+  Product first: no fade or wash over the picture, and little or no
+  landscape (the hero and the product pages have none there). On a phone
+  held sideways the words are on the left, the building on the right. The
+  header there: the lockup, the Contact pill, three bars. No horizontal
+  page scroll. (Until 2026-10-14 the rule was the reverse: canvas on top,
+  caption below.)
 - Respect `prefers-reduced-motion`: films snap between settled poses.
 
 ## Checking work
@@ -434,6 +482,13 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   search `src/`, `public/` and `dist/` for the legacy brand name. After
   changing CSS too: the dev server serves a stylesheet with a broken rule
   in it without a word, and the build stops on it (2026-10-10).
+- Phones and tablets are emulated in the headless Edge with touch on
+  (`Emulation.setTouchEmulationEnabled` and the pointer and hover media
+  features: the touch clauses of `device.ts` match only then). `?lite=1`
+  forces the budget tier on any device, `?lite=0` rules it out. Desktop
+  regressions are found by fingerprinting every element's computed style
+  and box on the production builds before and after, at desktop sizes
+  (notes R).
 - `?noboot` skips the boot screen. `?q=1` shows the one emergency
   resolution step, `?q=0` rules it out. `?px=<megapixels>` fixes the
   canvas's pixel budget (`?px=0`: as before the GPU was measured; `?px=8.3`

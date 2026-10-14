@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { factorySteps, factoryTitle } from '../../data/narrative';
+import { factoryCards, factorySteps, factoryTitle } from '../../data/narrative';
 import Film, { type FilmLabel, type Prelude } from '../../film/Film';
 
 const Scene = lazy(() => import('../../three/scenes/FactoryScene'));
@@ -25,6 +25,7 @@ const labels: FilmLabel[] = [
  */
 const opening: Prelude = {
   length: 1,
+  lengthCompact: 0.75,
   tone: 'ink',
   content: (
     <div className="prelude">
@@ -65,7 +66,9 @@ export default function FactoryTour() {
       captions="slide"
       steps={factorySteps}
       length={10}
-      lengthCompact={9}
+      // On a compact layout a station at a time, chosen with cards (pick), each reached as a short time-lapse of the bay.
+      lengthCompact={1.5}
+      pick={{ label: 'Factory stations', cards: factoryCards, seconds: 1.3 }}
       prelude={opening}
       Scene={Scene}
       labels={labels}

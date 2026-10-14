@@ -2,6 +2,7 @@ import { lazy, useMemo } from 'react';
 import { layoutAddOns } from '../../build/model';
 import { shown, useBuild } from '../../build/store';
 import { installSteps } from '../../data/narrative';
+import { numberOf } from '../../data/site';
 import Film, { type FilmLabel } from '../../film/Film';
 
 const Scene = lazy(() => import('../../three/scenes/InstallScene'));
@@ -32,17 +33,19 @@ export default function Installation() {
     return l.posts.length + l.steps.length > 0;
   }, [view]);
   const steps = useMemo(() => installSteps(view.units.length, view.sample, plinth, piers), [view.units.length, view.sample, plinth, piers]);
+  // On a compact layout a stage at a time, chosen with cards (Film, `pick`; the developer, 2026-10-14): each card is its step's small line, its picture the plot at that stage (notes R).
+  const cards = useMemo(() => steps.map((s, i) => ({ src: `/images/cards/site-${s.id}.webp`, code: String(i + 1).padStart(2, '0'), name: s.kicker })), [steps]);
   return (
     <Film
       id="installation"
-      index="08"
+      index={numberOf('installation')}
       heading="On site"
       theme="dark"
-      chapter="delivery"
       captions="track"
       steps={steps}
       length={6.4}
-      lengthCompact={5.8}
+      lengthCompact={1.5}
+      pick={{ label: 'On site, stage by stage', cards, seconds: 1.4 }}
       Scene={Scene}
       labels={labels}
     />

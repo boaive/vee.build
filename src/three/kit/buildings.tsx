@@ -13,7 +13,7 @@ import { clamp01, ease, stagger, win } from '../../film/timeline';
 import { UNIT_BOX, box, memo, merge, planCentre, pose, setInst } from './geometry';
 import type { Look } from './looks';
 import { instanced, kit, litGlass, mat, moduleMats } from './materials';
-import { POD, POD_STEPS, capsuleGeometry } from './capsule';
+import { POD, POD_STEPS, capsuleGeometry, type PodSection } from './capsule';
 import { useRefined } from './refined';
 import { stairGeometryOf } from './house';
 import { moduleGeometry, railGeometry, stairGeometry, wallPanel36Geometry } from './parts';
@@ -224,10 +224,12 @@ interface CapsuleProps {
   drop?: number;
   /** 0–1: its lights, where the scene brings them up itself (BuildingProps). */
   getLit?: () => number;
+  /** Its section (capsule.ts): the phone's home-like one, or, not given, the desktop's. */
+  section?: PodSection;
 }
 
 /** One capsule home, set down in place. */
-export function Capsule({ feet, getT, look, position = [0, 0, 0], rotation = 0, drop = 5, getLit }: CapsuleProps) {
+export function Capsule({ feet, getT, look, position = [0, 0, 0], rotation = 0, drop = 5, getLit, section }: CapsuleProps) {
   const ref = useRef<Mesh>(null);
   const last = useRef(-1);
   const fine = useRefined();
@@ -248,7 +250,7 @@ export function Capsule({ feet, getT, look, position = [0, 0, 0], rotation = 0, 
     m.position.y = base + (1 - ease.outQuart(t)) * drop;
     m.scale.setScalar(Math.max(0.0001, Math.min(1, t * 7)));
   });
-  return <mesh ref={ref} geometry={capsuleGeometry(feet)} material={mats} position={position} rotation-y={rotation} castShadow receiveShadow />;
+  return <mesh ref={ref} geometry={capsuleGeometry(feet, section)} material={mats} position={position} rotation-y={rotation} castShadow receiveShadow />;
 }
 
 export function CapsulePods({ x = 0, getA, label, getShow, look }: BuildingProps) {

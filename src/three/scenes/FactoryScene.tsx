@@ -5,6 +5,7 @@ import { shown, useBuild } from '../../build/store';
 import { FACTORY as T } from '../../film/factoryTimeline';
 import type { SceneProps } from '../../film/progress';
 import { clamp01, ease, hold, lerp, sampleCamera, stagger, win, type CameraKey } from '../../film/timeline';
+import { isLite } from '../../film/tier';
 import Stage, { aim, useLabel, useWarmAll, type Rig } from '../Stage';
 import { UNIT_BOX, box, cyl, memo, merge, mergeGroups, setInst } from '../kit/geometry';
 import { LIFT, MobileCrane, PUMP_OUTLET, Pump, TRUCK, Truck, prepareMachines } from '../kit/machines';
@@ -226,7 +227,13 @@ function backShell(stage: 'panels' | 'cast') {
   };
 }
 
-function Yard({ progress }: Prog) {
+/**
+ * `bare`: a compact layout (film/device.ts). The shell is the subject, and
+ * what stands still at the back of the yard (the shed and its stock, the
+ * batching plant, the two shells part-made) is not built: the words at the
+ * top of the screen stand on slab and sky, not on the yard's clutter.
+ */
+function Yard({ progress, bare }: Prog & { bare: boolean }) {
   const leaves = useRef<(Mesh | null)[]>([]);
   const stock = useRef<InstancedMesh>(null);
   const stockMats = useMemo(() => moduleMats(), []);
@@ -263,10 +270,10 @@ function Yard({ progress }: Prog) {
           castShadow
         />
       ))}
-      <mesh geometry={shed(SHED.w, SHED.d, SHED.h)} material={shedMats} position={[SHED.x, 0, SHED.z]} castShadow receiveShadow />
-      <mesh geometry={batching()} material={plantMats} position={[19, 0, -25]} castShadow receiveShadow />
-      <instancedMesh ref={stock} args={[moduleGeometry('A'), instanced(stockMats), 6]} castShadow receiveShadow frustumCulled={false} />
-      {BACK.map((b) => {
+      {!bare && <mesh geometry={shed(SHED.w, SHED.d, SHED.h)} material={shedMats} position={[SHED.x, 0, SHED.z]} castShadow receiveShadow />}
+      {!bare && <mesh geometry={batching()} material={plantMats} position={[19, 0, -25]} castShadow receiveShadow />}
+      {!bare && <instancedMesh ref={stock} args={[moduleGeometry('A'), instanced(stockMats), 6]} castShadow receiveShadow frustumCulled={false} />}
+      {(bare ? [] : BACK).map((b) => {
         const g = backShell(b.stage);
         return (
           <group key={b.stage} position={b.at}>
@@ -736,7 +743,8 @@ function Director({ progress, rig, compact }: Prog & { rig: Rig; compact: boolea
   const size = useThree((s) => s.size);
   useFrame(() => {
     const c = sampleCamera(CAM, progress.value);
-    const up = compact && size.width < size.height;
+    // A compact layout frames the shell in the band under the words (Stage, `frame`), from the desktop's own path.
+    const up = compact && size.width < size.height && !(camera.userData.frameAspect as number | undefined);
     _eye[0] = c.look[0] + (c.pos[0] - c.look[0]) * (up ? UPRIGHT.in : 1);
     _eye[1] = c.look[1] + (c.pos[1] - c.look[1]) * (up ? UPRIGHT.rise : 1);
     _eye[2] = c.look[2] + (c.pos[2] - c.look[2]) * (up ? UPRIGHT.in : 1);
@@ -756,7 +764,7 @@ function Factory({ progress, place, rig, compact }: SceneProps & { rig: Rig }) {
   return (
     <group ref={all}>
       <Director progress={progress} rig={rig} compact={compact} />
-      <Yard progress={progress} />
+      <Yard progress={progress} bare={compact || isLite()} />
       <Piers progress={progress} />
       <Shell progress={progress} label={label} />
       <Formwork progress={progress} />
@@ -768,7 +776,7 @@ function Factory({ progress, place, rig, compact }: SceneProps & { rig: Rig }) {
 
 export default function FactoryScene(props: SceneProps) {
   return (
-    <Stage {...props} look="clear" ground="land" focus={[0.67, 0.56]} focusCompact={[0.5, 0.36]} shadowExtent={30} localClipping>
+    <Stage {...props} look="clear" ground="land" focus={[0.67, 0.56]} focusCompact={[0.5, 0.36]} zoomCompact={1.75} shadowExtent={30} localClipping>
       {(rig) => <Factory {...props} rig={rig} />}
     </Stage>
   );

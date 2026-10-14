@@ -528,9 +528,13 @@ function System({ progress, place, rig }: SceneProps & { rig: Rig }) {
   );
 }
 
+/** The studio's fog. On a compact layout the camera stands farther back for the band's shape (Stage, `frame`): the fog does too, or the mid-rise stood in it. */
+const FOG: [number, number] = [60, 150];
+const FOG_COMPACT: [number, number] = [95, 240];
+
 export default function SystemScene(props: SceneProps) {
   return (
-    <Stage {...props} look="studioLight" focus={[0.66, 0.52]} focusCompact={[0.5, 0.36]} shadowExtent={34} fogRange={[60, 150]}>
+    <Stage {...props} look="studioLight" focus={[0.66, 0.52]} focusCompact={[0.5, 0.36]} shadowExtent={34} fogRange={props.compact ? FOG_COMPACT : FOG}>
       {(rig) => <System {...props} rig={rig} />}
     </Stage>
   );

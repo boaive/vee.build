@@ -21,6 +21,23 @@ const FT = 0.3048;
 /** Section of the capsule in metres: width, hull height, leg height, and the three radii. */
 export const POD = { D: 3, H: 2.75, legs: 0.4, R: 0.8, rt: 0.34, rb: 0.2 } as const;
 
+export type PodSection = { readonly D: number; readonly H: number; readonly legs: number; readonly R: number; readonly rt: number; readonly rb: number };
+
+/**
+ * The capsule on a phone or a tablet held upright (developer, 2026-10-14:
+ * "make the size of the capsule reasonable ... if you can see 10' pod it is
+ * so small, looks like a cat home"; then, of the ways offered, "bigger
+ * proportions"): the same lengths, the same openings at the same heights,
+ * on a taller hull with less rounding, so that the door, the windows and
+ * the room behind them read as a room's and the shortest is a small house,
+ * not a box. Width and height are ours either way (notes C5). Desktop
+ * keeps POD. CONFIRM (notes R4).
+ */
+export const POD_HOME: PodSection = { D: 3, H: 3.05, legs: 0.42, R: 0.42, rt: 0.26, rb: 0.16 };
+
+/** The section the geometry is being built with (capsuleGeometry sets it for the length of one build). */
+let S: PodSection = POD;
+
 /** How far the steps reach in front of the long side. */
 export const POD_STEPS = 0.66;
 
@@ -53,7 +70,7 @@ const CORNER_STEPS = 9;
  * +x, round the right end, back along the back, round the left end.
  */
 function rimOf(L: number): Rim {
-  const { D, R } = POD;
+  const { D, R } = S;
   const hx = L / 2 - R;
   const hz = D / 2 - R;
   const q = (Math.PI * R) / 2;
@@ -115,7 +132,7 @@ function rimOf(L: number): Rim {
  * vertical parts.
  */
 function section(t: number): [off: number, y: number, nh: number, ny: number] {
-  const { H, R, rt, rb } = POD;
+  const { H, R, rt, rb } = S;
   if (t <= 0) return [-rb + t * (R - rb), 0, 0, -1];
   if (t <= 1) {
     const b = ((t - 1) * Math.PI) / 2;
@@ -130,7 +147,7 @@ function section(t: number): [off: number, y: number, nh: number, ny: number] {
 }
 
 /** t of a height on the wall. */
-const onWall = (y: number) => 1 + (y - POD.rb) / (POD.H - POD.rt - POD.rb);
+const onWall = (y: number) => 1 + (y - S.rb) / (S.H - S.rt - S.rb);
 
 /**
  * A piece of the hull's surface, `out` metres off it. `cols` are its
@@ -147,7 +164,7 @@ function skin(rim: Rim, cols: number[], ts: (u: number) => number[], out: number
     const [cx, cz, nx, nz] = rim.at(u);
     for (const t of ts(u)) {
       const [off, y, nh, ny] = section(t);
-      const r = POD.R + off + out * nh;
+      const r = S.R + off + out * nh;
       pos.push(cx + nx * r, y + out * ny, cz + nz * r);
       nor.push(nx * nh, ny, nz * nh);
       const st = uv ? uv(u, y, t) : [0, 0];
@@ -220,10 +237,21 @@ const WINDOW = { y0: 0.42, y1: 2.24, rc: 0.3, frame: 0.085 };
  * Groups: 0 shell, 1 dark metal (frames, seams, chassis, legs), 2 glazing
  * and light lines, 3 timber (the steps).
  */
-export function capsuleGeometry(feet: number): BufferGeometry {
-  return memo(`capsule-v2-${feet}`, () => {
+export function capsuleGeometry(feet: number, sec: PodSection = POD): BufferGeometry {
+  return memo(sec === POD ? `capsule-v2-${feet}` : `capsule-home-${feet}`, () => {
+    S = sec;
+    try {
+      return build(feet);
+    } finally {
+      S = POD;
+    }
+  });
+}
+
+function build(feet: number): BufferGeometry {
+  {
     const L = feet * FT;
-    const { D, H, rb, legs } = POD;
+    const { D, H, rb, legs } = S;
     const rim = rimOf(L);
     const { hx, hz } = rim;
     const lay = layoutOf(feet);
@@ -238,8 +266,8 @@ export function capsuleGeometry(feet: number): BufferGeometry {
     /* Hull: one skin from the underside to the roof, and the two flat middles. */
     const up = [-1, 0, 0.34, 0.67, 1, 2, 2.2, 2.4, 2.6, 2.8, 3, 4];
     // Its UVs are metres: round the hull, and up its section (on over the roof and under the floor, where the height stands still).
-    const over3 = POD.R - POD.rt;
-    const under = POD.R - rb;
+    const over3 = S.R - S.rt;
+    const under = S.R - rb;
     shell.push(skin(rim, rim.columns(0, rim.P), () => up, 0, (u, y, t) => [u, t > 3 ? y + (t - 3) * over3 : t < 0 ? y + t * under : y]));
     shell.push(boxUV(box(2 * hx, 0.002, 2 * hz, 0, H - 0.001, 0), 1), boxUV(box(2 * hx, 0.002, 2 * hz, 0, 0.001, 0), 1));
 
@@ -312,13 +340,13 @@ export function capsuleGeometry(feet: number): BufferGeometry {
     // The room behind the glazing: the hull's inside, floor to ceiling (materials.ts, interiorGlass), where it
     // will be once the hull is lifted onto its legs (the box is not moved with the vertices).
     const lo = [-L / 2 + 0.32, legs + rb + 0.06, -D / 2 + 0.3];
-    const hi = [L / 2 - 0.32, legs + H - POD.rt * 0.55, D / 2 - 0.3];
+    const hi = [L / 2 - 0.32, legs + H - S.rt * 0.55, D / 2 - 0.3];
     for (const part of [...shell, ...dark, ...glass, ...timber]) withRoom(part, lo, hi);
     for (const part of lights) withRoom(part, [0, 0, 0], [0, 0, 0]);
     const g = mergeGroups([shell, dark, [...glass, ...lights], timber]);
     g.translate(0, legs, 0);
     return g;
-  });
+  }
 }
 
 /** Capsule length in metres for a length in feet. */

@@ -23,6 +23,7 @@ import { CELL, describe, floorName, totals, type Piece } from '../../build/model
 import { estimate, formatPrice } from '../../build/price';
 import { build, encode, useBuild } from '../../build/store';
 import { pricingNote } from '../../data/pricing';
+import { COMPACT_QUERY } from '../../film/device';
 import { createProgress, type PlaceLabel } from '../../film/progress';
 import type { AddOnHover, Hover, Orbit, Tool } from '../../three/scenes/BuildScene';
 import { requestEnquiry } from '../forms/prefill';
@@ -110,7 +111,7 @@ export default function Configurator() {
   /* Environment and proximity */
   useEffect(() => {
     setHydrated(true);
-    const mqC = window.matchMedia('(max-width: 860px)');
+    const mqC = window.matchMedia(COMPACT_QUERY);
     const mqR = window.matchMedia('(prefers-reduced-motion: reduce)');
     const still = new URLSearchParams(window.location.search).has('still');
     const sync = () => {

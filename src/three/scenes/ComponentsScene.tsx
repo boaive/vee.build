@@ -729,7 +729,7 @@ function Components(props: SceneProps & { rig: Rig }) {
 
 export default function ComponentsScene(props: SceneProps) {
   return (
-    <Stage {...props} look="studioDark" ground="floor" focus={[0.65, 0.55]} focusCompact={[0.5, 0.38]} shadowExtent={13} fogRange={FOG}>
+    <Stage {...props} look="studioDark" ground="floor" focus={[0.65, 0.55]} focusCompact={[0.5, 0.38]} zoomCompact={1.25} shadowExtent={13} fogRange={FOG}>
       {(rig) => <Components {...props} rig={rig} />}
     </Stage>
   );

@@ -21,7 +21,7 @@ function ViewPad() {
     progress.invalidate?.();
   };
   return (
-    <div className="viewpad" role="group" aria-label="Views of the house">
+    <div className="viewpad" role="group" aria-label="Views of the house" data-band="foot">
       <p className="t-label viewpad__hint">{revealViews.hint}</p>
       <div className="viewpad__keys">
         {revealViews.keys.map((k, i) => (
@@ -42,7 +42,7 @@ export default function YourHouse() {
 
   const extras = {
     yours: (
-      <p className="film__stats">
+      <p className="film__stats" data-band="foot">
         <span>
           <b>{t.sqft}</b> sq.ft.
         </span>
