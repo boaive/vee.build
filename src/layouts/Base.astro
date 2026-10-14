@@ -77,6 +77,40 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? site.url).href;
 const ogImage = new URL('/og.png', Astro.site ?? site.url).href;
 const fullTitle = title.includes(site.name) ? title : `${title} — ${site.name}`;
 
+/*
+ * Arriving by a link to a chapter (/#factory from the MOD and FAB pages):
+ * the browser jumps there before the page has settled, and the fonts, the
+ * films and the configurator then change the height of what stands above
+ * it, so it came to rest a little short, with the foot of the chapter
+ * before it in view. Once loaded (and again when the fonts are in and the
+ * loading screen has gone) the page is set on the chapter again, at once,
+ * unless the visitor has already begun to scroll.
+ */
+const arriveScript = `(function () {
+  if (!location.hash || location.hash.length < 2) return;
+  var id;
+  try { id = decodeURIComponent(location.hash.slice(1)); } catch (e) { return; }
+  var moved = false;
+  var stop = function () { moved = true; };
+  ['wheel', 'touchstart', 'keydown', 'pointerdown'].forEach(function (t) { addEventListener(t, stop, { passive: true, once: true }); });
+  var again = function () {
+    if (moved) return;
+    var el = document.getElementById(id);
+    if (!el) return;
+    var root = document.documentElement, was = root.style.scrollBehavior;
+    root.style.scrollBehavior = 'auto';
+    el.scrollIntoView({ block: 'start' });
+    root.style.scrollBehavior = was;
+  };
+  addEventListener('load', function () {
+    again();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(again);
+    setTimeout(again, 700);
+    setTimeout(function () { moved = true; }, 4000);
+  });
+  addEventListener('vee:booted', again);
+})();`;
+
 // Dev only: ?go=<section-id>:<0-1> jumps a film to a pose (pair with ?still for screenshots).
 const qaScript = `(function () {
   var go = new URLSearchParams(location.search).get('go');
@@ -162,6 +196,7 @@ const organisation = {
       )
     }
     {boot && <script is:inline set:html={bootScript} />}
+    <script is:inline set:html={arriveScript} />
     {import.meta.env.DEV && <script is:inline set:html={qaScript} />}
     <div data-top aria-hidden="true" style="position:absolute;top:0;left:0;width:1px;height:24px;pointer-events:none"></div>
     <a class="skip" href="#main">Skip to content</a>

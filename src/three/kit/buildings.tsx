@@ -394,7 +394,8 @@ function Crane({ tip, getHookY }: { tip: [number, number, number]; getHookY: () 
 /**
  * `crane`: the mobile crane stands by with the last shell on its hook (the
  * hero's set and the Prefab page). Without it the block is simply lowered
- * in, every shell and then its gallery: one of the three on the opening card.
+ * in, every shell and then its gallery. On the opening card it is drawn whole
+ * (`getA` 1) and the scene moves it as one (HeroScene, `raise`).
  */
 export function WorkforceBlock({ x = 0, getA, getLit, look, crane = true, bays = WORK_BAYS }: BuildingProps & { crane?: boolean; bays?: number }) {
   const { all: WORK, centre: WORK_C, last: WORK_LAST, set: WORK_SET, w: WORK_W } = workOf(bays);

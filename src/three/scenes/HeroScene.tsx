@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MeshBasicMaterial, ShadowMaterial, Vector3, Vector4, type Group, type Mesh, type PerspectiveCamera } from 'three';
+import { Box3, MeshBasicMaterial, ShadowMaterial, Vector3, Vector4, type Group, type Mesh, type PerspectiveCamera } from 'three';
 import { HERO_CUTS } from '../../film/heroTimeline';
 import type { SceneProps } from '../../film/progress';
 import { clamp01, ease, lerp } from '../../film/timeline';
@@ -20,15 +20,18 @@ import { CampusSet, FarmSet, Lineup, PodSet, SETS, WorkSet, type SetName } from 
  * load, the others as their set arrives.
  *
  * The page opens on the three kinds of building (client, 2026-10-09): the
- * modular house, a capsule home and a prefab building, lowered in one after
- * another. Since the client's second brief of 2026-10-11 they stand one
- * behind another and are seen on the diagonal (kit/row.ts), on a polished
- * floor that mirrors them (kit/plaza.tsx, kit/mirror.tsx), in the last warm
- * light of the day, with the page's warm shade behind the canvas where the
- * floor ends: no land and no sky yet. The camera is fitted to whatever
- * screen they are seen on (kit/rowfit.ts). The opening card's scroll then
- * has two parts. In the first the capsule and the prefab block are lifted
- * away, as they came, and the camera goes to the house. In the second a
+ * modular house, a capsule home and a prefab building. Each comes up out of
+ * the floor whole, one after another, never part by part (client,
+ * 2026-10-14: the card says what VEE.BUILD offers, not how it is put
+ * together; the developer: "spawn them building by building"). Since the
+ * client's second brief of 2026-10-11 they stand one behind another and are
+ * seen on the diagonal (kit/row.ts), on a polished floor that mirrors them
+ * (kit/plaza.tsx, kit/mirror.tsx), in the last warm light of the day, with
+ * the page's warm shade behind the canvas where the floor ends: no land and
+ * no sky yet. The camera is fitted to whatever screen they are seen on
+ * (kit/rowfit.ts). The opening card's scroll then has two parts. In the
+ * first the capsule and the prefab block go back down into the floor, whole,
+ * as they came, and the camera goes to the house. In the second a
  * clearing opens in the land (atmosphere.ts) and spreads from under the
  * house over the floor and on to the horizon, the floor goes, the light
  * becomes the sunset's and the sky comes up behind. At rest the land is
@@ -38,9 +41,15 @@ import { CampusSet, FarmSet, Lineup, PodSet, SETS, WorkSet, type SetName } from 
  * built one at a time as soon as the picture is up, while it still stands
  * unmoving on the opening card, and each is warmed (its light, its
  * geometry and its textures sent to the GPU) so that scrolling into it
- * costs nothing. The three on the card are put together after that, so
- * their assembly is not interrupted by the work; a visitor who scrolls at
- * once gets it at once.
+ * costs nothing. The three on the card come up after that, so their
+ * entrance is not interrupted by the work; a visitor who scrolls at once
+ * gets it at once.
+ *
+ * Coming up out of the floor needs nothing of the materials: the floor's
+ * depth is drawn before the buildings (kit/plaza.tsx), so what is still under
+ * it is hidden, its reflection keeps only what stands over the floor
+ * (kit/mirror.tsx), and a caster under the floor can never shade anything
+ * over it.
  */
 
 const ORDER: SetName[] = ['farm', 'pods', 'work', 'campus'];
@@ -56,12 +65,20 @@ const RANGE: [number, number][] = [
 const BUILD = [0.45, 0.45, 0.45, 0.6];
 const VEIL = 0.03;
 /**
- * The opening's assembly, in seconds: when each of the three is lowered in.
- * Each one's lights come on once it stands (client, 2026-10-10: placed,
- * settled, then lit): `settle` after it is down, over `glow`. The whole is
- * as long as the last of them takes.
+ * The opening, in seconds: when each of the three comes up out of the floor,
+ * whole, in the menu's order (MOD, POD, FAB). Each one's lights come on once
+ * it stands (client, 2026-10-10: placed, settled, then lit): `settle` after
+ * it is up, over `glow`. The whole is as long as the last of them takes.
  */
-const INTRO = { total: 6, house: [0, 2.6], capsule: [1.25, 2.9], prefab: [1.9, 4.7], settle: 0.35, glow: 0.95 } as const;
+const INTRO = { total: 5, house: [0, 1.6], capsule: [1, 2.6], prefab: [2, 3.7], settle: 0.3, glow: 0.95 } as const;
+/**
+ * How far under the floor each of the three starts, if its own height cannot
+ * be measured: the house with its roof and panels, the capsule on its legs,
+ * the block of two floors with its gallery rail.
+ */
+const UNDER = [4.6, 3.6, 7.4] as const;
+/** The block's own ground line is its set's gravel pad: on the card it stands on the bare floor, this much lower. */
+const BLOCK_Y = -0.06;
 /** The first house waits this long at most for the other sets to be warmed. */
 const INTRO_WAIT = 4000;
 /** How far before a cut the next set must exist, in progress (about a third of a screen). */
@@ -70,11 +87,11 @@ const COMPOSED = 1.55;
 const PULL = 0.5;
 /**
  * The opening card's scroll (0–1), first part: up to here the camera leaves
- * the three for the house and the other two are lifted away. film.css takes
- * the mist's rise from the same number (--lineup).
+ * the three for the house and the other two go back down into the floor.
+ * film.css takes the mist's rise from the same number (--lineup).
  */
 const LINEUP = 0.34;
-/** When the capsule and the block go, within that part: the block first, shell by shell, then the capsule, both before the camera is near. */
+/** When the capsule and the block go, within that part: the block first, then the capsule, each whole, both before the camera is near. */
 const LEAVE = { prefab: [0.02, 0.58], capsule: [0.12, 0.66] } as const;
 /** The second part (0–1 of what is left): over which the land spreads out, and the sky comes up. */
 const LAND_IN: [number, number] = [0.05, 0.84];
@@ -255,6 +272,7 @@ function Veil({ getOpacity }: { getOpacity: () => number }) {
 const _look = [0, 0, 0];
 const _pos = [0, 0, 0];
 const _hz = new Vector3();
+const _box = new Box3();
 
 /** The three on the card as the scene has them: the fit for this screen, with the camera's pose made ready for `aim`. */
 interface RowView {
@@ -282,6 +300,21 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
   const prefab = useRef<Group>(null);
   const mirror = useRef<Group>(null);
   const plazaHold = useRef<Group>(null);
+  /** How far under the floor each of the three (house, capsule, block) is while it waits: its own height over the floor, measured once. */
+  const under = useRef([0, 0, 0]);
+  /**
+   * One of the three, `t` (0–1) of the way up out of the floor: whole, from wholly under it to standing on it,
+   * slowing as it arrives. `base`: where it stands.
+   */
+  const raise = (k: number, g: Group | null, base: number, t: number) => {
+    if (!g) return;
+    if (!under.current[k]) {
+      g.position.y = base;
+      _box.setFromObject(g);
+      under.current[k] = Math.max(UNDER[k], _box.isEmpty() ? 0 : _box.max.y - PLAZA_Y + 0.1);
+    }
+    g.position.y = base - (1 - ease.out(t)) * under.current[k];
+  };
   /** How strongly the floor reflects, 0–1: full on the card, gone as the land comes in. */
   const gloss = useRef(0);
   // The floor's slabs lie square to the house; where it ends is set with the three (viewOfRow).
@@ -343,11 +376,11 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
     const pos = fit.look.map((q, k) => q + (fit.pos[k] - q) / back);
     rowView.current = { key, fit, pos, look: fit.look, near: null, ends: [80, 200] };
     if (import.meta.env.DEV) (rig as unknown as { row?: unknown }).row = rowView.current;
-    // The two behind the house, where this arrangement has them. The block's own ground line is its set's gravel pad: here it stands on the floor.
+    // The two behind the house, where this arrangement has them (how high: `raise`, every frame).
     const { row } = fit;
     capsule.current?.position.set(...row.capsule.at);
     if (capsule.current) capsule.current.rotation.y = row.capsule.turn;
-    prefab.current?.position.set(row.prefab.at[0], -0.06, row.prefab.at[2]);
+    prefab.current?.position.set(row.prefab.at[0], BLOCK_Y, row.prefab.at[2]);
     if (prefab.current) prefab.current.rotation.y = row.prefab.turn;
     row.spots.forEach((s, k) => spots[k].set(...s));
     // The floor ends well behind the three and under the camera's feet; on a narrow screen it is an island under them, clear of the words.
@@ -432,6 +465,9 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
       intro.t = Math.min(1, intro.t + Math.min(dt, 0.05) / INTRO.total);
       invalidate();
     }
+    // Dev only: `window.__veeIntro = <seconds>` holds the opening at that moment, for captures (its clock runs slow under them).
+    const hold = import.meta.env.DEV ? (window as unknown as { __veeIntro?: number }).__veeIntro : undefined;
+    if (hold !== undefined) intro.t = clamp01(hold / INTRO.total);
     const p = progress.value;
     const i = setAt(p);
     groups.current.forEach((g, k) => g && (g.visible = k === i));
@@ -485,6 +521,15 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
       plaza.fade.z = rowView.current.ends[0] + (1 - inRow) * 150;
       plaza.fade.w = rowView.current.ends[1] + (1 - inRow) * 150;
     }
+    // The three come up out of the floor whole, in turn; the capsule and the block go back down into it, whole, as the
+    // card's first part scrolls by.
+    const a = intro.t * INTRO.total;
+    raise(0, house.current, 0, span(a, INTRO.house));
+    if (led < 1) {
+      const row = rowView.current?.fit.row;
+      raise(1, capsule.current, row ? row.capsule.at[1] : 0, Math.min(span(a, INTRO.capsule), 1 - span(led, LEAVE.capsule)));
+      raise(2, prefab.current, BLOCK_Y, Math.min(span(a, INTRO.prefab), 1 - span(led, LEAVE.prefab)));
+    }
     for (let k = 0; k < 3; k++) {
       const at = lerp(s.from.look[k], s.to.look[k], u) - (k === 1 ? LIFT * alone : 0);
       const from = at + (lerp(s.from.pos[k], s.to.pos[k], u) - at) * near;
@@ -495,7 +540,6 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
     rig.lightTarget.set(_look[0], 0, _look[2]);
     // Each of the three is named once it stands; the names go as the card starts to open.
     const named = i === 0 && view ? clamp01(1 - progress.pre * 9) : 0;
-    const a = intro.t * INTRO.total;
     const tags = (view ?? rowView.current)?.fit.tags;
     if (tags) {
       label('kind-mod', ...tags[0], named * clamp01((a - INTRO.house[1] + 0.5) * 2.5));
@@ -599,13 +643,11 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
       const lit = (down: number, leave?: readonly [number, number]) => () =>
         Math.min(span(intro.t * INTRO.total, [down + INTRO.settle, down + INTRO.settle + INTRO.glow]), leave ? 1 - clamp01(span(lead(), leave) * 10) : 1);
       return {
-      first: () => span(intro.t * INTRO.total, INTRO.house),
+      // The house is whole from the start: it comes up out of the floor as one (`raise`), never part by part.
+      first: () => 1,
       firstLit: lit(INTRO.house[1]),
       capsuleLit: lit(INTRO.capsule[1], LEAVE.capsule),
       prefabLit: lit(INTRO.prefab[1], LEAVE.prefab),
-      // Lowered in on load; lifted away again, the same way, as the card's first part scrolls by.
-      capsule: () => Math.min(span(intro.t * INTRO.total, INTRO.capsule), 1 - span(lead(), LEAVE.capsule)),
-      prefab: () => Math.min(span(intro.t * INTRO.total, INTRO.prefab), 1 - span(lead(), LEAVE.prefab)),
       arrive: [1, 2, 3].map(arrive),
       show: [1, 2, 3].map(showIf),
       };
@@ -626,8 +668,6 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
         <Refined value>
           <FarmSet getA={getters.first} getLit={getters.firstLit} look={looks[0]} land={land} house={house} />
           <Lineup
-            getCapsule={getters.capsule}
-            getPrefab={getters.prefab}
             getCapsuleLit={getters.capsuleLit}
             getPrefabLit={getters.prefabLit}
             look={looks[0]}

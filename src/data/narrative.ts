@@ -49,7 +49,7 @@ export const kinds = [
     line: 'Factory made insulated concrete homes.',
     // CONFIRM: on-site installation time (notes B4).
     punch: 'Installed in one day!',
-    href: '/',
+    href: '/modular/',
     soon: false,
   },
   {

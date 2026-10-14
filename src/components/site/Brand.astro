@@ -3,13 +3,14 @@
  * The wordmark and, under it, who the site is powered by, with the
  * Hemisphere One logo (client, 2026-10-11: "the Powered by Hemisphere
  * branding must include the Hemisphere logo", beneath the VEE.BUILD logo,
- * everywhere). The logo as supplied on paper; on ink the reversed one
- * derived from it (scripts/logo-reversed.mjs), whichever ground the lockup
- * stands on (the header changes ground with the chapter under it).
+ * everywhere). The logo as supplied, on every ground, never recoloured
+ * (developer, 2026-10-14: "the hemisphere one logo turns white and light
+ * coloured, fix that"). It is a dark drawing on clear, so on ink it stands
+ * on a small pill of the paper (base.css, .brand__logo); the header changes
+ * ground with the chapter under it.
  */
 import { Image } from 'astro:assets';
 import hemisphereOne from '../../assets/brand/hemisphere-one.png';
-import hemisphereOneInk from '../../assets/brand/hemisphere-one-reversed.png';
 import { site } from '../../data/site';
 
 interface Props {
@@ -26,7 +27,6 @@ const { class: extra } = Astro.props;
   <span class="brand__word">VEE<i>.</i>BUILD</span>
   <span class="brand__by" aria-hidden="true">
     <span class="brand__by-word">Powered by</span>
-    <Image class="brand__logo brand__logo--paper" src={hemisphereOne} alt="" height={20} densities={[1, 2, 3]} loading="eager" decoding="async" />
-    <Image class="brand__logo brand__logo--ink" src={hemisphereOneInk} alt="" height={20} densities={[1, 2, 3]} loading="eager" decoding="async" />
+    <Image class="brand__logo" src={hemisphereOne} alt="" height={20} densities={[1, 2, 3]} loading="eager" decoding="async" />
   </span>
 </a>

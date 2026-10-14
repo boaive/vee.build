@@ -14,15 +14,21 @@ footprints and stack vertically into different building types.
 | Shell A | 6 m × 3 m × 3 m | 200 sq.ft. (18 m²) |
 | Shell B | 3 m × 3 m × 3 m | 100 sq.ft. (9 m²) |
 
-Product lines, and the top menu since 2026-10-09: **MOD** (modular house, the
-main page, live), **POD** (capsule home, coming soon), **FAB** (prefab
-building: workforce and institutional, coming soon), and **Contact**.
+Product lines, and the top menu since 2026-10-14: **Home** (the main page,
+the whole story: everything that was under MOD until then), **MOD**
+(modular house, live, a page of its own at `/modular/`), **POD** (capsule
+home, coming soon), **FAB** (prefab building: workforce and institutional,
+coming soon), and **Contact**. The MOD and FAB pages end, before their
+enquiry form, with links into the home page's chapters that show that
+line (MOD: 03 Componentized building, 06 3D tour; FAB: 02 How it works,
+05 Build your own, 06 3D tour).
 **Partnership** (micro manufacturers, farmhouse promoters, local
 contractors), **Investors** and **Technology** are in a band at the foot of
 every page; only Partnership has a page. The site is "powered by
 Hemisphere One" (logo supplied 2026-10-09, shown in that band; since
-2026-10-10 the words also stand under the wordmark everywhere and, with
-the logo, on the opening card). Where the company is the subject of a
+2026-10-11 the words and the logo also stand under the wordmark
+everywhere; since 2026-10-14 the logo is shown in its own colours on
+every ground, on a pill of the paper where the ground is dark). Where the company is the subject of a
 sentence it is "VEE" or "VEE.BUILD", not "we" (client, 2026-10-10).
 
 The client's line for each kind (2026-10-09):
@@ -53,7 +59,7 @@ distribution partners.
 
 | # | Section | Question it answers | Form |
 | --- | --- | --- | --- |
-| 1 | Hero banner | What can be built? | An opening card (the headline over the three kinds of building: modular house, capsule home, prefab building, one behind another on a diagonal on a polished floor that mirrors them, in warm light on a warm shade, fitted to the screen; scrolling lifts the other two away, goes round to the house and brings its land and sky in), then a pinned film: four sets (modular house, capsule homes, workforce housing, institutional building), a cut between each |
+| 1 | Hero banner | What can be built? | An opening card (the headline over the three kinds of building: modular house, capsule home, prefab building, one behind another on a diagonal on a polished floor that mirrors them, in warm light on a warm shade, fitted to the screen; each comes up out of the floor whole, one after another, never part by part; scrolling takes the other two back down into it, goes round to the house and brings its land and sky in), then a pinned film: four sets (modular house, capsule homes, workforce housing, institutional building), a cut between each |
 | 2 | How it works? | How does the system work / configure? | Pinned film: the 2 core shells → lift & shift ("building as a product") → six footprints, one main door each and a window on every street end → two stacks (the villa, "Net zero", with one main door a floor and a door onto its terrace; the mid-rise apartment) |
 | 3 | Componentized building | What are the components? | Pinned film: the finished home comes apart into foundation, module and add-ons, each named as it is shown, and then each of those into its own parts; then foundation (plug footings, L plinths), module (structural frame, insulated panels, micro concrete, then the standard door and windows), add-ons (the jack piers come with them; deck, steps and roof are tagged "Add-on") |
 | 4 | Key differences ("How is VEE different?") | Why this approach? | Six points on paper, all on show: a ledger of six cells (number, a drawn mark, word, claim, detail), then the brief's three comparisons with "the others" struck through |

@@ -2,6 +2,8 @@ export interface NavItem {
   label: string;
   href: string;
   note?: string;
+  /** One of the three lines of building (MOD, POD, FAB): listed under Products in the footer. */
+  line?: boolean;
 }
 
 export const site = {
@@ -24,14 +26,17 @@ export const site = {
 } as const;
 
 /**
- * The top menu, as the client set it on 2026-10-09: MOD | POD | FAB and
- * Contact, nothing else. `note` is what each short name stands for; it is
- * read out with the link and shown in the mobile menu.
+ * The top menu: Home | MOD | POD | FAB and Contact, nothing else. The client
+ * set MOD | POD | FAB and Contact on 2026-10-09, with the main page under
+ * MOD; on 2026-10-14 the main page became Home and MOD a page of its own,
+ * like POD and FAB. `note` is what each short name stands for; it is read
+ * out with the link and shown in the mobile menu.
  */
 export const primaryNav: NavItem[] = [
-  { label: 'MOD', href: '/', note: 'Modular house' },
-  { label: 'POD', href: '/capsule/', note: 'Capsule home' },
-  { label: 'FAB', href: '/prefab/', note: 'Prefab building' },
+  { label: 'Home', href: '/', note: 'Overview' },
+  { label: 'MOD', href: '/modular/', note: 'Modular house', line: true },
+  { label: 'POD', href: '/capsule/', note: 'Capsule home', line: true },
+  { label: 'FAB', href: '/prefab/', note: 'Prefab building', line: true },
   { label: 'Contact', href: '/#contact', note: 'Enquire' },
 ];
 

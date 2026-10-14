@@ -401,7 +401,7 @@ button {
  * 2026-10-11: "beneath the VEE.BUILD logo throughout the website", "must
  * include the Hemisphere logo"). The second line is about the width of the
  * first, so that it belongs to the name without competing with it. The logo
- * as supplied on paper; on ink its reversed copy (Brand.astro).
+ * as supplied on every ground, never recoloured (Brand.astro).
  */
 .brand {
   --by-h: 1.08rem;
@@ -417,7 +417,7 @@ button {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.28rem;
   padding-left: 0.08rem;
   white-space: nowrap;
 }
@@ -428,19 +428,25 @@ button {
   line-height: 1;
   opacity: 0.72;
 }
+/*
+ * The logo keeps its own colours on every ground (developer, 2026-10-14). It
+ * is a dark drawing on clear: on ink it stands on a pill of the paper. The
+ * pill's room is kept on paper too (padding, given back by the margins), so
+ * that the lockup does not move when the header changes ground.
+ */
 .brand__logo {
   display: block;
+  box-sizing: content-box;
   width: auto;
   height: var(--by-h);
+  padding: 0.14rem 0.3rem;
+  margin-block: -0.14rem;
+  margin-right: -0.3rem;
+  border-radius: 999px;
 }
-.brand__logo--ink,
-.theme-dark .brand__logo--paper,
-.on-ink .brand__logo--paper {
-  display: none;
-}
-.theme-dark .brand__logo--ink,
-.on-ink .brand__logo--ink {
-  display: block;
+.theme-dark .brand__logo,
+.on-ink .brand__logo {
+  background: #f2f0eb;
 }
 /* In the footer, larger. */
 .brand--lg {
@@ -515,7 +521,7 @@ button {
 .hdr__link[aria-current='page']::after {
   background: var(--accent-line);
 }
-/* The three product lines, as the client writes them: MOD | POD | FAB. */
+/* Home and the three product lines, as the client writes them: HOME | MOD | POD | FAB. */
 .hdr__lines {
   display: flex;
   align-items: center;
@@ -526,6 +532,7 @@ button {
   font-size: 0.76rem;
   font-weight: 500;
   letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 .hdr__link--line::after {
   left: clamp(0.8rem, 1.5vw, 1.25rem);

@@ -26,15 +26,25 @@ source. Never resolve a conflict by inventing a third value.
 - Public brand is **VEE.BUILD**. "Wieldy", "Wieldly", its logo, tagline,
   email, phone, pricing and testimonials must never appear in `src/` or
   `public/`. `assets/` is client source material and is not shipped.
-- The top menu is **MOD | POD | FAB** and **Contact**, nothing else (client,
-  2026-10-09). Partnership, Investors and Technology are in the bottom
-  band under the footer, with "Powered by" and the Hemisphere One logo as
-  supplied (`src/assets/brand/hemisphere-one.png`; it is dark on clear, so
-  the band is on paper: do not recolour it or redraw it; on ink, only the
-  reversed copy described below).
+- The top menu is **Home | MOD | POD | FAB** and **Contact**, nothing else
+  (client, 2026-10-09; Home added 2026-10-14, notes Q). **Home** is the
+  main page (`/`), everything that used to be under MOD; **MOD** is a page
+  of its own (`/modular/`), as POD and FAB are. Partnership, Investors and
+  Technology are in the bottom band under the footer, with "Powered by"
+  and the Hemisphere One logo as supplied
+  (`src/assets/brand/hemisphere-one.png`; it is dark on clear, so the band
+  is on paper: do not recolour it or redraw it).
   Menu and band are `primaryNav` and `bandNav` in `src/data/site.ts`.
   CONFIRM: Investors and Technology have no pages; they lead to the
   enquiry form and to "How it works" (notes J2).
+- The MOD and FAB pages lead on into the home page (developer,
+  2026-10-14): just before the enquiry form, "Continue on the home page"
+  with one link for each chapter that shows that line, MOD 03
+  Componentized building and 06 3D tour, FAB 02 How it works, 05 Build
+  your own and 06 3D tour (`src/data/onward.ts`, `Onward.astro`). Each
+  opens the home page at that chapter. The enquiry form is the last
+  section of a product page (the developer moved it back there the same
+  day). POD has none: the capsule is not made of the shells.
 - The three kinds of building are **Modular house**, **Capsule home** and
   **Prefab building**, with the client's line for each (`kinds` in
   `src/data/narrative.ts`). The two shells belong to the modular line
@@ -48,9 +58,13 @@ source. Never resolve a conflict by inventing a third value.
 - **Powered by Hemisphere One**, with the Hemisphere One logo, stands
   under the wordmark wherever the wordmark does (header, footer, loading
   screen) and nowhere else on the opening card (client, 2026-10-11,
-  morning; `Brand.astro`, one lockup). On paper the logo as supplied; on
-  ink a reversed copy derived from it and from nothing else
-  (`scripts/logo-reversed.mjs`). CONFIRM: that copy is ours (notes N1).
+  morning; `Brand.astro`, one lockup). The logo as supplied on every
+  ground, never recoloured (developer, 2026-10-14: "the hemisphere one
+  logo turns white ... fix that"): on ink it stands on a small pill of the
+  paper (`.brand__logo`, base.css), whose room is kept on paper too so the
+  lockup does not move when the header changes ground. The reversed copy
+  of 2026-10-11 (`scripts/logo-reversed.mjs`) is no longer used (notes N1,
+  Q4).
 - The capsule's form follows the client's three reference renders of
   2026-10-09 (`src/three/kit/capsule.ts`). Its lengths are the brief's
   10′, 16′ and 20′; nothing else about it is supplied (notes C5, C9). No
@@ -110,9 +124,9 @@ source. Never resolve a conflict by inventing a third value.
   alike. It keeps the way it lies while it is in the air where the trailer
   can stand along it.
 - A building's lights come on when it stands, never while it is being
-  lowered in, carried or put together (client, 2026-10-10): the hero's
-  three, the capsule homes, the installation. `litGlass()` in
-  `kit/materials.ts`.
+  lowered in, brought up, carried or put together (client, 2026-10-10):
+  the hero's three, the capsule homes, the installation, the MOD page's
+  house. `litGlass()` in `kit/materials.ts`.
 - "How it works" shows two stacks, the villa and the five-floor
   **Mid-Rise Apartment** ("high-rise" is not used anywhere). The two-floor
   apartment is a preset of the configurator only (`film` in
@@ -273,13 +287,23 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   camera or the names by hand for a screen size: change the fit. A
   change to the card is looked at in a low window too (1267 × 303 and
   1267 × 427 at 150%: the developer drags the window short), on a phone
-  and at 4:3. Scrolling lifts the capsule and the prefab block away as
-  they were lowered in, goes round to the house, and then grows its land
-  from under it over the floor and brings the sky in (client,
-  2026-10-07). Each of the three is dark while it is lowered in, and its
-  lights come on once it stands. At rest the land is not drawn at all.
-  Things leave a picture by being lifted or by the camera moving on,
-  never by fading: a faded object needs a blended material.
+  and at 4:3. Each of the three comes up out of the polished floor
+  whole, one after another in the menu's order (house, capsule, block),
+  never part by part (client, 2026-10-14: the card says what VEE offers,
+  not how it is put together; the developer: "spawn them building by
+  building"; `raise` and `INTRO` in `HeroScene.tsx`). Scrolling takes the
+  capsule and the prefab block back down into the floor, whole, as they
+  came, goes round to the house, and then grows its land from under it
+  over the floor and brings the sky in (client, 2026-10-07). Each of the
+  three is dark while it comes up, and its lights come on once it
+  stands. At rest the land is not drawn at all. Things leave a picture by
+  being lifted, by going back down into the floor they came out of, or by
+  the camera moving on, never by fading: a faded object needs a blended
+  material. Coming up out of the floor asks nothing of the materials:
+  the floor's depth is drawn before the buildings, the reflection keeps
+  only what stands over the floor, and the reflection's copies are kept
+  out of the occlusion pass (`userData.unoccluded`, `kit/mirror.tsx`),
+  where a building still under the floor stood over it as stains.
 - "Componentized building" opens on the finished house, whole, which
   comes apart twice (developer, 2026-10-10: "easy to understand for very
   common people", then "after fully bursting, we can burst further").
@@ -345,8 +369,10 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   not put another scene inside `<Refined>`, or change a material's own
   definition to its refined recipe, without being asked. The house keeps
   its finishes into the sunset that follows the card: it is the same
-  house. No plants, furniture outside, lamps, sky or mountains from the
-  reference, and never the reference itself.
+  house. CONFIRM: the same house on the MOD page (`/modular/`, the
+  showcase's `house`) has the materials as they were, by this rule
+  (notes Q3). No plants, furniture outside, lamps, sky or mountains from
+  the reference, and never the reference itself.
   CONFIRM: the sloped roof's covering is ours, one entry (`roofing` in
   `src/data/build.ts`; notes P2).
 - The refined finishes' maps are files in `public/textures/`, baked by
@@ -385,9 +411,18 @@ Astro (static HTML per route) + React islands + React Three Fiber.
 - A grid on the ground is one flat sheet whose shader finds the lines, not
   line segments: line segments cost 12 ms a frame in "How it works"
   (notes F7).
-- Routes: `/` (main page, the factory tour included), `/capsule/`,
-  `/prefab/`, `/partnership/`, `404`. Do not move a section to a route of
-  its own, or add or remove one, without asking first.
+- A film reached by a link (`/#factory`, the rail, the menus) stands at
+  the top of the window, as it does once scrolled into: `.film` gives
+  back the header's room that the page keeps for every other target
+  (`scroll-margin-top`, film.css; `scroll-padding-top`, base.css). A
+  visitor arriving from another page by a link is set on the chapter
+  again once the page has settled, unless they have begun to scroll
+  (`arriveScript`, `Base.astro`; developer, 2026-10-14: the foot of the
+  3D tour showed above the factory's title).
+- Routes: `/` (Home, the main page, the factory tour included),
+  `/modular/` (MOD, since 2026-10-14, asked for), `/capsule/`, `/prefab/`,
+  `/partnership/`, `404`. Do not move a section to a route of its own, or
+  add or remove one, without asking first.
 - The catalogue is built but not shown (client, 2026-10-10: "hide without
   removing"): `shown` in `src/data/site.ts`. The chapters' numbers, the
   rail, the menus and the links to it follow that flag; do not delete the
@@ -408,7 +443,9 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   1280 by 720 at 200%.
 - The opening card's fit runs without a browser (`kit/rowfit.ts` is pure
   geometry on a camera; `vee-build-progress.md`, QA aids). In the dev
-  build `window.__veeRow = <s>` holds the card to one arrangement.
+  build `window.__veeRow = <s>` holds the card to one arrangement, and
+  `window.__veeIntro = <seconds>` holds its opening at that moment (the
+  three coming up; its clock runs slow under a capture loop).
 - Two builds timed in turn: reverse their order before believing a
   difference. The laptop's power state has put the second load of every
   pair in its slow half (notes F12).

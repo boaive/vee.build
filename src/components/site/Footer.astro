@@ -6,7 +6,7 @@ import Brand from './Brand.astro';
 const year = new Date().getFullYear();
 const { email, phone, address, legalName } = site.contact;
 const hasContact = email || phone || address;
-const products = primaryNav.filter((n) => n.label !== 'Contact');
+const products = primaryNav.filter((n) => n.line);
 ---
 
 <footer class="ftr theme-dark" data-theme="dark">

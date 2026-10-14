@@ -1,0 +1,40 @@
+---
+/*
+ * Near the foot of the MOD and FAB pages, just before the enquiry form
+ * (developer, 2026-10-14): the home page's chapters that show that line,
+ * each a link that opens the home page there (data/onward.ts).
+ */
+import { onwardFor, onwardTitle, type OnwardLine } from '../../data/onward';
+
+interface Props {
+  line: OnwardLine;
+}
+const { line } = Astro.props;
+const items = onwardFor(line);
+---
+
+<section class="section onward theme-light" id="onward" data-theme="light" aria-labelledby="onward-heading">
+  <div class="wrap">
+    <header class="section-head">
+      <p class="t-label section-head__index">Continue on the home page</p>
+      <h2 class="t-h2" id="onward-heading" data-reveal>{onwardTitle[line]}</h2>
+      <p class="t-lead section-head__lead" data-reveal style="--i:1">
+        Each link opens the home page at that chapter. Scroll on from there.
+      </p>
+    </header>
+    <ol class="onward__list">
+      {
+        items.map((c, i) => (
+          <li data-reveal style={`--i:${i}`}>
+            <a class="onward__link" href={c.href}>
+              <span class="onward__n">{c.n}</span>
+              <span class="onward__name">{c.label}</span>
+              <span class="onward__line">{c.line}</span>
+              <span class="onward__go" aria-hidden="true" />
+            </a>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>

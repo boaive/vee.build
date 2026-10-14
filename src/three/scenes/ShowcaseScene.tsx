@@ -3,17 +3,22 @@ import { useMemo } from 'react';
 import type { SceneProps } from '../../film/progress';
 import { ease } from '../../film/timeline';
 import Stage, { aim, useLabel, type Rig } from '../Stage';
-import { CampusSet, PodSet, SETS, WorkSet, type SetName } from '../kit/sets';
+import { CampusSet, FarmSet, PodSet, SETS, WorkSet, type SetName } from '../kit/sets';
 
 /**
- * A single building in its setting, for the Capsule and Prefab pages. It
- * assembles once when it comes into view, then turns a few degrees with the
- * pointer. `progress.target` is the pointer's x position, 0–1.
+ * A single building in its setting, for the Modular, Capsule and Prefab
+ * pages. It assembles once when it comes into view, then turns a few
+ * degrees with the pointer. `progress.target` is the pointer's x position,
+ * 0–1. The modular house is the one exception: it is the opening card's
+ * house, and it stands whole from the start, its lights coming on as it
+ * comes into view (client, 2026-10-14: the whole building, never part by
+ * part; how it is put together is on the home page, "Componentized
+ * building").
  */
 
-export type ShowcaseKind = 'capsule' | 'workforce' | 'institutional';
+export type ShowcaseKind = 'house' | 'capsule' | 'workforce' | 'institutional';
 
-const SET: Record<ShowcaseKind, SetName> = { capsule: 'pods', workforce: 'work', institutional: 'campus' };
+const SET: Record<ShowcaseKind, SetName> = { house: 'farm', capsule: 'pods', workforce: 'work', institutional: 'campus' };
 /**
  * The capsule page frames its three on their own (client, 2026-10-11: "too
  * small, like toy houses"): near and at about eye level, so that they read
@@ -22,8 +27,12 @@ const SET: Record<ShowcaseKind, SetName> = { capsule: 'pods', workforce: 'work',
  */
 const FRAME: Partial<Record<ShowcaseKind, Pick<(typeof SETS)[SetName], 'from' | 'to'>>> = {
   capsule: { from: { pos: [6.2, 1.95, 18.6], look: [0, 1.62, 0] }, to: { pos: [-6.2, 1.9, 18.6], look: [0, 1.6, 0] } },
+  // The house from its steps' side, as the hero's sunset has it, but nearer: a 6 m shell across the middle of the stage.
+  house: { from: { pos: [9.6, 2.1, 15.2], look: [0.6, 1.9, 0.4] }, to: { pos: [4.2, 1.95, 16.6], look: [0.6, 1.85, 0.4] } },
 };
-const SECONDS: Record<ShowcaseKind, number> = { capsule: 2.4, workforce: 3.2, institutional: 3.6 };
+/** The modular house is drawn finished. */
+const whole = () => 1;
+const SECONDS: Record<ShowcaseKind, number> = { house: 1.6, capsule: 2.4, workforce: 3.2, institutional: 3.6 };
 
 function Model({ kind, progress, place, reduced, rig }: SceneProps & { kind: ShowcaseKind; rig: Rig }) {
   const camera = useThree((s) => s.camera);
@@ -56,6 +65,7 @@ function Model({ kind, progress, place, reduced, rig }: SceneProps & { kind: Sho
   });
 
   const getA = () => ease.linear(state.t);
+  if (kind === 'house') return <FarmSet getA={whole} getLit={() => ease.inOut(state.t)} look={look} />;
   if (kind === 'capsule') return <PodSet getA={getA} label={label} look={look} />;
   if (kind === 'workforce') return <WorkSet getA={getA} look={look} />;
   return <CampusSet getA={getA} label={label} look={look} />;

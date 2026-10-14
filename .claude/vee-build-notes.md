@@ -906,6 +906,36 @@ compared at their low ends as well as their medians.
 - **Not measured:** a phone; the production build's pages; GPU memory
   (one more plane and no new target: not expected to move).
 
+### F13. The round of 2026-10-14 (section Q)
+
+Test laptop, headless Edge, 1280 by 720 at 1.5, one timer query per
+frame, medians of three interleaved rounds, both orders; the baseline is
+the last commit (8e02642), which was the tree before the round.
+
+| Pose | Before | After |
+| --- | --- | --- |
+| Card at rest (pre 0) | 4.12 to 4.17 ms, 156 calls | 4.11 ms (low 4.01), 121 calls |
+| Card, the two going down (pre 0.15 / 0.3) | 3.56 to 3.89 / low 2.83 | 3.76 to 4.01 / low 2.85 |
+| Sunset set (0.05) | low 5.30 | low 5.24 |
+
+- The second order's medians were in the slow power state (ranges like
+  4.0 to 9.0 for one pose); the low ends agree to a few hundredths. No
+  difference can be claimed, except **35 fewer draw calls**: the
+  reflection's copies are no longer drawn in the occlusion pass, where
+  they were always under the floor and contributed nothing.
+- **Moving against still:** the card 0.81, the card's scroll at 0.2 0.47,
+  the sunset 1.26 grey levels mean, no region more than 0.26 (grain).
+- **Steady scroll** through the hero at 1500 px/s: 58.4 fps against 58.7,
+  the long frame at the hero's end (the next film mounting) in both
+  (68 and 49 ms against 87).
+- **The MOD page's stage** (the hero's meadow set, canvas 1744 by 712):
+  4.35 to 5.0 ms in the fast state (one first reading of 9.8), against
+  3.3 to 4.1 for the capsule page and 2.5 to 3.7 for the prefab page. It
+  is the grass: the same set costs 5.2 to 5.4 at full screen in the
+  hero.
+- **Not measured:** a phone; GPU memory on the MOD page (one stage, as
+  on the other two sub-pages).
+
 ## G. Decisions made during the build
 
 - **Project category is a four-option radio group, not a dropdown.** Same
@@ -1770,6 +1800,9 @@ animations but the real product."
    2026-10-09.
    **CONFIRM (N1):** the reversed logo is ours; ask Hemisphere One for
    theirs. Until this round the logo was only ever shown on paper.
+   *Superseded 2026-10-14 (Q4):* the developer did not want the logo
+   turned light; it is now shown as supplied on every ground, on a pill
+   of the paper where the ground is ink, and the reversed copy is unused.
    "Keep the Vee.build name only beneath the Vee.build logo" was read as:
    the powered-by line belongs under the wordmark only.
 2. **The opening card.**
@@ -2247,3 +2280,151 @@ emulated on the laptop); Safari and Firefox; a GPU slower than the test
 laptop's; the names on the floor against their buildings' reflections
 at every window shape (they were read at five; the reflections are
 stronger than they were, progress file, known issue 30).
+
+## Q. The developer's round of 2026-10-14 and how it was carried out
+
+Three items, relayed by the developer for the client, and two more that
+came in during the work. "Make the ui/ux logical and make decisions your
+self. Make the website easy for the user to understand, avoid confusion."
+
+1. **The opening card: whole buildings, not parts.** The client did not
+   want each element dropped separately ("he wants the whole building to
+   be dropped at the same time. In simple terms, we do not say modular in
+   here, we only say what we offer"). The developer: "instead of dropping
+   we spawn them building by building, no separate element wise."
+   Until then the house was put together on the card (its shell lowered
+   onto its footings, roof and panels, piers, landing) and the block shell
+   by shell.
+   - Now each of the three **comes up out of the polished floor whole**,
+     one after another in the menu's order (house 0 to 1.6 s, capsule 1
+     to 2.6, block 2 to 3.7), slowing as it arrives, as on a showroom's
+     lift; each is dark while it comes up and lit once it stands, then
+     named (`INTRO`, `raise` in `HeroScene.tsx`). Scrolling takes the
+     capsule and the block back down into the floor, whole, the block
+     first, as the camera goes to the house (`LEAVE`).
+   - Why up out of the floor and not a whole-building drop: it is what
+     the developer asked for ("spawn"), it reads as presenting a product
+     rather than installing one, and it needs no change to any material.
+     A fade or a dissolve would have needed blended or discarding
+     materials on every refined surface (CLAUDE.md: a faded object needs
+     a blended material). The floor's depth is drawn before the
+     buildings, so what is still under it is hidden; the reflection keeps
+     only what stands over the floor; a caster under the floor cannot
+     shade anything over it.
+   - Found on the way: the occlusion pass drew the reflection's copies in
+     a plain material, without the shader's cut at the floor, so a
+     building still under the floor stood over it in that pass and laid
+     faint stains on the floor. The copies are now kept out of it
+     (`userData.unoccluded`, `kit/mirror.tsx`): nothing changes in a
+     standing picture (they were always under the floor there) and the
+     card draws 35 fewer calls.
+   - The hero's later sets (capsules lowered in, the block with its
+     crane, the panels gliding) are unchanged: the request was about the
+     opening ("when opening the site").
+   - **CONFIRM (Q1):** coming up out of the floor is our reading of
+     "spawn"; a whole-building drop (the client's own words) is one
+     change of the same function.
+   - The headline "One system. Many buildings." and the chapter line
+     "01 — Modular precast construction system" were left as they are:
+     "we do not say modular in here" was read as being about the
+     animation. **CONFIRM (Q2):** whether the client also wants the
+     words changed.
+
+2. **A Home tab; MOD a page of its own.** "Currently the whole website is
+   displayed in the modular tab. Add a new tab 'home' and everything as
+   of now in the mod is shown in home tab. In the mod tab we will have
+   something similar to pod and fab."
+   - Menu: Home | MOD | POD | FAB and Contact (`primaryNav`). Home is the
+     main page as it was (`/`); MOD is `/modular/`. In the header the
+     four are one row of codes (HOME set in capitals like the others); in
+     the footer, Products lists only the three lines (`line` on a menu
+     entry).
+   - `/modular/` follows the capsule and prefab pages: the client's line
+     and "Made from two standardized shells, fully finished in the
+     factory" (2.1 and 2.2's own words); a real-time picture of the
+     opening card's house in its meadow at sunset (`kind="house"` in
+     `ShowcaseScene`, the hero's farm set), whole from the start, its
+     lights coming on as it comes into view; "Single system. Multiple
+     footprints.": Shell A and Shell B with their sizes and areas, the six
+     footprints, the three layers; the enquiry form with Modular Home
+     preset. Nothing on it that the brief does not state.
+   - **CONFIRM (Q3):** the MOD page's house has the kit's materials as
+     they were, not the opening card's refined finishes (CLAUDE.md: no
+     other scene takes them without being asked). One argument
+     (`<Refined value>`) to change.
+
+3. **From MOD and FAB into the home page.** "In the bottom of the mod tab
+   and fab tab, we will have click to view how it works or whatever is
+   appropriate, and clicking upon it, will continue from [section] 2 in
+   the home screen. We show [sections] 2 and 5, 6 for fab, and 3 and 6 for
+   mod."
+   - Read as: each of those two pages has links to those chapters of the
+     home page, each opening the home page at its chapter, from where the
+     visitor scrolls on. MOD: 03 Componentized building, 06 3D tour. FAB:
+     02 How it works, 05 Build your own, 06 3D tour. The numbers are the
+     home page's own (`sections`), so they follow the catalogue's flag.
+   - "Continue on the home page", headed "See how VEE builds it." (MOD)
+     and "See how the system works." (FAB), each link a row: the
+     chapter's number, its name, a line in that chapter's own words, an
+     arrow (`src/data/onward.ts`, `Onward.astro`).
+   - The second button at the top of both pages is one and the same
+     (developer, the same day: "keep it common ... redirect both to
+     factory"): "See how VEE manufactures it", the factory tour's own
+     title, opening the home page at 07 The factory (`/#factory`). It was
+     "See how VEE builds it" (down to the links) on MOD and "See how it is
+     made" on FAB.
+   - Placed after the enquiry form at first; the developer moved it the
+     same day: "enquire is in top of continue ... shift that alone". It
+     now stands just before the form, which is the last section of both
+     pages.
+   - Checked: each link lands with its chapter's top under the header
+     and the boot screen gone (headless Edge, the four chapters).
+   - POD has none: the capsule is not made of the shells, and the
+     request named MOD and FAB.
+   - Tried and taken out again: a "More on the modular house" link in the
+     home film's first caption; over the meadow's tree line it could not
+     be read, and the menu has MOD.
+
+4. **The Hemisphere One logo in its own colours.** "In some places the
+   hemisphere one logo turns white and light coloured, fix that" (two
+   screenshots: the header over the capsule set and over "Componentized
+   building"). That was the reversed copy of N1, shown on every dark
+   ground. Now the logo as supplied on every ground, never recoloured; on
+   ink it stands on a small pill of the paper (`.brand__logo`, base.css),
+   whose room is kept on paper too so that the lockup does not move when
+   the header changes ground. The reversed file and its script are kept,
+   unused. The band and the loading screen were always on paper.
+
+5. **Measured:** F13. Nothing costs more; the card draws 35 fewer calls.
+
+6. **Arriving at a chapter by a link.** The developer, with a screenshot
+   of `/#factory` reached from the new button: the foot of the 3D tour
+   (its turntable and view keys) stood above the factory's title, "there
+   is a session from top page, fix it". Two causes. The page keeps the
+   header's height free above any target (`scroll-padding-top`), right
+   for a paper section with its own top padding, wrong for a full-screen
+   film; and the browser jumps before the page has settled, after which
+   the fonts, the films and the configurator change what stands above,
+   so it came to rest short (more than the header's height in the
+   developer's window). Now a film gives that room back
+   (`scroll-margin-top` on `.film`) and stands at the top of the window,
+   as it does when scrolled into; and a visitor who arrives by a link is
+   set on the chapter again on load, when the fonts are in and when the
+   loading screen goes, unless they have begun to scroll (wheel, touch,
+   key or pointer), and never after four seconds (`arriveScript` in
+   `Base.astro`). Checked from the MOD page: 07 The factory, 02 How it
+   works and 06 3D tour land with their top at 0; 05 Build your own, a
+   paper section, under the header as before. The rail's and the menus'
+   links on the home page take the films to the top of the window too.
+
+**Looked at.** The opening held at eight moments of its opening and at
+eight poses of the card's scroll (dev server, 1280 by 720 at 1.5);
+`/modular/` at 1280 by 720 and 390 by 844, with the mobile menu; the
+foot of `/prefab/`; the logo on paper, over the capsule set, over the
+components film, in the footer. Production build: the four product and
+home pages opened with no console error. `npm run check`, `npm run
+build` (6 pages), the legacy-name search.
+
+**Not verified in this round.** A real phone; the short windows (1267 by
+303 and 427) for the opening's rise (the fit was not touched); Safari
+and Firefox; the MOD page's stage on a slower GPU.

@@ -1,0 +1,100 @@
+---
+import Base from '../layouts/Base.astro';
+import Showcase from '../components/sections/Showcase.tsx';
+import Onward from '../components/sections/Onward.astro';
+import EnquiryForm from '../components/forms/EnquiryForm.tsx';
+import { factoryTitle, kinds } from '../data/narrative';
+import { footprints, shells } from '../data/system';
+
+/*
+ * MOD, a page of its own since 2026-10-14 (the main page became Home): the
+ * modular house as the capsule and prefab pages show theirs, and before
+ * its enquiry form the home page's chapters that show how it is made
+ * (Onward).
+ * Everything stated here is the brief's: the client's line, the two
+ * shells, the footprints, the three layers.
+ */
+const mod = kinds.find((k) => k.id === 'mod')!;
+// The second button opens the factory tour on the home page, in the words of its own title screen (as on FAB).
+const toFactory = factoryTitle.line.join(' ').replace(/\.$/, '');
+const { A, B } = shells;
+const sizes = footprints.map((f) => f.sqft);
+
+const facts = [
+  { n: '01', name: `${A.name} · ${A.label}`, note: `${A.sqft} sq.ft. (${A.sqm} m²). The long shell.` },
+  { n: '02', name: `${B.name} · ${B.label}`, note: `${B.sqft} sq.ft. (${B.sqm} m²). Half of Shell A.` },
+  {
+    n: '03',
+    name: `Footprints · ${sizes[0]} to ${sizes[sizes.length - 1]} sq.ft.`,
+    note: `The shells duplicate, array and fuse side by side: ${sizes.join(' → ')} sq.ft.`,
+  },
+  {
+    n: '04',
+    name: 'Foundation. Module. Add-ons.',
+    note: 'Plug footings and L plinths; the insulated concrete shell; and, chosen for each house, the deck, the steps, the sloped roof and roof solar.',
+  },
+];
+---
+
+<Base
+  title="Modular house"
+  description={`VEE.BUILD modular houses: ${mod.line.toLowerCase()} Made from two standardized shells, ${A.label} and ${B.label}, in footprints from ${sizes[0]} to ${sizes[sizes.length - 1]} sq.ft.`}
+>
+  <section class="page-hero theme-light" data-theme="light">
+    <div class="wrap">
+      <p class="page-hero__meta"><span class="t-label">{mod.code} · Modular</span></p>
+      <h1 class="t-display">{mod.name}</h1>
+      <p class="t-lead page-hero__lead">
+        {mod.line} {mod.punch} Made from two standardized shells, fully finished in the factory.
+      </p>
+      <div class="page-hero__actions">
+        <a class="btn btn--down" href="#register">Enquire</a>
+        <a class="btn btn--ghost btn--plain" href="/#factory">{toFactory}</a>
+      </div>
+    </div>
+  </section>
+
+  <Showcase
+    client:load
+    kind="house"
+    description="A modular house of one long shell at sunset: rendered walls, a sloped roof with solar panels, a glazed door between two sidelights, a window beside it, and a small deck with a black rail and timber steps, in a meadow."
+    note="Modular house · Shell A · real-time model"
+  />
+
+  <section class="section theme-light" data-theme="light">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="t-label section-head__index">Two shells</p>
+        <h2 class="t-h2" data-reveal>Single system. Multiple footprints.</h2>
+        <p class="t-lead section-head__lead" data-reveal style="--i:1">
+          Every modular house is made from the same two shells.
+        </p>
+      </header>
+      <ul class="facts">
+        {
+          facts.map((f, i) => (
+            <li data-reveal style={`--i:${i}`}>
+              <span class="t-label">{f.n}</span>
+              <h3>{f.name}</h3>
+              <p>{f.note}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <Onward line="mod" />
+
+  <section class="section theme-dark" data-theme="dark" id="register" aria-labelledby="register-heading">
+    <div class="wrap contact__grid">
+      <div>
+        <h2 class="t-h2" id="register-heading" data-reveal>Enquire about a modular house.</h2>
+        <p class="t-lead contact__lead mute" data-reveal style="--i:1">
+          Tell us where it would go and which footprint you are considering.
+        </p>
+      </div>
+      <EnquiryForm client:visible variant="contact" preset="Modular Home" />
+    </div>
+  </section>
+</Base>

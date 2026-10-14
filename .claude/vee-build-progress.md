@@ -1,6 +1,6 @@
 # VEE.BUILD — progress
 
-Last updated: 2026-10-12 (the developer's brief of that day, notes P: the opening card's three in refined finishes, on the real-time 3D as it is: plaster, standing-seam roof, coated steel, the capsule's coat, polished glass, a floor that mirrors the lit windows, more light and shade; the card only). Before that: 2026-10-11, evening (the client's second brief of that day, notes O and F12: the opening card made again: the three one behind another on a diagonal, on a polished floor that mirrors them, in warm light on a warm shade, fitted to any screen; jack piers under the deck and steps of "08 On site". That morning, notes N and F11: Powered by with the logo under the wordmark, rooms behind lit glass, the capsules at life size, each shell lifted by its own hooks in 2.2, prices in the configurator, the site's preparation as the first part of the installation film). Before that: 2026-10-10, evening (the client's brief of that day, notes M and F10: the factory made again as one shell in one bay, seen on the diagonal, lifted by four hooks; the journey as a short film that holds the page; the installation placing one shell and assembling the rest by itself, lights last; doors and windows of 2.3; "Add-on" tags; jack piers on the hero's house; Powered by Hemisphere One under the wordmark; the catalogue hidden; "VEE" for "we"). Earlier the same day: the developer's two rounds (notes K and F9; notes L: the second burst, the accent settled as vermilion on paper and green on ink, the build in figures under the configurator's view). Before that: 2026-10-09 (the client's corrections sheet, notes J and F7).
+Last updated: 2026-10-14 (the developer's round of that day, notes Q and F13: the opening card's three come up out of the floor whole, one after another, and the two that leave go back down into it whole; a Home tab for the main page and MOD a page of its own, `/modular/`; on MOD and FAB, links into the home page's chapters before the enquiry form; the Hemisphere One logo in its own colours on every ground; one "See how VEE manufactures it" button on MOD and FAB, to the factory; a film reached by a link stands at the top of the window). Before that: 2026-10-12 (the developer's brief of that day, notes P: the opening card's three in refined finishes, on the real-time 3D as it is: plaster, standing-seam roof, coated steel, the capsule's coat, polished glass, a floor that mirrors the lit windows, more light and shade; the card only). Before that: 2026-10-11, evening (the client's second brief of that day, notes O and F12: the opening card made again: the three one behind another on a diagonal, on a polished floor that mirrors them, in warm light on a warm shade, fitted to any screen; jack piers under the deck and steps of "08 On site". That morning, notes N and F11: Powered by with the logo under the wordmark, rooms behind lit glass, the capsules at life size, each shell lifted by its own hooks in 2.2, prices in the configurator, the site's preparation as the first part of the installation film). Before that: 2026-10-10, evening (the client's brief of that day, notes M and F10: the factory made again as one shell in one bay, seen on the diagonal, lifted by four hooks; the journey as a short film that holds the page; the installation placing one shell and assembling the rest by itself, lights last; doors and windows of 2.3; "Add-on" tags; jack piers on the hero's house; Powered by Hemisphere One under the wordmark; the catalogue hidden; "VEE" for "we"). Earlier the same day: the developer's two rounds (notes K and F9; notes L: the second burst, the accent settled as vermilion on paper and green on ink, the build in figures under the configurator's view). Before that: 2026-10-09 (the client's corrections sheet, notes J and F7).
 
 ## Status
 
@@ -24,16 +24,23 @@ Last updated: 2026-10-12 (the developer's brief of that day, notes P: the openin
 | 16 Client's brief of 2026-10-11 (morning) | six items done and measured, notes N and F11 |
 | 17 Client's second brief of 2026-10-11 | the opening card and the jack piers of "On site": done, looked at in nine window shapes and measured, notes O and F12 |
 | 18 Developer's brief of 2026-10-12 | the opening card's three in refined finishes: done, looked at in five window shapes and measured, notes P; waiting for the developer's review before any other scene takes them. The same day: a canvas's pixels by the GPU (zoomed windows and dense screens no longer stretched), every stage, measured on the laptop only, notes P7 |
+| 19 Developer's round of 2026-10-14 | done, looked at and measured, notes Q and F13; open points under "Waiting for an answer" |
 
-`npm run check` → 0 errors. `npm run build` → 5 routes, sitemap, optimised images.
+`npm run check` → 0 errors. `npm run build` → 6 routes, sitemap, optimised images.
 
 ## What exists
 
-- **Routes:** `/`, `/capsule/`, `/prefab/`, `/partnership/`, `404`.
-- **Menu:** MOD | POD | FAB and Contact (`primaryNav`). **Bottom band**
+- **Routes:** `/` (Home), `/modular/` (MOD, since 2026-10-14), `/capsule/`, `/prefab/`, `/partnership/`, `404`.
+- **Menu:** Home | MOD | POD | FAB and Contact (`primaryNav`). **Bottom band**
   under the footer, on paper: Partnership, Investors, Technology, and
   "Powered by" with the Hemisphere One logo (`bandNav`, `Footer.astro`).
-- **Main page, 13 sections shown, in this order** (numbered from the list
+- **Product pages** (MOD, POD, FAB): a head with the client's line, a
+  real-time picture of the building (`Showcase.tsx`; MOD shows the
+  opening card's house in its meadow, whole), what the brief states about
+  it, and the enquiry form last. MOD and FAB have "Continue on the home
+  page" just before the form: MOD 03 and 06, FAB 02, 05 and 06
+  (`src/data/onward.ts`, `Onward.astro`).
+- **Home page, 13 sections shown, in this order** (numbered from the list
   in `src/data/site.ts`; the number is the chapter's; the catalogue is
   built and hidden, `shown.catalogue`): 01 `overview` (an
   opening card: the headline over the three kinds of building, a modular
@@ -41,7 +48,8 @@ Last updated: 2026-10-12 (the developer's brief of that day, notes P: the openin
   one behind another on a diagonal and seen on the diagonal, on a
   polished floor of 3 m slabs that mirrors them, in warm light, on the
   page's warm shade; each named on the floor and lit once it stands; the
-  camera fitted to the screen; scrolling lifts the other two away, goes
+  camera fitted to the screen; each comes up out of the floor whole, one
+  after another; scrolling takes the other two back down into it, goes
   round to the house, grows its land from under it over the floor and
   brings the sky up; then the hero film: modular house, capsule homes,
   workforce housing, institutional building, each caption changing on its
@@ -155,7 +163,8 @@ Last updated: 2026-10-12 (the developer's brief of that day, notes P: the openin
   building's box for a dozen screen shapes, another tried every place on
   the floor's joints (notes O1). In the dev build `window.__veeRow = 0.4`
   before a resize holds the card to one arrangement, and the stage's
-  `rig.row` is the fit in use.
+  `rig.row` is the fit in use. `window.__veeIntro = <seconds>` holds the
+  opening (the three coming up) at that moment, for captures.
 - Captures are JPEG, with the fast encoder: headless Edge's PNG encoder
   hung for good on some pictures (2026-10-11).
 - Two builds timed in turn can read 2× apart for the order alone (the
@@ -362,6 +371,10 @@ long frame, at its end, in every build.
 
 ## Not yet verified
 
+- The round of 2026-10-14 (notes Q): a real phone; Safari and Firefox;
+  the MOD page's stage on a GPU slower than the test laptop's; the
+  opening's rise in a window dragged through several sizes.
+
 - The two rounds of 2026-10-11 (notes N, O): a real phone or tablet;
   Safari and Firefox; the floor, the reflections and the rooms behind
   the glass on a GPU slower than the test laptop's; a window resized by
@@ -436,6 +449,18 @@ now a 3D shot).
 
 ## Waiting for an answer
 
+From the developer's round of 2026-10-14 (notes Q):
+- **Coming up out of the floor** is our reading of "spawn them building
+  by building"; a whole-building drop, the client's own words, is one
+  change (Q1).
+- **The card's words** ("One system. Many buildings.", "01 — Modular
+  precast construction system") are unchanged: "we do not say modular in
+  here" was read as being about the animation (Q2).
+- **The MOD page's house** has the kit's materials, not the card's
+  refined finishes (Q3).
+- **The Hemisphere One logo** on a pill of the paper where the ground is
+  dark: ours, so that it can keep its own colours there (Q4).
+
 From the developer's brief of 2026-10-12 (notes P):
 - **Pixels by the GPU**: what a GPU faster than the test laptop's is
   given rests on one synthetic measure; no such machine, no 120 Hz
@@ -460,8 +485,7 @@ From the two briefs of 2026-10-11 (notes N, O):
   trees (O1).
 - **Jack piers in "On site" only**, as asked: the configurator and the
   3D tour show the same house without them (O3).
-- **The reversed Hemisphere One logo** on ink is derived from theirs
-  (N1); **the card's block is four bays**, not six (N2); **the rooms'
+- **The reversed Hemisphere One logo** of N1 is no longer shown (Q4); **the card's block is four bays**, not six (N2); **the rooms'
   furniture** is illustrative (N3); **every price** is ours (N5); **the
   order of the site work** follows the client's model, the pegs and
   string are ours (N6).
@@ -621,4 +645,4 @@ From earlier rounds:
    2.0 GB (notes F9). Not new, measured for the first time on 2026-10-10.
    Worth a look before the site goes to phones: the 4x still target and
    the 4096 shadow map are the large parts.
-6. A git repository exists since 2026-10-06 (five commits, the last "updated the corrections from vee.build and updated the factory tour", 2026-10-10). The two rounds of 2026-10-11 are in the working tree, not committed. `Delivery.astro` and `DeliveryRoute.tsx` were deleted in the last of them (the drawn road); they are in the last commit.
+6. A git repository exists since 2026-10-06; the developer commits between rounds (the last before this round: 8e02642, "refined the landing hero page"). The round of 2026-10-14 is in the working tree, not committed.

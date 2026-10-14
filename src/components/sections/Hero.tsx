@@ -32,9 +32,10 @@ const actions = {
 /**
  * The opening card: the system in a sentence, over the three kinds of
  * building, one behind another on a polished floor in warm light, seen on
- * the diagonal and fitted to the screen (HeroScene). Scrolling lifts the
- * capsule and the prefab block away, goes to the modular house and brings
- * its land and sky in.
+ * the diagonal and fitted to the screen (HeroScene). Each comes up out of
+ * the floor whole, one after another. Scrolling takes the capsule and the
+ * prefab block back down into it, goes to the modular house and brings its
+ * land and sky in.
  */
 const opening: Prelude = {
   length: 1.7,

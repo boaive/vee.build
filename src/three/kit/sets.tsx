@@ -276,17 +276,19 @@ export function FarmSet({ getA, getLit, look, land, house }: Omit<BuildingProps,
 /* The opening card: the other two of the three kinds of building      */
 /* ------------------------------------------------------------------ */
 
+/** A building drawn finished: on the opening card each of the three is moved as one, never put together. */
+const whole = () => 1;
+
 /**
  * The capsule home and the prefab block that stand behind the house while
- * the opening card is up: lowered in on load, lifted away as the page
- * scrolls on. Where each stands is the row's (row.ts), for the screen it is
- * seen on (rowfit.ts): the scene sets the two groups in place when that is
- * known and again when the screen changes, so neither is built twice.
- * `capsule`, `prefab`: refs to those two groups.
+ * the opening card is up, each drawn whole. The scene brings each up out of
+ * the floor on load and takes it back down as the page scrolls on
+ * (HeroScene, `raise`). Where each stands is the row's (row.ts), for the
+ * screen it is seen on (rowfit.ts): the scene sets the two groups in place
+ * when that is known and again when the screen changes, so neither is built
+ * twice. `capsule`, `prefab`: refs to those two groups.
  */
 export function Lineup({
-  getCapsule,
-  getPrefab,
   getCapsuleLit,
   getPrefabLit,
   look,
@@ -296,8 +298,6 @@ export function Lineup({
   feet,
   bays,
 }: {
-  getCapsule: () => number;
-  getPrefab: () => number;
   /** 0–1: each one's lights, on once it stands. */
   getCapsuleLit?: () => number;
   getPrefabLit?: () => number;
@@ -311,11 +311,11 @@ export function Lineup({
   return (
     <group ref={hold}>
       <group ref={capsule}>
-        <Capsule feet={feet} getT={getCapsule} getLit={getCapsuleLit} look={look} drop={11} />
+        <Capsule feet={feet} getT={whole} getLit={getCapsuleLit} look={look} />
       </group>
       {/* The block's own ground line is the top of its set's gravel pad: here it stands on the bare floor (the scene sets it that much lower). */}
       <group ref={prefab}>
-        <WorkforceBlock getA={getPrefab} getLit={getPrefabLit} look={look} crane={false} bays={bays} />
+        <WorkforceBlock getA={whole} getLit={getPrefabLit} look={look} crane={false} bays={bays} />
       </group>
     </group>
   );

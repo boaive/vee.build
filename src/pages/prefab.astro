@@ -1,10 +1,13 @@
 ---
 import Base from '../layouts/Base.astro';
 import Showcase from '../components/sections/Showcase.tsx';
+import Onward from '../components/sections/Onward.astro';
 import EnquiryForm from '../components/forms/EnquiryForm.tsx';
-import { kinds } from '../data/narrative';
+import { factoryTitle, kinds } from '../data/narrative';
 
 const fab = kinds.find((k) => k.id === 'fab')!;
+// The second button opens the factory tour on the home page, in the words of its own title screen (as on MOD).
+const toFactory = factoryTitle.line.join(' ').replace(/\.$/, '');
 ---
 
 <Base
@@ -20,7 +23,7 @@ const fab = kinds.find((k) => k.id === 'fab')!;
       </p>
       <div class="page-hero__actions">
         <a class="btn btn--down" href="#register">Discuss a project</a>
-        <a class="btn btn--ghost btn--plain" href="/#factory">See how it is made</a>
+        <a class="btn btn--ghost btn--plain" href="/#factory">{toFactory}</a>
       </div>
     </div>
   </section>
@@ -65,6 +68,8 @@ const fab = kinds.find((k) => k.id === 'fab')!;
     description="A ground plus two institutional building. Two 36 foot precast wall panels glide into position on its facade."
     note="Institutional · G+2 · 36′ wall panels · real-time model"
   />
+
+  <Onward line="fab" />
 
   <section class="section theme-dark" data-theme="dark" id="register" aria-labelledby="register-heading">
     <div class="wrap contact__grid">

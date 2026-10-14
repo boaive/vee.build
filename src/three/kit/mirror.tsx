@@ -14,7 +14,8 @@
  * instead, and either way the picture keeps its alpha as coverage (notes
  * F8). The floor's shadows are drawn over it afterwards.
  *
- * Nothing here casts or receives a shadow, and the copies follow their
+ * Nothing here casts or receives a shadow or takes part in the ambient
+ * occlusion (`userData.unoccluded`), and the copies follow their
  * originals just before each draw (rig.beforeDraw), from the world matrices
  * the stage has just brought up to date. When the land comes in the
  * reflection fades out with the bare floor's shadows and is not drawn.
@@ -187,6 +188,9 @@ export function useMirror(rig: Rig, into: RefObject<Group | null>, sources: RefO
         copy.frustumCulled = false;
         copy.castShadow = false;
         copy.receiveShadow = false;
+        // Not part of the occlusion's depth picture (post.tsx): that pass draws it in a plain material, without the cut
+        // at the floor, and what is under the floor (a building on its way up) would stand over it there, as stains.
+        copy.userData.unoccluded = true;
         copy.renderOrder = PLAZA_ORDER.mirror;
         copy.visible = false;
         root.add(copy);

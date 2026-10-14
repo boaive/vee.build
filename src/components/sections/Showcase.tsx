@@ -7,6 +7,7 @@ import { POD_FEET_LABELS } from './labels';
 const Scene = lazy(() => import('../../three/scenes/ShowcaseScene'));
 
 const LABELS: Record<ShowcaseKind, FilmLabel[]> = {
+  house: [],
   capsule: POD_FEET_LABELS,
   workforce: [],
   institutional: [

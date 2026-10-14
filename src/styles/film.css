@@ -7,6 +7,13 @@
 .film {
   position: relative;
   height: calc(var(--film-len) * 100svh);
+  /*
+   * Reached by a link, a film stands at the top of the window, as it does
+   * once scrolled into: the room the page keeps for the header
+   * (scroll-padding-top, base.css) is given back here, or the foot of the
+   * chapter before it showed above it (developer, 2026-10-14).
+   */
+  scroll-margin-top: calc(-1 * var(--hdr));
 }
 
 .film__sticky {
