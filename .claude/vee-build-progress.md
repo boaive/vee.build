@@ -645,4 +645,4 @@ From earlier rounds:
    2.0 GB (notes F9). Not new, measured for the first time on 2026-10-10.
    Worth a look before the site goes to phones: the 4x still target and
    the 4096 shadow map are the large parts.
-6. A git repository exists since 2026-10-06; the developer commits between rounds (the last before this round: 8e02642, "refined the landing hero page"). The round of 2026-10-14 is in the working tree, not committed.
+6. A git repository exists since 2026-10-06; the developer commits between rounds (the last before this round: 8e02642, "refined the landing hero page"). The round of 2026-10-14 is fdd8b86 on main, pushed to origin.
