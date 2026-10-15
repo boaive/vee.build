@@ -759,13 +759,18 @@ button {
  * band over a picture (notes S).
  */
 @media (max-width: 860px), (hover: none) and (pointer: coarse) {
+  /*
+   * No blur behind it: a blurred band over a live picture is worked out
+   * again for every frame the picture draws, and on a phone's GPU that cost
+   * frames (2026-10-15). A band of the ground, nearly opaque, reads the same.
+   */
   .hdr,
   .hdr.is-solid,
   .hdr.is-solid.is-bare {
-    background: rgb(var(--scrim) / 0.7);
+    background: rgb(var(--scrim) / 0.9);
     box-shadow: 0 1px 0 var(--line);
-    -webkit-backdrop-filter: saturate(1.5) blur(16px);
-    backdrop-filter: saturate(1.5) blur(16px);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }
 @media (min-width: 861px) {

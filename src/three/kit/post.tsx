@@ -103,6 +103,17 @@ export interface PostOptions {
   bloom?: number;
   bloomThreshold?: number;
   grade?: Grade;
+  /**
+   * Phones and tablets (Stage: a compact layout or a budget device): every
+   * frame is drawn at once as it will stand, 4x multisampled, and nothing is
+   * drawn again when the picture stops. A tiled mobile GPU multisamples in
+   * its own tile memory at little cost, the edges are smooth while the
+   * picture moves (2026-10-15: "the corner of the buildings look
+   * pixelated"), and the second drawing of the scene and the cross-fade
+   * that followed every stop are gone. A moving and a still picture are the
+   * same picture. Desktop: as it was.
+   */
+  lean?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -404,8 +415,13 @@ void main() {
 
 const SETTLE_AFTER = 130;
 const SETTLE_FADE = 280;
-/** Ambient occlusion is worked out at this fraction of the canvas (each way). */
-const AO_SCALE = 0.5;
+/**
+ * `?hq`: the quality the recorded clips are rendered at (scripts/factory-video.mjs),
+ * not a page's: never in a visitor's address.
+ */
+export const HQ = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('hq');
+/** Ambient occlusion is worked out at this fraction of the canvas (each way); at the canvas's own size for a recording. */
+const AO_SCALE = HQ ? 1 : 0.5;
 
 /* ------------------------------------------------------------------ */
 /* The pipeline                                                        */
@@ -426,6 +442,7 @@ interface FinishOptions {
   aoIntensity: number;
   bloom: number;
   bloomThreshold: number;
+  lean: boolean;
   /**
    * Called before the scene is drawn, for a frame R3F asked for and for the settle (outside R3F's loop) alike.
    * Returns the sky to put behind the scene, or null when there is none (a studio on the page's own colour).
@@ -478,7 +495,7 @@ class Finish {
     private readonly opts: FinishOptions,
   ) {
     this.quad.frustumCulled = false;
-    this.motion = sceneTarget(MOVING_SAMPLES);
+    this.motion = sceneTarget(opts.lean ? STILL_SAMPLES : MOVING_SAMPLES);
     this.shared = {
       tScene: { value: null },
       tBloom: { value: null },
@@ -593,7 +610,8 @@ class Finish {
     u.uContrast.value = g.contrast;
     (u.uShadows.value as Vector3).set(...g.shadows);
     (u.uHighlights.value as Vector3).set(...g.highlights);
-    u.uGrain.value = g.grain;
+    // A recording has no grain: grain that changes every frame is most of what a video encoder has to keep.
+    u.uGrain.value = HQ ? 0 : g.grain;
     u.uAberration.value = g.aberration;
   }
 
@@ -652,8 +670,8 @@ class Finish {
     this.stats.moving++;
     this.lastMoving = performance.now();
     this.monitor.frame(this.lastMoving);
-    // One timer while the picture moves; it re-arms itself until the frames stop.
-    if (!this.timer) this.timer = window.setTimeout(this.settle, SETTLE_AFTER);
+    // One timer while the picture moves; it re-arms itself until the frames stop. A lean finish's frame is already the picture.
+    if (!this.timer && !this.opts.lean) this.timer = window.setTimeout(this.settle, SETTLE_AFTER);
   }
 
   private cancelSettle() {
@@ -786,6 +804,7 @@ export default function Post({
   aoIntensity = 1,
   bloom = 0.35,
   bloomThreshold = 1.4,
+  lean = false,
   grade,
   getGrade,
   onReady,
@@ -817,10 +836,10 @@ export default function Post({
   warmer.current = onWarmer;
 
   const finish = useMemo(() => {
-    const f = new Finish(gl, scene, camera, { ao, aoRadius, aoIntensity, bloom, bloomThreshold, before: () => prepare.current?.() ?? null });
+    const f = new Finish(gl, scene, camera, { ao, aoRadius, aoIntensity, bloom, bloomThreshold, lean, before: () => prepare.current?.() ?? null });
     if (import.meta.env.DEV) (gl.domElement as unknown as { __veePost?: unknown }).__veePost = { finish: f, quality, SCALES, BLOOM_WEIGHTS };
     return f;
-  }, [gl, scene, camera, ao, aoRadius, aoIntensity, bloom, bloomThreshold]);
+  }, [gl, scene, camera, ao, aoRadius, aoIntensity, bloom, bloomThreshold, lean]);
 
   useLayoutEffect(() => {
     finish.setSize(Math.floor(size.width * dpr), Math.floor(size.height * dpr));

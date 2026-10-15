@@ -28,6 +28,14 @@ export interface Progress {
    * moves itself between steps reads it (HeroMobileScene).
    */
   pick: boolean;
+  /**
+   * A film with cards: the step last chosen, and how many times one has been
+   * chosen (a choice of the same step again counts). A film drawn from
+   * recorded clips plays that step's clip when it changes (film/ClipScene).
+   * -1 until the first choice.
+   */
+  chosen: number;
+  chosenCount: number;
 }
 
 export const createProgress = (): Progress => ({
@@ -39,6 +47,8 @@ export const createProgress = (): Progress => ({
   pre: 1,
   band: null,
   pick: false,
+  chosen: -1,
+  chosenCount: 0,
 });
 
 /** Places a DOM label at a world position. Supplied to scenes by Film. */

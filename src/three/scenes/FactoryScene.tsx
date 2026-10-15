@@ -12,6 +12,7 @@ import { LIFT, MobileCrane, PUMP_OUTLET, Pump, TRUCK, Truck, prepareMachines } f
 import { instanced, kit, mat, moduleMats } from '../kit/materials';
 import { jackBaseGeometry, jackScrewGeometry, moduleGeometry } from '../kit/parts';
 import { HOOKS, SHELL, castRoofGeometry, castWallsGeometry, epsFloorGeometry, epsRoofGeometry, epsWallGeometry, frameGeometry, shellJoinery, wallBays, type FrameStage } from '../kit/shell';
+import { HQ } from '../kit/post';
 import { boxUV } from '../kit/textures';
 
 /**
@@ -787,7 +788,8 @@ function Factory({ progress, place, rig, compact }: SceneProps & { rig: Rig }) {
   return (
     <group ref={all}>
       <Director progress={progress} rig={rig} compact={compact} />
-      <Yard progress={progress} bare={compact || isLite()} />
+      {/* Recorded (?hq, the phone's clips) it is drawn whole: what it costs is paid once, offline. */}
+      <Yard progress={progress} bare={(compact || isLite()) && !HQ} />
       <Piers progress={progress} />
       <Shell progress={progress} label={label} fine={compact && !isLite()} />
       <Formwork progress={progress} />

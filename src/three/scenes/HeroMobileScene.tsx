@@ -111,7 +111,8 @@ const SHOTS: Shot[] = [
   ...PODS.map((f): Shot => ({ box: capsuleBox(f), base: 0, turn: [0.62, 0.34], el: 0.12, fill: [0.96, 0.84], lift: 0.1 })),
   // From the left: its staircase stands against that flank (the developer's prefab screen).
   { box: blockBox(BAYS), base: PAD_Y, turn: [-0.66, -0.42], el: 0.15, fill: [0.9, 0.76] },
-  { box: INST_BOX, base: PAD_Y, turn: [1.06, 0.86], el: 0.1, fill: [1.45, 0.74], anchor: { side: 1, at: 0.9 } },
+  // Its left end kept whole with room beside it, on every screen; the near end runs off the right (2026-10-15: "make sure there is always space in left side for that slide").
+  { box: INST_BOX, base: PAD_Y, turn: [1.06, 0.86], el: 0.1, fill: [1.45, 0.74], anchor: { side: -1, at: 0.8 } },
 ];
 const HOUSE = 0;
 const POD = (j: number) => 1 + j;

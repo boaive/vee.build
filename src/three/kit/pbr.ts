@@ -425,3 +425,11 @@ export function latticeCard() {
     }
   });
 }
+
+/**
+ * Every set, one an idle moment, once the opening card is up (film/prefetch.ts).
+ * Each is drawn on the main thread the first time it is asked for; asked for by
+ * a scene mounting as the page is scrolled to it, that was a stall of up to a
+ * fifth of a second on a phone, in the middle of the scroll (2026-10-15).
+ */
+export const prepare: (() => void)[] = [concreteSet, renderSet, timberSet, gravelSet, asphaltSet, soilSet, ribSet, grassSet, barkSet, leafCard, latticeCard].map((make) => () => void make());

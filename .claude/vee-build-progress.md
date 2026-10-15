@@ -1,6 +1,6 @@
 # VEE.BUILD — progress
 
-Last updated: 2026-10-15 (the mobile and tablet round of 2026-10-14 and 15, notes R and F14: phones and tablets held upright have layouts of their own (the words at the top and the building under them, large, framed in the band they leave; dashes and a count at the foot; a header of the lockup, a Contact pill and three bars); the phone's hero is a showroom on the polished floor, its opening card the three kinds as cards to swipe between, its four steps scrolled, the capsule's step with its three lengths; the factory and On site a step at a time, chosen with cards that carry the scene's own picture; the product pages' buildings alone on the polished floor, the capsule's length chosen; the capsule home-like on phones; call-outs at the screen's edge; delivery scrolled on phones; On site is chapter 09; a budget touch device draws lighter; the desktop checked element for element against the tree before). Before that: 2026-10-14 (the developer's round of that day, notes Q and F13: the opening card's three come up out of the floor whole, one after another, and the two that leave go back down into it whole; a Home tab for the main page and MOD a page of its own, `/modular/`; on MOD and FAB, links into the home page's chapters before the enquiry form; the Hemisphere One logo in its own colours on every ground; one "See how VEE manufactures it" button on MOD and FAB, to the factory; a film reached by a link stands at the top of the window). Before that: 2026-10-12 (the developer's brief of that day, notes P: the opening card's three in refined finishes, on the real-time 3D as it is: plaster, standing-seam roof, coated steel, the capsule's coat, polished glass, a floor that mirrors the lit windows, more light and shade; the card only). Before that: 2026-10-11, evening (the client's second brief of that day, notes O and F12: the opening card made again: the three one behind another on a diagonal, on a polished floor that mirrors them, in warm light on a warm shade, fitted to any screen; jack piers under the deck and steps of "08 On site". That morning, notes N and F11: Powered by with the logo under the wordmark, rooms behind lit glass, the capsules at life size, each shell lifted by its own hooks in 2.2, prices in the configurator, the site's preparation as the first part of the installation film). Before that: 2026-10-10, evening (the client's brief of that day, notes M and F10: the factory made again as one shell in one bay, seen on the diagonal, lifted by four hooks; the journey as a short film that holds the page; the installation placing one shell and assembling the rest by itself, lights last; doors and windows of 2.3; "Add-on" tags; jack piers on the hero's house; Powered by Hemisphere One under the wordmark; the catalogue hidden; "VEE" for "we"). Earlier the same day: the developer's two rounds (notes K and F9; notes L: the second burst, the accent settled as vermilion on paper and green on ink, the build in figures under the configurator's view). Before that: 2026-10-09 (the client's corrections sheet, notes J and F7).
+Last updated: 2026-10-15, evening (the developer's third phone round, notes T and F16: a lean finish on phones and tablets, 4x multisampled as it moves and never drawn twice, a budget phone at 1.25 pixels to the CSS pixel; no layout read in a scroll handler, one scroll listener for the page; the texture sets drawn in idle time; no blur over a live picture on a touch screen; films never shorter than the tallest window seen; the institutional building's left end always whole with room beside it; the factory on phones and upright tablets as recorded clips rendered offline from its own scene). Before that: 2026-10-15, afternoon (the developer's second phone round, notes S and F15: a translucent header on phones and tablets; the phone hero's four steps as a camera glide through a showroom, the capsule filling its picture; call-outs kept apart; "How VEE is different" as stacking cards; the configurator on a phone with preset cards and folded settings, and full screen on desktop; the factory and On site as a short film in parts that plays by itself, in a frame under their words, with a new opening for the factory and On site nearer; occlusion and refined finishes for those two on phones; delivery playing by itself and never holding the page, desktop included; a budget tablet's opening card with the three; the tier by the GPU's name; no strip under a film when Chrome's bar hides). Before that: 2026-10-15 (the mobile and tablet round of 2026-10-14 and 15, notes R and F14: phones and tablets held upright have layouts of their own (the words at the top and the building under them, large, framed in the band they leave; dashes and a count at the foot; a header of the lockup, a Contact pill and three bars); the phone's hero is a showroom on the polished floor, its opening card the three kinds as cards to swipe between, its four steps scrolled, the capsule's step with its three lengths; the factory and On site a step at a time, chosen with cards that carry the scene's own picture; the product pages' buildings alone on the polished floor, the capsule's length chosen; the capsule home-like on phones; call-outs at the screen's edge; delivery scrolled on phones; On site is chapter 09; a budget touch device draws lighter; the desktop checked element for element against the tree before). Before that: 2026-10-14 (the developer's round of that day, notes Q and F13: the opening card's three come up out of the floor whole, one after another, and the two that leave go back down into it whole; a Home tab for the main page and MOD a page of its own, `/modular/`; on MOD and FAB, links into the home page's chapters before the enquiry form; the Hemisphere One logo in its own colours on every ground; one "See how VEE manufactures it" button on MOD and FAB, to the factory; a film reached by a link stands at the top of the window). Before that: 2026-10-12 (the developer's brief of that day, notes P: the opening card's three in refined finishes, on the real-time 3D as it is: plaster, standing-seam roof, coated steel, the capsule's coat, polished glass, a floor that mirrors the lit windows, more light and shade; the card only). Before that: 2026-10-11, evening (the client's second brief of that day, notes O and F12: the opening card made again: the three one behind another on a diagonal, on a polished floor that mirrors them, in warm light on a warm shade, fitted to any screen; jack piers under the deck and steps of "08 On site". That morning, notes N and F11: Powered by with the logo under the wordmark, rooms behind lit glass, the capsules at life size, each shell lifted by its own hooks in 2.2, prices in the configurator, the site's preparation as the first part of the installation film). Before that: 2026-10-10, evening (the client's brief of that day, notes M and F10: the factory made again as one shell in one bay, seen on the diagonal, lifted by four hooks; the journey as a short film that holds the page; the installation placing one shell and assembling the rest by itself, lights last; doors and windows of 2.3; "Add-on" tags; jack piers on the hero's house; Powered by Hemisphere One under the wordmark; the catalogue hidden; "VEE" for "we"). Earlier the same day: the developer's two rounds (notes K and F9; notes L: the second burst, the accent settled as vermilion on paper and green on ink, the build in figures under the configurator's view). Before that: 2026-10-09 (the client's corrections sheet, notes J and F7).
 
 ## Status
 
@@ -26,6 +26,8 @@ Last updated: 2026-10-15 (the mobile and tablet round of 2026-10-14 and 15, note
 | 18 Developer's brief of 2026-10-12 | the opening card's three in refined finishes: done, looked at in five window shapes and measured, notes P; waiting for the developer's review before any other scene takes them. The same day: a canvas's pixels by the GPU (zoomed windows and dense screens no longer stretched), every stage, measured on the laptop only, notes P7 |
 | 19 Developer's round of 2026-10-14 | done, looked at and measured, notes Q and F13; open points under "Waiting for an answer" |
 | 20 Mobile and tablet round (2026-10-14 and 15) | done on emulated phones and tablets, measured on a phone-sized screen, desktop fingerprinted before and after on production builds; notes R and F14; open points R1 to R4 |
+| 22 Third phone round (2026-10-15, evening) | done on an emulated budget phone (412 × 915 at 2.625, `?lite=1`) and phones from 360 to 425 wide; GPU timed and the main thread profiled before and after on production builds; desktop fingerprinted; notes T and F16; open point T1 |
+| 21 Second phone round (2026-10-15) | done on emulated phones (390 × 844, 425 × 707) and a sideways tablet, measured on a phone-sized screen, desktop fingerprinted before and after; notes S and F15; open points S1 to S4 |
 
 `npm run check` → 0 errors. `npm run build` → 6 routes, sitemap, optimised images.
 
@@ -79,8 +81,8 @@ Last updated: 2026-10-15 (the mobile and tablet round of 2026-10-14 and 15, note
   concreting, de-shuttering, doors and windows, spray finish, and its
   dispatch by a crane's four-point lifting frame onto the truck), 08
   `delivery` (film "Delivery": the truck's drive down the road, 4 s, plays
-  by itself and holds the page on desktop; scrolled through on a compact
-  layout), 09 `installation` (film "On site", 5 steps:
+  by itself like a video once its stage is in the window, on every layout,
+  and never holds the page; "Scroll to skip", then "Replay"), 09 `installation` (film "On site", 5 steps:
   the plot made ready, pegs, pits, plug footings, L plinths; then one
   shell placed on the foundation, the rest assembling by itself, jack
   piers set under the deck's posts and the steps, the add-ons landing on
@@ -100,9 +102,17 @@ Last updated: 2026-10-15 (the mobile and tablet round of 2026-10-14 and 15, note
   both framed by `kit/frame.ts`. The factory and On site are cards on a
   phone (`pick` in `Film.tsx`, pictures in `public/images/cards`, made by
   `node scripts/cards.mjs`). The capsule on a phone is home-like
-  (`POD_HOME`). A touch device's GPU is measured once a visit
-  (`film/tier.ts`); a slow one is *lite*. Tablets held sideways keep the
-  desktop's layout.
+  (`POD_HOME`). A touch device's GPU is classed by its name, or timed
+  when the name is unknown (`film/tier.ts`); a slow one is *lite*. Tablets
+  held sideways keep the desktop's layout. Since 2026-10-15 (notes S): the
+  header is one translucent band on phones and tablets; the hero's steps
+  are a camera glide through a showroom (`showroom`, `glide`); the factory
+  and On site are a page each (words, a frame, a reel, a strip) that plays
+  its steps by itself, with the occlusion pass and, off a budget device,
+  refined finishes; "How VEE is different" is six stacking cards; the
+  configurator has preset cards with price and area and folded settings
+  (and desktop a Full screen button); a pinned film is `100lvh` tall on a
+  touch screen, its controls `100svh`.
 - **The capsule:** `kit/capsule.ts`, a hull rounded with two radii drawn
   as a skin over two parameters, so that glazing, frames, seams and light
   lines are patches of the same surface; one geometry of four material
@@ -169,6 +179,14 @@ Last updated: 2026-10-15 (the mobile and tablet round of 2026-10-14 and 15, note
 
 ## QA aids
 
+- The factory's clips (2026-10-15): `node scripts/factory-video.mjs [base] [step]`
+  with the dev server running renders them from the live scene (`?live&hq`)
+  and encodes them with ffmpeg; `?live` shows the live factory on a phone.
+  A budget phone: `?lite=1` at 412 × 915 and 2.625. A scroll's main thread:
+  a CPU profile (`Profiler.start`) with the CPU slowed four times
+  (`Emulation.setCPUThrottlingRate`), summed by function; frame rates of a
+  scripted scroll under that slowdown swing too much on this laptop to rank
+  two builds. The bar hiding: grow the emulated window by 60 px.
 - Phones and tablets (2026-10-14): in the headless Edge, emulate the size
   with `mobile: true` and turn touch on (`Emulation.setTouchEmulationEnabled`
   and `Emulation.setEmulatedMedia` with `pointer: coarse`, `hover: none`
@@ -410,6 +428,13 @@ long frame, at its end, in every build.
 
 ## Not yet verified
 
+- The third phone round (notes T): a Snapdragon 695 phone, or any real
+  phone; Safari's autoplay of the factory clips; the browser's bar on a real
+  phone.
+- The second phone round (notes S): a real phone or tablet; Chrome's
+  address bar hiding on a real phone (the `lvh`/`svh` fix); Safari's full
+  screen on an iPad (the over-the-page fallback); the GPU names on real
+  devices; a steady scroll's pacing through the hero's glides on a phone.
 - The mobile and tablet round (notes R): a real phone or tablet; Safari
   and Firefox (`safe center`, `:has`, `inert`, pointer events under
   `touch-action: pan-y`); a real budget tablet and so the lite threshold;
@@ -493,6 +518,20 @@ for real drone video behind the journey (needs the video; the journey is
 now a 3D shot).
 
 ## Waiting for an answer
+
+From the third phone round of 2026-10-15 (notes T):
+- **The factory's clips show the default shell finish**: the finish chosen
+  in the configurator is not in them on a phone (desktop's live factory
+  still shows it) (T1).
+
+From the second phone round of 2026-10-15 (notes S):
+- **The translucent header** on phones and tablets reverses the rule of
+  2026-10-07 there (no frosted band over a film); desktop keeps it (S1).
+- **The factory and On site play by themselves** on a phone, a step every
+  3.4 to 7 s by the length of its words, with pause (S2).
+- **Refined finishes** for the factory's sprayed shell and On site's house
+  on phones and tablets that are not budget ones (S3).
+- **The list of GPUs** that are never or always lite (S4).
 
 From the mobile and tablet round of 2026-10-14 and 15 (notes R):
 - **Copy in the reference screens** that is not the brief's ("Modular,

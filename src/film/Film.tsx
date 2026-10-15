@@ -143,6 +143,57 @@ const REACH = 1.75;
 const QUIET_MS = 280;
 const STAGGER_MS = 260;
 
+/**
+ * The page's layout, as a number that changes whenever it may have changed
+ * (the page's height, the window, the fonts). A film reads where it stands
+ * in the document once a change, not on every scroll event: a position read
+ * after anything was written makes the browser lay the whole page out there
+ * and then, and on a phone that was most of a frame, several times a scroll
+ * (2026-10-15: "on some phones ... the frames are dropped").
+ */
+let layoutEpoch = 1;
+let watchingLayout = false;
+/** The window's height, kept from its resize events: read in a scroll handler, after a write, it laid the page out as well. */
+let viewH = typeof window === 'undefined' ? 1 : window.innerHeight || 1;
+function watchLayout() {
+  if (watchingLayout || typeof window === 'undefined') return;
+  watchingLayout = true;
+  const bump = () => {
+    layoutEpoch++;
+    viewH = window.innerHeight || 1;
+  };
+  if (typeof ResizeObserver === 'function') new ResizeObserver(bump).observe(document.body);
+  window.addEventListener('resize', bump);
+  window.addEventListener('load', bump);
+  document.fonts?.ready.then(bump);
+}
+
+/**
+ * One scroll listener for every film: the page's scroll position is read
+ * once an event, before any film writes anything, and handed to each. Each
+ * film reading it for itself, in turn, after the one before had written its
+ * styles, made the browser lay the page out once a film, every event.
+ */
+const scrollers = new Set<(y: number) => void>();
+let scrollBound = false;
+function onPageScroll(fn: (y: number) => void) {
+  if (!scrollBound && typeof window !== 'undefined') {
+    scrollBound = true;
+    window.addEventListener(
+      'scroll',
+      () => {
+        const y = window.scrollY;
+        scrollers.forEach((f) => f(y));
+      },
+      { passive: true },
+    );
+  }
+  scrollers.add(fn);
+  return () => {
+    scrollers.delete(fn);
+  };
+}
+
 function stepIndex(steps: FilmStep[], p: number) {
   let i = 0;
   for (let k = 0; k < steps.length; k++) if (p >= steps[k].at - 1e-6) i = k;
@@ -212,6 +263,7 @@ export default function Film({
   const labelsW = useRef(0);
   /** Compact layouts: the call-outs standing at an edge of the picture, so that two on one side keep apart (`place`). */
   const edges = useRef(new Map<string, { left: boolean; y: number; h: number }>());
+  const sideList = useRef<{ left: boolean; y: number; h: number }[]>([]);
   const heights = useRef(new WeakMap<HTMLElement, number>());
   /** A film whose call-outs are boxes: its dimensions go to the edges with them (elsewhere a dimension stays on its point, as the capsule's length does). */
   const edgeDims = useRef(false);
@@ -235,6 +287,22 @@ export default function Film({
   const playing = useRef({ on: false, done: false, raf: 0, ready: false });
 
   const state = useRef({ raf: 0, last: 0, active: 0, reduced: false, visible: false, pre: '', open: false, risen: false, seen: false, soon: false, early: false });
+  /** Where the section stands in the document, its height and its stage's: read again only when the layout has changed (watchLayout). */
+  const geo = useRef({ epoch: 0, top: 0, height: 0, vh: 1 });
+  const where = () => {
+    const el = root.current;
+    const pin = sticky.current;
+    if (!el || !pin) return null;
+    const g = geo.current;
+    if (g.epoch !== layoutEpoch) {
+      const r = el.getBoundingClientRect();
+      g.top = r.top + window.scrollY;
+      g.height = r.height;
+      g.vh = pin.offsetHeight || 1;
+      g.epoch = layoutEpoch;
+    }
+    return g;
+  };
   const preLen = (compact ? prelude?.lengthCompact : undefined) ?? prelude?.length ?? 0;
   const preLenC = prelude?.lengthCompact ?? prelude?.length ?? 0;
   const tone = (compact ? prelude?.toneCompact : undefined) ?? prelude?.tone ?? 'paper';
@@ -399,10 +467,13 @@ export default function Film({
     const el = root.current;
     const pin = sticky.current;
     if (!el || !pin) return;
+    watchLayout();
 
-    const measure = () => {
-      const r = el.getBoundingClientRect();
-      const vh = pin.offsetHeight;
+    const measure = (y = window.scrollY) => {
+      const g = where();
+      if (!g) return;
+      const r = { top: g.top - y, height: g.height };
+      const vh = g.vh;
       const prePx = preLen * vh;
       const travel = r.height - vh - prePx;
       if (preLen > 0) {
@@ -436,18 +507,22 @@ export default function Film({
       kick();
     };
 
+    // Its own size changing (its stage's height on a touch screen, film.css) is a change of layout too.
+    const sized = typeof ResizeObserver === 'function' ? new ResizeObserver(() => void layoutEpoch++) : null;
+    sized?.observe(el);
+    sized?.observe(pin);
     const ioNear = new IntersectionObserver(([e]) => setNear(e.isIntersecting), { rootMargin: '90% 0px' });
     // Within reach: mount in the next quiet moment. Out of reach again: let it go.
     let quiet = 0;
     const s = state.current;
-    const rest = () => {
+    const rest = (y = window.scrollY) => {
       if (quiet) window.clearTimeout(quiet);
       quiet = 0;
       if (!s.soon || s.early) return;
       // How many screens away it is: the nearer film goes first.
-      const r = el.getBoundingClientRect();
-      const vh = window.innerHeight || 1;
-      const away = Math.max(0, (r.top - vh) / vh);
+      const g = where();
+      const vh = viewH;
+      const away = g ? Math.max(0, (g.top - y - vh) / vh) : 0;
       quiet = window.setTimeout(() => {
         quiet = 0;
         const go = () => {
@@ -463,6 +538,7 @@ export default function Film({
     const busy = () => {
       if (s.soon && !s.early) rest();
     };
+    // One handler a film on the page's one scroll listener (onPageScroll).
     window.addEventListener('pointermove', busy, { passive: true });
     window.addEventListener('pointerdown', busy, { passive: true });
     window.addEventListener('keydown', busy);
@@ -487,13 +563,14 @@ export default function Film({
     ioNear.observe(el);
     ioVisible.observe(el);
 
-    const onScroll = () => {
-      if (state.current.visible) measure();
+    const onScroll = (y: number) => {
+      if (state.current.visible) measure(y);
       // Still moving: the quiet moment starts over.
-      if (s.soon && !s.early) rest();
+      if (s.soon && !s.early) rest(y);
     };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
+    const onResize = () => onScroll(window.scrollY);
+    const unscroll = onPageScroll(onScroll);
+    window.addEventListener('resize', onResize);
     measure();
 
     return () => {
@@ -504,8 +581,9 @@ export default function Film({
       ioSoon.disconnect();
       ioNear.disconnect();
       ioVisible.disconnect();
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
+      sized?.disconnect();
+      unscroll();
+      window.removeEventListener('resize', onResize);
       cancelAnimationFrame(state.current.raf);
       state.current.raf = 0;
     };
@@ -544,25 +622,26 @@ export default function Film({
   }, [play, progress]);
 
   /** Its stage stands in the window: at the top, or all but its first tenth. */
-  const inPlace = useCallback(() => {
-    const el = root.current;
-    if (!el) return false;
-    const r = el.getBoundingClientRect();
-    const vh = window.innerHeight || 1;
-    return r.top <= vh * 0.1 && r.bottom >= vh * 0.6;
+  const inPlace = useCallback((y = window.scrollY) => {
+    const g = where();
+    if (!g) return false;
+    const top = g.top - y;
+    const vh = viewH;
+    return top <= vh * 0.1 && top + g.height >= vh * 0.6;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     playOn.current = !!play;
     if (!play) return;
     const pl = playing.current;
-    const onScroll = () => {
-      if (!pl.on && !pl.done && pl.ready && !state.current.reduced && inPlace()) startPlay();
+    const onScroll = (y?: number) => {
+      if (!pl.on && !pl.done && pl.ready && !state.current.reduced && inPlace(y)) startPlay();
     };
-    window.addEventListener('scroll', onScroll, { passive: true });
+    const unscroll = onPageScroll(onScroll);
     onScroll();
     return () => {
-      window.removeEventListener('scroll', onScroll);
+      unscroll();
       cancelAnimationFrame(pl.raf);
       pl.on = false;
     };
@@ -625,12 +704,28 @@ export default function Film({
         h = (el.firstElementChild as HTMLElement | null)?.offsetHeight || 24;
         heights.current.set(el, h);
       }
+      // Kept in place, every frame, without making anything new: a phone's collector paused the picture for them.
       const all = edges.current;
-      const mine = { left, y, h };
-      all.set(labelId, mine);
+      let mine = all.get(labelId);
+      if (!mine) all.set(labelId, (mine = { left, y, h }));
+      mine.left = left;
+      mine.y = y;
+      mine.h = h;
+      const side = sideList.current;
+      side.length = 0;
+      for (const e of all.values()) {
+        if (e.left !== left) continue;
+        let k = side.length;
+        side.push(e);
+        while (k > 0 && side[k - 1].y > e.y) {
+          side[k] = side[k - 1];
+          k--;
+        }
+        side[k] = e;
+      }
       let below = -Infinity;
       let at = y;
-      for (const e of [...all.values()].filter((v) => v.left === left).sort((a, b) => a.y - b.y)) {
+      for (const e of side) {
         const c = Math.max(e.y, below + e.h / 2);
         if (e === mine) at = c;
         below = c + e.h / 2 + 6;
@@ -681,6 +776,8 @@ export default function Film({
       cancelAnimationFrame(pickRaf.current);
       const from = progress.value;
       const goal = steps[i].pose;
+      progress.chosen = i;
+      progress.chosenCount++;
       const ms = state.current.reduced ? 0 : (pick?.seconds ?? 0) * 1000;
       const put = (v: number) => {
         progress.target = progress.value = v;

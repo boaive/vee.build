@@ -9,7 +9,7 @@ import { SkyDome } from './kit/env';
 import { memo } from './kit/geometry';
 import { dprOf, gauge, gpu, plainDpr } from './kit/gpu';
 import { LOOKS, type Look, type LookName } from './kit/looks';
-import Post, { NEUTRAL_GRADE, type Backdrop, type Grade, type PostOptions } from './kit/post';
+import Post, { HQ, NEUTRAL_GRADE, type Backdrop, type Grade, type PostOptions } from './kit/post';
 import { createPhysicalSky, horizonHaze, paintPhysicalSky } from './kit/sky';
 import { TEXTURES_EVENT, groundGrain } from './kit/textures';
 
@@ -646,7 +646,7 @@ function Setup({
    * a few centimetres no longer forces the shadow map to be redrawn.
    */
   // A budget touch device (film/tier.ts) has the smallest map: its shadows are softer, the same in every frame.
-  const mapSize = lite ? 1024 : compact ? 2048 : 4096;
+  const mapSize = HQ ? 4096 : lite ? 1024 : compact ? 2048 : 4096;
   const lit = useRef({ x: NaN, z: NaN, sx: NaN, sy: NaN, sz: NaN });
   const casters = useRef(NaN);
   useFrame(() => {
@@ -776,10 +776,20 @@ export default function Stage(props: StageProps) {
    */
   const lite = useMemo(() => isLite(), []);
   const chosen = compact || lite ? postCompact : post;
-  // A budget device never draws the occlusion pass, whatever a scene asks of a compact layout (a film in a card does).
-  const finish = useMemo(() => (lite && chosen ? { ...chosen, ao: false } : chosen), [lite, chosen]);
+  /*
+   * Phones and tablets draw a lean finish (post.tsx, `lean`): 4x multisampled
+   * as it moves, nothing drawn again when it stops. A budget device also goes
+   * without the occlusion pass and the bloom, whatever a scene asks of a
+   * compact layout, and spends what they cost on a sharper canvas: 1.25 pixels
+   * to the CSS pixel where it had 1 (2026-10-15: on a Snapdragon 695 "the
+   * corner of the buildings look pixelated").
+   */
+  const finish = useMemo(
+    () => (chosen && (compact || lite) ? { ...chosen, lean: true, ...(lite ? { ao: false, bloom: 0 } : {}) } : chosen),
+    [compact, lite, chosen],
+  );
   // What a canvas has where the GPU has nothing more to give (kit/gpu.ts): at most this many pixels to the CSS pixel.
-  const ceiling = lite ? 1 : compact || finish ? 1.5 : 1.75;
+  const ceiling = lite ? 1.25 : compact || finish ? 1.5 : 1.75;
   const [dpr, setDpr] = useState(() => plainDpr(ceiling));
   const rig = useMemo<Rig>(
     () => ({

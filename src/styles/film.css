@@ -2348,8 +2348,19 @@ button.film__tag:focus-visible::before {
  * changes as the bar comes and goes: the canvas is never resized by it.
  */
 @media (hover: none) and (pointer: coarse) {
+  /*
+   * Where a browser does not have the window at its largest as lvh (an
+   * older one, a webview), vh is that size in Chrome; and wherever the
+   * window has been seen taller than either (Base.astro keeps the tallest
+   * in --vh-max), the stage is that tall (2026-10-15: "in few mobile, the
+   * white bar below the screen is still visible"). It is the film's own
+   * ground, so a strip the canvas does not reach is never the page's paper.
+   */
   .film__sticky {
-    height: 100lvh;
+    height: 100vh;
+    height: max(100vh, var(--vh-max, 0px));
+    height: max(100lvh, var(--vh-max, 0px));
+    background: var(--bg);
   }
 
   .film__hud,
@@ -2640,4 +2651,26 @@ button.film__tag:focus-visible::before {
 
 .is-still .film__mist i::before {
   animation: none;
+}
+/* A film drawn from recorded clips (film/ClipScene.tsx): the clips stacked in the frame, the one on show over the rest; a picture over them until one plays. */
+.film__clips {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.film__clips video,
+.film__clip-still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+}
+
+.film__clips video.is-on,
+.film__clip-still {
+  opacity: 1;
 }

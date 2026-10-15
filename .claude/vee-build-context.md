@@ -84,11 +84,17 @@ Phones and tablets (the developer's reference screens of 2026-10-14,
 notes R): the same story, laid out for the screen. The words stand at the
 top and the building under them, large, on a polished floor with little
 or no landscape. The opening card shows the three kinds one at a time, as
-cards to swipe between; the four kinds after it are scrolled through; the
-capsule is chosen by its length. The factory and On site are a step at a
-time, chosen with cards that carry a picture of each step, rather than a
-long scroll. The delivery is scrolled through, not played. A tablet held
-sideways keeps the desktop's layout; a budget tablet draws lighter.
+cards to swipe between; the four kinds after it are scrolled through, the
+camera gliding from one building to the next through a showroom (since
+2026-10-15); the capsule is chosen by its length. The factory and On site
+are each a short film in parts, a step at a time, that plays by itself:
+the words, the picture in a frame under them, the steps as a strip of
+pictures (notes S); the factory's pictures there are video clips rendered
+from its own 3D scene at a quality a phone could not draw live (notes T). "How VEE is different" is six cards. The configurator
+on a phone shows the presets with their price and area and folds the rest.
+The delivery plays by itself, like a video, on every screen, and never
+holds the page. A tablet held sideways keeps the desktop's layout; a
+budget tablet draws lighter.
 
 The client's one line for the last three chapters (2026-10-10):
 **Manufacture → Finish → Lift → Transport → Install → Assemble →

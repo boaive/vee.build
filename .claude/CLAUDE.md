@@ -164,14 +164,31 @@ Astro (static HTML per route) + React islands + React Three Fiber.
 - A scene is a pure function of one damped progress value (0–1). No scene
   owns scroll listeners; `src/film/Film.tsx` does. Two films also run on
   time, both on the client's instruction of 2026-10-10. The truck's drive
-  (`Transit.tsx`) plays by itself, once: its progress is seconds, and the
-  page is held while it plays (`play` in `Film.tsx`, `film/hold.ts`).
-  On a compact layout it follows the scroll like any film and holds
-  nothing (developer, 2026-10-14: "make it skippable or scrollable").
-  The installation has a clock of its own that the scroll starts and runs
-  back (`film/installTimeline.ts`). Each is still drawn by one function
-  of its numbers, and with reduced motion each shows settled poses and
-  holds nothing. Do not hold the page anywhere else.
+  (`Transit.tsx`) plays by itself, once, like a video, on every layout:
+  its progress is seconds, it starts when its stage stands in the window,
+  and it never holds the page (developer, 2026-10-15: "can be skipped by
+  scrolling"; `play` in `Film.tsx`). The installation has a clock of its
+  own that the scroll starts and runs back (`film/installTimeline.ts`).
+  A film with cards on a compact layout plays its steps by itself (below).
+  Each is still drawn by one function of its numbers, and with reduced
+  motion each shows settled poses and plays nothing. Nothing holds the
+  page: `film/hold.ts` was removed on 2026-10-15; do not bring a hold back.
+- No layout is read in a scroll handler (developer, 2026-10-15: frames
+  dropped on a Snapdragon 695). A film keeps where it stands in the
+  document and reads it again only when the layout has changed
+  (`watchLayout`, `where` in `Film.tsx`); the page has one scroll
+  listener, which reads the scroll position once an event and hands it to
+  every film (`onPageScroll`). Do not add a scroll listener that reads a
+  rect, `offsetHeight`, `innerHeight` or `scrollY` for itself: add a
+  handler to `onPageScroll`. Nothing new is made every frame in `place`.
+- On a compact layout the factory is recorded clips, not a live stage
+  (`film/ClipScene.tsx`, `FactoryTour.tsx`; developer, 2026-10-15: "add in
+  there like a video"): one H.264 MP4 a station in `public/video/factory`,
+  rendered from the film's own scene by `node scripts/factory-video.mjs`
+  (`?live` shows the live scene on a phone, `?hq` is the recording's
+  quality). When the factory scene changes, render them again. Desktop and
+  a tablet held sideways keep the live scene. VP9 is not used: Edge on
+  Windows would not decode it.
 - Text never lives in WebGL. Captions and callouts are DOM, positioned by
   projecting anchors (`src/film/labels.ts`).
 - All dimensions in scenes are metres. Module A = 6 × 3 × 3, Module B = 3 × 3 × 3.
@@ -253,18 +270,48 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   time, chosen with cards, arrows or a sideways swipe
   (`film/heroChoice.ts`); the four steps after it are scrolled through,
   vertically, as on desktop; only the capsule's step has cards of its own
-  (its three lengths). Do not put the four steps on cards.
+  (its three lengths). Do not put the four steps on cards. Between the
+  steps nothing goes down into the floor or comes up (developer,
+  2026-10-15: "a proper professional animation"): the buildings stand in
+  a row on one floor, out of each other's pictures (`showroom`), and the
+  camera glides from one to the next, drawing back on the way (`glide`);
+  the capsule's lengths are three capsules side by side, each filling its
+  picture. A budget tablet held sideways shows the three together on the
+  card, as desktop does. The institutional building keeps its left end
+  whole with room beside it on every screen (`anchor` side -1).
 - Cards (`pick` on a film, compact only, `Film.tsx`): the factory and "On
-  site" are a step at a time on a phone, chosen with cards that carry a
-  picture of the step; the scene goes to the chosen pose as a short
-  time-lapse and the page's scroll moves on past the film. The pictures
-  are the scenes' own (`public/images/cards`): when a step's picture
-  changes, capture them again (vee-build-progress.md, QA aids).
-- A budget touch device (`src/film/tier.ts`: its GPU measured once a
-  visit before its first stage, slower than four times the test laptop) is
-  *lite*: one pixel to the CSS pixel, no ambient occlusion, a 1024 px
-  shadow map, the hero's showroom and the factory without the back of its
-  yard. Decided before anything is drawn, never changed in a visit.
+  site" are a step at a time on a phone, a short film in parts (developer,
+  2026-10-15: "it is more like a 3d video", "i asked for premium"). Laid
+  out as a page: the chapter's line, the step's words set and clamped
+  (never under the picture), the picture in a frame of its own (the canvas
+  is the frame, `--card-*`; band `[0,0,1,1]`), the reel, the count with
+  pause and arrows, the steps as a strip of pictures all one size. It plays
+  its steps by itself (time-lapse, a hold by the length of the words, the
+  next) while the frame is on screen; a card, an arrow or a mark chooses
+  and it plays on. Nothing over the picture: no labels, no hints, no drag
+  (tried and refused). The pictures are the scenes' own
+  (`public/images/cards`): when a step's picture changes, capture them
+  again (vee-build-progress.md, QA aids). Such a film keeps the occlusion
+  pass on a compact layout (`POST_CARD`).
+- Phones and tablets have a lean finish (`lean`, `kit/post.tsx`): every
+  frame 4x multisampled as it will stand, nothing drawn again when the
+  picture stops (developer, 2026-10-15: "the corner of the buildings look
+  pixelated"). A budget touch device (`src/film/tier.ts`) is *lite*: 1.25
+  pixels to the CSS pixel, no ambient occlusion, no bloom, a 1024 px shadow
+  map, the hero's showroom and the factory without the back of its yard.
+  It keeps the refined materials (tried without: the plaster went flat). The GPU's own
+  name decides first (`gpuClass`: an iPad, a recent Adreno, Mali or
+  Xclipse is never lite; known budget parts always are; 2 GB of memory or
+  less is); only an unknown GPU is timed, without the wait for the answer,
+  and lite if slower than four times the test laptop (developer,
+  2026-10-15: "only for low end tabs"). Decided before anything is drawn,
+  never changed in a visit.
+- A touch screen's pinned film is `100lvh` tall (`100vh` where a browser
+  has no `lvh`), never shorter than the tallest the window has been
+  (`--vh-max`, kept by `Base.astro` from resize events), on its own ground;
+  its words and controls `100svh` (film.css): no strip of the page shows
+  when the browser's bar hides, no control goes under it, and it is resized
+  at most once as the bar comes and goes.
 
 ## Design rules
 
@@ -291,7 +338,8 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   building". Never white text on it (1.3 to 1). On a compact layout a
   call-out box stands at the screen's edge on its point's side, its tick
   running in to the point, so that the building is not under it (Film,
-  `place`; developer, 2026-10-14).
+  `place`; developer, 2026-10-14), and so does a dimension in a film with
+  boxes; two on one side are kept apart down the edge (2026-10-15).
   In 3D the same: `mat.accent` (vermilion) on a light stage,
   `mat.accentInk` (green) on a dark one.
   CONFIRM: the client suggested (2026-10-06, again 2026-10-09) green
@@ -299,7 +347,10 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   (notes I5, J8, K2, L3).
 - Captions over a 3D picture are plain text (client, 2026-10-07): no wash
   in the page colour over the picture (it reads as haze), no box behind the
-  text, no frosted header band over a film. Legibility comes from the
+  text, no frosted header band over a film (on desktop: on phones and
+  tablets the header is one band of its ground at 0.9 everywhere, with no
+  blur behind it: a blur over a live picture is worked out again every
+  frame; base.css; developer, 2026-10-15). Legibility comes from the
   scene: frame it so the caption column (the left two fifths) and the
   header band stand on calm ground (the factory's yard slab, a studio
   floor), or give the film the caption theme its picture needs (the
@@ -385,11 +436,11 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   cranes.
 - The journey is one shot of a few seconds: the truck comes down the road
   at the viewer and passes out of the picture (client, 2026-10-10, with a
-  photograph for the angle). It plays once, by itself, and holds the page
-  while it does; it can never keep it (`film/hold.ts` lets go on a timer,
-  on Escape, when the page is hidden). It only ever holds a scroll the
-  visitor is making: a link gliding past does not start it. On a compact
-  layout it is scrolled through instead (notes R).
+  photograph for the angle). It plays once, by itself, like a video, when
+  its stage stands in the window, on every layout, and never holds the
+  page: scrolling on skips it ("Scroll to skip" while it plays, "Replay"
+  after; developer, 2026-10-15, desktop included). Until that day it held
+  the page on desktop and was scrolled through on a phone (notes R, S).
 - The installation ("09 On site", a chapter of its own since 2026-10-14:
   "if it is marked as 08, then onsite should follow 09") begins with the site made ready, on
   the scroll: the plot pegged out, pits dug, plug footings lowered in, L
@@ -404,6 +455,12 @@ Astro (static HTML per route) + React islands + React Three Fiber.
 - The configurator shows an estimated price, counted from what is laid
   out (`build/price.ts`, rates in `data/pricing.ts`; client, 2026-10-11).
   CONFIRM: every rate is ours (notes N5); do not quote them elsewhere.
+  On a compact layout it shows only what a phone needs (developer,
+  2026-10-15): the view with one row of tools, the presets as small cards
+  with their area and price (`presetLayout`), the two figures, and every
+  setting folded shut with a chevron (`group`, `.cfg__fold`); desktop's
+  markup is unchanged. Desktop has a Full screen button by the view's
+  controls (`.cfg.is-full`; the browser's full screen where it has one).
 - The opening card's three are in refined finishes, and they alone
   (developer, 2026-10-12, with a reference picture as the benchmark of
   realism, not of design; notes P): floated micro concrete with a tooth,
@@ -415,7 +472,11 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   `moduleMats` and `litGlass` (`kit/materials.ts`). Every other scene,
   the hero's own later sets included, has the materials as they were: do
   not put another scene inside `<Refined>`, or change a material's own
-  definition to its refined recipe, without being asked. The house keeps
+  definition to its refined recipe, without being asked. Asked once
+  since (developer, 2026-10-15, "improve the texture, realism ... for
+  mobile/tab only"): on a compact layout and not a budget device, the
+  factory's sprayed shell and its trim and On site's house are refined
+  too; desktop as it was (notes S9). The house keeps
   its finishes into the sunset that follows the card: it is the same
   house. CONFIRM: the same house on the MOD page (`/modular/`, the
   showcase's `house`) has the materials as they were, by this rule
@@ -449,9 +510,11 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   Product first: no fade or wash over the picture, and little or no
   landscape (the hero and the product pages have none there). On a phone
   held sideways the words are on the left, the building on the right. The
-  header there: the lockup, the Contact pill, three bars. No horizontal
-  page scroll. (Until 2026-10-14 the rule was the reverse: canvas on top,
-  caption below.)
+  header there: the lockup, the Contact pill, three bars, on one
+  translucent band. No horizontal page scroll. "How VEE is different" is
+  six cards that stack as the page scrolls, each point with what it
+  replaces (2026-10-15). (Until 2026-10-14 the rule was the reverse:
+  canvas on top, caption below.)
 - Respect `prefers-reduced-motion`: films snap between settled poses.
 
 ## Checking work
@@ -524,6 +587,11 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   site's stages; `film` limits it to one). Run it again whenever one of
   those pictures changes. A dev server on IPv6 only needs
   `http://[::1]:4321` as the base.
+- `node scripts/factory-video.mjs [base] [step]` renders the factory's
+  clips for compact layouts from the running dev server (headless Edge,
+  `?live&hq`, frame by frame) and encodes them with ffmpeg (on the PATH, or
+  $FFMPEG) into `public/video/factory`; it also writes the factory's card
+  pictures. About four minutes for the eight.
 - `node scripts/textures.mjs` bakes `public/textures/*.webp` again (the
   same files from the same seeds) and prints their sizes.
 - To time a set of materials against another, swap them inside one page

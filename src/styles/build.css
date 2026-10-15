@@ -1062,6 +1062,15 @@
     -webkit-mask-image: none;
     mask-image: none;
   }
+  /* No blur behind the controls over the view: worked out again for every frame the view draws (2026-10-15). */
+  .seg,
+  .cfg__acts,
+  .cfg__view,
+  .cfg__status {
+    background: rgb(255 255 255 / 0.93);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
   .tool--icon {
     min-width: 2.25rem;
     padding: 0.3rem 0.55rem;

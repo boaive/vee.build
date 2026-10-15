@@ -208,6 +208,26 @@ const organisation = {
 
     <script>
       import { COMPACT_QUERY } from '../film/device';
+      // A touch screen: the tallest the window has been (its browser's bar hidden), for the films' stages to cover (film.css, --vh-max).
+      if (window.matchMedia('(hover: none) and (pointer: coarse)').matches) {
+        const rootEl = document.documentElement;
+        let wide = window.innerWidth;
+        let tallest = 0;
+        const keep = () => {
+          // Turned the other way up: the window is another window.
+          if (window.innerWidth !== wide) {
+            wide = window.innerWidth;
+            tallest = 0;
+          }
+          if (window.innerHeight > tallest + 1) {
+            tallest = window.innerHeight;
+            rootEl.style.setProperty('--vh-max', `${tallest}px`);
+          }
+        };
+        keep();
+        window.addEventListener('resize', keep);
+      }
+
       // Header: solid once the page has moved, themed by the chapter beneath it.
       // Watched with an observer on a 24px marker at the top of the page, so scrolling itself runs no script here.
       const hdr = document.querySelector<HTMLElement>('[data-hdr]');

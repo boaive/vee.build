@@ -5,12 +5,19 @@
  * viewport; once the hero is up, this fetches the scene modules during idle
  * time, in page order, so a section's code is ready before the visitor
  * reaches it. A scene module may export `prepare`, a list of small jobs
- * (building geometry it will need); each is run in an idle slot of its own.
+ * (building geometry it will need, the texture sets it will draw); each is
+ * run in an idle slot of its own.
  * Skipped when the visitor asks to save data.
  */
 
+import { COMPACT_QUERY } from './device';
+
+const compactNow = () => typeof window !== 'undefined' && window.matchMedia(COMPACT_QUERY).matches && !new URLSearchParams(window.location.search).has('live');
+
 const queue: (() => Promise<unknown>)[] = [
   () => import('../three/kit/materials'),
+  // The procedural texture sets, each in an idle slot of its own (pbr.ts, prepare).
+  () => import('../three/kit/pbr'),
   () => import('../components/sections/HowItWorks'),
   () => import('../three/scenes/SystemScene'),
   () => import('../components/sections/Components'),
@@ -19,7 +26,8 @@ const queue: (() => Promise<unknown>)[] = [
   () => import('../three/scenes/BuildScene'),
   () => import('../three/scenes/RevealScene'),
   () => import('../components/sections/FactoryTour'),
-  () => import('../three/scenes/FactoryScene'),
+  // A compact layout plays the factory from recorded clips (FactoryTour.tsx): its live scene is not fetched there.
+  () => (compactNow() ? Promise.resolve() : import('../three/scenes/FactoryScene')),
   () => import('../components/sections/Transit'),
   () => import('../three/scenes/TransitScene'),
   () => import('../components/sections/Installation'),
