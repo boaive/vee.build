@@ -2,7 +2,7 @@
 // real-time scenes themselves, into public/images/cards/*.webp (480 x 300).
 //
 //   npm run dev                      (in another terminal)
-//   node scripts/cards.mjs [base]    (base: http://localhost:4321 unless given)
+//   node scripts/cards.mjs [base] [film]    (base: http://localhost:4321 unless given; film: overview, factory or installation)
 //
 // It starts a headless Edge (or the browser in $BROWSER: Chrome works too), emulates an upright tablet with a touch
 // screen (the compact layout), settles every film (?still), chooses each card in turn and crops the picture band
@@ -18,6 +18,8 @@ import sharp from 'sharp';
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.join(root, 'public', 'images', 'cards');
 const base = process.argv[2] ?? 'http://localhost:4321';
+/** One film only (overview, factory, installation), or all of them. */
+const only = process.argv[3];
 const BROWSER = process.env.BROWSER ?? 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const PORT = 9555;
 const W = 820;
@@ -116,9 +118,11 @@ try {
         var line = document.querySelector('#${id} .prelude__line'), pick = document.querySelector('#${id} .prelude__pick');
         if (${id === 'overview'} && line && pick) return { l: 0, t: line.getBoundingClientRect().bottom + 12, r: r.width, b: pick.getBoundingClientRect().top - 8 };
         var b = (c.__vee && c.__vee.progress.band) || [0, 0.3, 1, 0.85];
-        return { l: b[0] * r.width, t: b[1] * r.height + r.top, r: b[2] * r.width, b: b[3] * r.height + r.top };
+        // A film with cards: the canvas is its frame, set in from the screen's edges (film.css).
+        return { l: b[0] * r.width + r.left, t: b[1] * r.height + r.top, r: b[2] * r.width + r.left, b: b[3] * r.height + r.top };
       })()`);
-      const shot = await send('Page.captureScreenshot', { format: 'png' });
+      // JPEG at full quality: headless Edge's PNG encoder has hung for good on some frames (2026-10-11).
+      const shot = await send('Page.captureScreenshot', { format: 'jpeg', quality: 96, optimizeForSpeed: true });
       const bh = band.b - band.t;
       const ch = Math.min(bh, (band.r - band.l) / 1.6);
       const cw = ch * 1.6;
@@ -135,9 +139,9 @@ try {
   };
 
   // The hero's three, on its opening card (its band: the steps' own; the kinds stand in the card's room above it).
-  await film('overview', ['kind-mod', 'kind-pod', 'kind-fab'], (i) => `document.querySelectorAll('.prelude__pick .film__card')[${i}] ? (document.querySelectorAll('.prelude__pick .film__card')[${i}].click(), 1) : 0`, 0);
-  await film('factory', ['factory-frame', 'factory-panels', 'factory-formwork', 'factory-concreting', 'factory-deshutter', 'factory-joinery', 'factory-spray', 'factory-dispatch'], (i) => `document.querySelectorAll('#factory .film__card')[${i}].click()`, 1);
-  await film('installation', ['site-prep', 'site-arrive', 'site-place', 'site-assemble', 'site-home'], (i) => `document.querySelectorAll('#installation .film__card')[${i}].click()`, 1);
+  if (!only || only === 'overview') await film('overview', ['kind-mod', 'kind-pod', 'kind-fab'], (i) => `document.querySelectorAll('.prelude__pick .film__card')[${i}] ? (document.querySelectorAll('.prelude__pick .film__card')[${i}].click(), 1) : 0`, 0);
+  if (!only || only === 'factory') await film('factory', ['factory-frame', 'factory-panels', 'factory-formwork', 'factory-concreting', 'factory-deshutter', 'factory-joinery', 'factory-spray', 'factory-dispatch'], (i) => `document.querySelectorAll('#factory .film__card')[${i}].click()`, 1);
+  if (!only || only === 'installation') await film('installation', ['site-prep', 'site-arrive', 'site-place', 'site-assemble', 'site-home'], (i) => `document.querySelectorAll('#installation .film__card')[${i}].click()`, 1);
 } finally {
   try {
     await send('Browser.close');

@@ -19,11 +19,21 @@
  * desktop layout is kept on a tablet held sideways: only what is drawn is
  * lighter. A moving picture and a still one stay the same picture: this is
  * decided once, before anything is seen.
+ *
+ * Since 2026-10-15 (developer: a tablet held sideways showed the fallback,
+ * "ensure this layout is only for low end tabs, if a tab like ipad, android
+ * tab with high gpu, uses desktop version") the GPU's own name decides
+ * first, where the browser gives it: an iPad's, a recent Adreno's, Mali's
+ * or Xclipse's is never lite, a known budget one always is. Only a GPU it
+ * does not know is timed, and the time no longer counts the wait for the
+ * answer, which on a phone or a tablet can be longer than the drawing
+ * itself and was counted four times over (`measure`).
  */
 import { TOUCH_QUERY } from './device';
 
-/** kit/gpu.ts, STORE and REFERENCE.ms: the same reading, the same test laptop. */
+/** kit/gpu.ts, STORE and REFERENCE.ms: the same reading, the same test laptop. The tier's own reading is kept apart (TIER), so that one made by the measure before 2026-10-15 is not taken for it. */
 const STORE = 'vee:gpu';
+const TIER = 'vee:tier';
 const REFERENCE_MS = 3.3;
 /** Slower than this many times the laptop's GPU: lite. */
 const LITE_AFTER = 4;
@@ -98,14 +108,18 @@ function measure(): number {
     };
     size(16);
     run(0.1);
+    // The wait for the answer, on a few pixels: taken off every reading, so that only the drawing is counted.
+    let wait = Infinity;
+    for (let i = 0; i < 3; i++) wait = Math.min(wait, timed(0.11 + i * 0.01));
     size(512);
     run(0.15);
-    const quarter = timed(0.2);
-    if (quarter > REFERENCE_MS * 1.2) best = quarter * 4;
+    const quarter = Math.max(0, timed(0.2) - wait);
+    // Well behind on a quarter of the piece: no need to ask it for the whole.
+    if (quarter > REFERENCE_MS * LITE_AFTER * 0.6) best = quarter * 4;
     else {
       size(1024);
       run(0.25);
-      for (let i = 0; i < 3; i++) best = Math.min(best, timed(0.3 + i * 0.1));
+      for (let i = 0; i < 3; i++) best = Math.min(best, Math.max(0, timed(0.3 + i * 0.1) - wait));
     }
   } catch {
     best = Infinity;
@@ -115,20 +129,64 @@ function measure(): number {
   return best;
 }
 
+/**
+ * What the GPU's own name says, where the browser gives it: 'high' (an
+ * iPad's or a phone's of the last years, or any desktop part), 'low' (a
+ * known budget part), or null (not given, or not known: timed instead).
+ */
+export function gpuClass(name: string): 'high' | 'low' | null {
+  const n = name.toLowerCase();
+  if (/apple|nvidia|geforce|radeon|amd|intel|xclipse|immortalis/.test(n)) return 'high';
+  const adreno = /adreno[^0-9]*(\d{3})/.exec(n);
+  if (adreno) {
+    const v = +adreno[1];
+    // 6xx from the 640 up, and every 7xx and 8xx: Snapdragon 855 and after, and the 7-series parts.
+    return v >= 640 ? 'high' : 'low';
+  }
+  const mali = /mali-?([gt])(\d+)/.exec(n);
+  if (mali) {
+    if (mali[1] === 't') return 'low';
+    const v = +mali[2];
+    // G71 to G78, and the G610 and after (G710, G715, G720 ...); the G31 to G57 are budget parts; a G68 is timed.
+    if ((v >= 71 && v <= 78) || v >= 610) return 'high';
+    return v === 68 ? null : 'low';
+  }
+  if (/powervr|sgx|ge8\d{3}|videocore|vivante/.test(n)) return 'low';
+  return null;
+}
+
+/** The GPU's name, from a context made for the purpose; '' where the browser keeps it. */
+function gpuName(): string {
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
+    if (!gl) return '';
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    const name = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)) || '';
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
+    return name;
+  } catch {
+    return '';
+  }
+}
+
 /** The GPU's reading on a touch device, in milliseconds; null elsewhere (desktop is not measured here). */
 export function touchReading(): number | null {
   if (typeof window === 'undefined' || !window.matchMedia(TOUCH_QUERY).matches) return null;
   if (reading !== null) return reading;
   let ms = 0;
   try {
-    ms = Number(window.sessionStorage.getItem(STORE)) || 0;
+    ms = Number(window.sessionStorage.getItem(TIER)) || 0;
   } catch {
     // No storage: measured once for this page.
   }
   if (!(ms > 0)) {
     ms = measure();
     try {
-      if (Number.isFinite(ms)) window.sessionStorage.setItem(STORE, ms.toFixed(2));
+      if (Number.isFinite(ms)) {
+        window.sessionStorage.setItem(TIER, ms.toFixed(2));
+        window.sessionStorage.setItem(STORE, Math.max(ms, 0.1).toFixed(2));
+      }
     } catch {
       // As above.
     }
@@ -136,6 +194,8 @@ export function touchReading(): number | null {
   reading = ms;
   return ms;
 }
+
+let named: 'high' | 'low' | null | undefined;
 
 /**
  * A budget touch device: draw lighter (above). `?lite=1` forces it and
@@ -146,6 +206,12 @@ export function isLite(): boolean {
   const q = new URLSearchParams(window.location.search).get('lite');
   if (q === '1') return true;
   if (q === '0') return false;
+  if (typeof window === 'undefined' || !window.matchMedia(TOUCH_QUERY).matches) return false;
+  if (named === undefined) named = gpuClass(gpuName());
+  if (named) return named === 'low';
+  // A device that says it has little memory is a budget one, whatever its GPU (Chrome gives it, rounded down).
+  const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+  if (memory !== undefined && memory <= 2) return true;
   const ms = touchReading();
   return ms !== null && ms > REFERENCE_MS * LITE_AFTER;
 }

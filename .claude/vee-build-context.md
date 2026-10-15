@@ -75,9 +75,20 @@ which since 2026-10-11 begins with the site being made ready) and
 the main page and opens with its own full-screen title. Since 2026-10-09
 the page is numbered as the client's notes number it: 01 Overview, 02 How
 it works, 03 Componentized building, 04 Key differences, 05 Build your
-own, 06 3D tour, 07 The factory, 08 Delivery; then, with the catalogue
-hidden, 09 Photo gallery, 10 Contact. The current list, in order, is in
-`vee-build-progress.md`, "What exists".
+own, 06 3D tour, 07 The factory, 08 Delivery; since 2026-10-14 09 On
+site (the installation, which shared 08 until then); then, with the
+catalogue hidden, 10 Photo gallery, 11 Contact. The current list, in
+order, is in `vee-build-progress.md`, "What exists".
+
+Phones and tablets (the developer's reference screens of 2026-10-14,
+notes R): the same story, laid out for the screen. The words stand at the
+top and the building under them, large, on a polished floor with little
+or no landscape. The opening card shows the three kinds one at a time, as
+cards to swipe between; the four kinds after it are scrolled through; the
+capsule is chosen by its length. The factory and On site are a step at a
+time, chosen with cards that carry a picture of each step, rather than a
+long scroll. The delivery is scrolled through, not played. A tablet held
+sideways keeps the desktop's layout; a budget tablet draws lighter.
 
 The client's one line for the last three chapters (2026-10-10):
 **Manufacture → Finish → Lift → Transport → Install → Assemble →

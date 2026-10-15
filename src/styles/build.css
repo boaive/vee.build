@@ -1034,3 +1034,260 @@
     font-size: 0.86rem;
   }
 }
+
+/*
+ * Phones and tablets held upright (film/device.ts, COMPACT_QUERY): what a
+ * visitor on a phone needs, and no more (2026-10-15: "in mobile we dont
+ * want such huge thing to show"). The view to build in, with its tools on
+ * one row; under it the presets as small cards, each with its area and its
+ * estimated price; the build's two figures, with the rest folded under them;
+ * then every setting folded shut, its name and what it is set to on the
+ * fold and a chevron that says it opens.
+ */
+@media (max-width: 860px), (max-width: 1100px) and (orientation: portrait) and (hover: none) and (pointer: coarse) {
+  .cfg {
+    gap: 1rem;
+  }
+  .cfg__main {
+    gap: 0.9rem;
+  }
+  .cfg__viewport {
+    height: 56svh;
+    min-height: 21rem;
+  }
+  .cfg__toolbar {
+    justify-content: space-between;
+    overflow: visible;
+    padding-right: 0;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .tool--icon {
+    min-width: 2.25rem;
+    padding: 0.3rem 0.55rem;
+    font-size: 1.02rem;
+    line-height: 1;
+  }
+  .cfg__presets {
+    display: grid;
+    gap: 0.5rem;
+  }
+  .cfg__presets-h {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--title);
+  }
+  .cfg__presets-row {
+    display: flex;
+    gap: 0.55rem;
+    margin-inline: calc(-1 * var(--gutter));
+    padding: 0.15rem var(--gutter) 0.35rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: var(--gutter);
+    scrollbar-width: none;
+  }
+  .cfg__presets-row::-webkit-scrollbar {
+    display: none;
+  }
+  .cfg__presets-row > li {
+    flex: none;
+    display: flex;
+    scroll-snap-align: start;
+  }
+  .preset {
+    display: grid;
+    align-content: start;
+    gap: 0.22rem;
+    width: 8.4rem;
+    padding: 0.75rem 0.85rem 0.8rem;
+    border-radius: 0.95rem;
+    background: var(--surface);
+    box-shadow: 0 0 0 1px var(--line);
+    text-align: left;
+    transition: box-shadow 0.25s var(--ease);
+  }
+  .preset.is-on {
+    box-shadow: 0 0 0 1.5px var(--accent-line);
+  }
+  .preset__name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+  .preset__sqft {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.04em;
+    color: var(--mute);
+  }
+  .preset__price {
+    margin-top: 0.3rem;
+    font-size: 1rem;
+    font-weight: 620;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .preset--clear {
+    background: none;
+    box-shadow: 0 0 0 1px var(--line-strong) inset;
+  }
+
+  /* The two figures side by side; the rest folded under them. */
+  .sum--compact {
+    gap: 0;
+    padding: 1rem 1.1rem 0.4rem;
+  }
+  .sum--compact .sum__head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0;
+    padding-bottom: 0.9rem;
+  }
+  .sum--compact .sum__area {
+    padding-right: 0.9rem;
+    margin-right: 0.9rem;
+    border-right: 1px solid var(--line);
+  }
+  .sum--compact .sum__price {
+    padding-top: 0;
+    border-top: 0;
+  }
+  .sum--compact .sum__value,
+  .sum--compact .sum__price .sum__value {
+    font-size: clamp(1.6rem, 7.2vw, 2.2rem);
+  }
+  .sum--compact .sum__sub {
+    font-size: 0.72rem;
+  }
+  .sum__more {
+    border-top: 0;
+  }
+
+  /* A fold: its name, what it is set to, and a chevron; open, what it holds. */
+  .cfg__group.cfg__fold {
+    gap: 0;
+    padding: 0 1.1rem;
+  }
+  .cfg__fold > summary {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 3.4rem;
+    padding-right: 1.6rem;
+    list-style: none;
+    cursor: pointer;
+  }
+  .cfg__fold > summary::-webkit-details-marker {
+    display: none;
+  }
+  .cfg__fold > summary::after {
+    content: '';
+    position: absolute;
+    right: 0.25rem;
+    top: 50%;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-right: 1.6px solid currentColor;
+    border-bottom: 1.6px solid currentColor;
+    transform: translateY(-70%) rotate(45deg);
+    transition: transform 0.25s var(--ease);
+  }
+  .cfg__fold[open] > summary::after {
+    transform: translateY(-25%) rotate(-135deg);
+  }
+  .cfg__fold-name {
+    flex: none;
+    font-size: 0.98rem;
+    font-weight: 600;
+  }
+  .cfg__fold-value {
+    min-width: 0;
+    margin-left: auto;
+    overflow: hidden;
+    font-size: 0.8rem;
+    color: var(--mute);
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cfg__fold-body {
+    display: grid;
+    gap: 0.8rem;
+    padding-bottom: 1.1rem;
+  }
+  .cfg__group--sheet.cfg__fold .floors {
+    justify-self: start;
+  }
+  .cfg__cta {
+    padding: 1.1rem;
+  }
+}
+
+/*
+ * Full screen (desktop: the button by the view's own controls, 2026-10-15):
+ * the configurator alone over the whole screen, the view as tall as it is,
+ * the panel scrolling beside it. The browser's own full screen where it has
+ * one; over the page where it has not (.is-full on its own, the page held).
+ */
+.cfg.is-full {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  height: 100vh;
+  height: 100dvh;
+  padding: 1rem;
+  overflow: hidden;
+  background: var(--bg);
+  grid-template-columns: minmax(0, 1fr) minmax(21rem, 25rem);
+  align-items: stretch;
+}
+.cfg.is-full .cfg__main {
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+}
+.cfg.is-full .cfg__main .cfg__viewport {
+  height: auto;
+  min-height: 0;
+}
+.cfg.is-full .sum__facts,
+.cfg.is-full .sum__addons,
+.cfg.is-full .sum__bill {
+  display: none;
+}
+.cfg.is-full .sum__head {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.cfg.is-full .cfg__panel {
+  position: static;
+  max-height: none;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cfg:fullscreen::backdrop {
+  background: var(--bg);
+}
+html.is-cfg-full {
+  overflow: hidden;
+}
+.cfg__full {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.cfg__full svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

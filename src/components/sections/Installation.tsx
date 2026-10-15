@@ -41,6 +41,8 @@ export default function Installation() {
       index={numberOf('installation')}
       heading="On site"
       theme="dark"
+      // On a compact layout it is laid out as the factory is, a page of cards on paper (Film, `pick`; 2026-10-15: "make sure it follows the factory layout the same").
+      themeCompact="light"
       captions="track"
       steps={steps}
       length={6.4}

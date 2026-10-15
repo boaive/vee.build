@@ -7,7 +7,8 @@ import { shown, useBuild } from '../../build/store';
 import { INSTALL, PLACE, PREP, installClock, stillClock } from '../../film/installTimeline';
 import type { SceneProps } from '../../film/progress';
 import { clamp01, ease, hold, lerp, stagger, win } from '../../film/timeline';
-import Stage, { aim, useLabel, useWarmAll, type Rig } from '../Stage';
+import { isLite } from '../../film/tier';
+import Stage, { POST_CARD, aim, useLabel, useWarmAll, type Rig } from '../Stage';
 import { Pad } from '../kit/buildings';
 import { Paving } from '../kit/env';
 import { UNIT_BOX, box, memo, merge, setInst } from '../kit/geometry';
@@ -15,6 +16,7 @@ import { FoundationParts, House } from '../kit/house';
 import { LIFT, MobileCrane, TRUCK, Truck, prepareMachines } from '../kit/machines';
 import { instanced, litGlass, mat } from '../kit/materials';
 import { MODULE } from '../kit/parts';
+import { Refined } from '../kit/refined';
 
 /**
  * Installation: how the manufactured shell becomes a finished habitat, in
@@ -144,7 +146,7 @@ export function liftOrder(units: readonly Unit[]) {
 const HOOK_ABOVE = MODULE.H + 0.1 + LIFT.drop;
 const _hook = new Vector3();
 
-function Install({ progress, place, rig, reduced }: SceneProps & { rig: Rig }) {
+function Install({ progress, place, rig, reduced, compact }: SceneProps & { rig: Rig }) {
   const state = useBuild((s) => s);
   const view = useMemo(() => shown(state), [state]);
   const fit = useMemo(() => extent(view.units, view.base), [view.units, view.base]);
@@ -157,8 +159,14 @@ function Install({ progress, place, rig, reduced }: SceneProps & { rig: Rig }) {
   /** The film's own clock, in seconds since the placement began. */
   const clock = useRef(0);
 
+  /*
+   * A compact layout on a device that is not a budget one, where the film is
+   * a card: the house in the refined finishes of the opening card (2026-10-15:
+   * "improve the texture, realism ... for mobile/tab only"). Desktop: as it was.
+   */
+  const fine = useMemo(() => compact && !isLite(), [compact]);
   // Its windows are dark until the building is complete: glazing of its own, brought up at the end.
-  const glow = useMemo(() => litGlass(), []);
+  const glow = useMemo(() => litGlass(fine), [fine]);
   useEffect(() => () => glow.dispose(), [glow]);
 
   // Scene layout around the build's footprint (house coordinates are offset by -cx, -cz).
@@ -271,9 +279,16 @@ function Install({ progress, place, rig, reduced }: SceneProps & { rig: Rig }) {
     // Camera, once the plot is ready: wide on arrival, raised over the placement, then down to eye level in front.
     const po = clamp01((p - AFTER_PREP) / (1 - AFTER_PREP));
     const e = ease.inOut(po);
-    let az = lerp(0.78, 0.18, e);
-    let el = lerp(0.24, 0.08, ease.inOut(win(po, 0.6, 1))) + 0.16 * Math.sin(Math.PI * clamp01(po / 0.8));
-    let dist = fit.reach * lerp(3.6, 3, e);
+    /*
+     * A compact layout, where the film is a card (2026-10-15: "zoom in and
+     * focus only the action and product, make sure the final viewing angle is
+     * good and focused"): nearer all the way, and at the last the house seen
+     * further round its front, where its deck and its steps are.
+     */
+    const card = compact ? 1 : 0;
+    let az = lerp(0.78, card ? 0.46 : 0.18, e);
+    let el = lerp(0.24, card ? 0.1 : 0.08, ease.inOut(win(po, 0.6, 1))) + 0.16 * Math.sin(Math.PI * clamp01(po / 0.8));
+    let dist = fit.reach * lerp(card ? 2.7 : 3.6, card ? 2.2 : 3, e);
     const look = [lerp(6, 0, ease.inOut(win(po, 0, 0.3))), fit.h * lerp(0.3, 0.42, e), lerp(-3, 0, e)];
     // Before it: close over the foundation as it goes in, turning slowly, then standing back for the truck.
     const w = ease.inOut(win(p, PREP.camera[0], PREP.camera[1], ease.linear));
@@ -281,7 +296,7 @@ function Install({ progress, place, rig, reduced }: SceneProps & { rig: Rig }) {
       const u = clamp01(p / PREP.done);
       az = lerp(lerp(1.08, 0.9, u), az, w);
       el = lerp(lerp(0.42, 0.36, u), el, w);
-      dist = lerp(fit.reach * lerp(2.1, 2.4, u), dist, w);
+      dist = lerp(fit.reach * lerp(2.1, 2.4, u) * (card ? 0.82 : 1), dist, w);
       look[0] = lerp(0, look[0], w);
       look[1] = lerp(0.2, look[1], w);
       look[2] = lerp(0, look[2], w);
@@ -314,24 +329,26 @@ function Install({ progress, place, rig, reduced }: SceneProps & { rig: Rig }) {
           getFootings={() => win(progress.value, PREP.footings[0], PREP.footings[1], ease.linear)}
           getPlinths={() => win(progress.value, PREP.plinths[0], PREP.plinths[1], ease.linear)}
         />
-        <House
-          units={view.units}
-          addOns={view.addOns}
-          deckSide={view.deckSide}
-          manual={view.manual}
-          shellHex={view.shellHex}
-          deckHex={view.deckHex}
-          trimHex={view.trimHex}
-          foundation={view.foundation}
-          look={rig.look}
-          glass={glow.material}
-          footings={false}
-          pose={pose}
-          addOnT={() => win(clock.current, times.addOns[0], times.addOns[1], ease.out)}
-          piers
-          pierT={() => win(clock.current, times.piers[0], times.piers[1], ease.out)}
-          plot={view.plot}
-        />
+        <Refined value={fine}>
+          <House
+            units={view.units}
+            addOns={view.addOns}
+            deckSide={view.deckSide}
+            manual={view.manual}
+            shellHex={view.shellHex}
+            deckHex={view.deckHex}
+            trimHex={view.trimHex}
+            foundation={view.foundation}
+            look={rig.look}
+            glass={glow.material}
+            footings={false}
+            pose={pose}
+            addOnT={() => win(clock.current, times.addOns[0], times.addOns[1], ease.out)}
+            piers
+            pierT={() => win(clock.current, times.piers[0], times.piers[1], ease.out)}
+            plot={view.plot}
+          />
+        </Refined>
       </group>
       {/* Out of the picture while the plot is made ready: it sets off once the foundation is in. */}
       <group ref={truck}>
@@ -344,7 +361,7 @@ function Install({ progress, place, rig, reduced }: SceneProps & { rig: Rig }) {
 
 export default function InstallScene(props: SceneProps) {
   return (
-    <Stage {...props} look="evening" ground="land" focus={[0.64, 0.56]} focusCompact={[0.5, 0.36]} shadowExtent={30}>
+    <Stage {...props} look="evening" ground="land" focus={[0.64, 0.56]} focusCompact={[0.5, 0.36]} zoomCompact={1.2} postCompact={POST_CARD} shadowExtent={30}>
       {(rig) => <Install {...props} rig={rig} />}
     </Stage>
   );

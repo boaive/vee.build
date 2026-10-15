@@ -77,6 +77,13 @@ const compared = differences.filter((d) => d.other);
                 ))}
               </ul>
             )}
+            {/* On a compact layout the comparison is on the point's own card (sections.css); on desktop it is in the table below. */}
+            {d.other && (
+              <p class="diff__instead">
+                <span>{differenceCopy.others}</span>
+                <s>{d.other}</s>
+              </p>
+            )}
           </li>
         ))
       }

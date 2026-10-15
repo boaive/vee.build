@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import {
   FOUNDATION_HEIGHTS,
   MAX_FLOORS,
@@ -21,7 +21,7 @@ import {
 } from '../../data/build';
 import { CELL, describe, floorName, totals, type Piece } from '../../build/model';
 import { estimate, formatPrice } from '../../build/price';
-import { build, encode, useBuild } from '../../build/store';
+import { build, encode, presetLayout, useBuild } from '../../build/store';
 import { pricingNote } from '../../data/pricing';
 import { COMPACT_QUERY } from '../../film/device';
 import { createProgress, type PlaceLabel } from '../../film/progress';
@@ -104,6 +104,8 @@ export default function Configurator() {
   const root = useRef<HTMLDivElement>(null);
   const view = useRef<HTMLDivElement>(null);
   const progress = useMemo(createProgress, []);
+  /** The configurator over the whole screen (desktop, 2026-10-15: "add full screen option to customize well in desktop version"). */
+  const [full, setFull] = useState(false);
   const orbit = useRef<Orbit>({ az: 0.62, el: 0.56, top: false, zoom: 1 }).current;
   const drag = useRef<{ x: number; y: number; id: number; moved: boolean } | null>(null);
   const handles = useRef(new Map<string, HTMLElement>());
@@ -382,6 +384,56 @@ export default function Configurator() {
     repaint();
   };
 
+  /*
+   * Full screen (not on a compact layout): the configurator, its view, its
+   * figures and its panel, over the whole screen; by the browser's own full
+   * screen where it has one, over the page where it has not (build.css,
+   * .cfg.is-full). Escape, or the button again, brings it back.
+   */
+  const native = useRef(false);
+  const toggleFull = () => {
+    const el = root.current;
+    if (!el) return;
+    if (full) {
+      if (native.current && document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+      native.current = false;
+      setFull(false);
+      return;
+    }
+    setFull(true);
+    const asked = typeof el.requestFullscreen === 'function' ? el.requestFullscreen({ navigationUI: 'hide' }) : null;
+    asked
+      ?.then(() => {
+        native.current = true;
+      })
+      .catch(() => {});
+  };
+  useEffect(() => {
+    const left = () => {
+      if (!document.fullscreenElement && native.current) {
+        native.current = false;
+        setFull(false);
+      }
+    };
+    const esc = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape' && full && !native.current) setFull(false);
+    };
+    document.addEventListener('fullscreenchange', left);
+    window.addEventListener('keydown', esc);
+    document.documentElement.classList.toggle('is-cfg-full', full);
+    repaint();
+    return () => {
+      document.removeEventListener('fullscreenchange', left);
+      window.removeEventListener('keydown', esc);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [full]);
+  // A compact layout has no full screen: leaving desktop's layout leaves it.
+  useEffect(() => {
+    if (compact && full) toggleFull();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compact]);
+
   const mount = hydrated && near;
   const floors = Math.max(1, t.floors);
   const sqftShown = useCounted(t.sqft, reduced);
@@ -402,8 +454,142 @@ export default function Configurator() {
     ['Trim', trimFinishes.find((f) => f.id === state.trim)],
   ] as const;
 
+  /**
+   * A compact layout: the presets as small cards under the view, each with
+   * its area and its estimated price, laid out and counted as choosing it
+   * would lay it out (store, presetLayout; 2026-10-15: "we show them
+   * available options below the workspace ... a small card showing price
+   * and square feet alone").
+   */
+  const presetCards = useMemo(
+    () =>
+      compact
+        ? presets.map((p) => {
+            const l = presetLayout(p.id, state);
+            const units = l?.units ?? [];
+            const e = estimate({ units, addOns: p.addOns, deckSide: p.deckSide, manual: null, foundation: state.foundation, plot: l?.plot ?? state.plot });
+            return { id: p.id, name: p.name, sqft: totals(units).sqft, price: e.total };
+          })
+        : [],
+    [compact, state],
+  );
+
+  /**
+   * A group of the panel. On desktop as it was. On a compact layout folded
+   * shut, with its name and what it is set to on the fold and a chevron that
+   * says it opens (2026-10-15: "it works more like a drop down. only
+   * enlarges when the user wants it ... the user should know it can be
+   * enlarged").
+   */
+  const group = (name: string, value: ReactNode, head: ReactNode, body: ReactNode, extra = '') =>
+    compact ? (
+      <details className={`cfg__group cfg__fold${extra}`}>
+        <summary>
+          <span className="cfg__fold-name">{name}</span>
+          <span className="cfg__fold-value">{value}</span>
+        </summary>
+        <div className="cfg__fold-body">{body}</div>
+      </details>
+    ) : (
+      <section className={`cfg__group${extra}`}>
+        {head}
+        {body}
+      </section>
+    );
+
+  /* The build in figures, in parts: on desktop all under the two figures, on a compact layout folded under them. */
+  const sumFacts = (
+    <dl className="sum__facts">
+      <div>
+        <dt>Shells</dt>
+        <dd>{t.count ? `${t.a} A · ${t.b} B` : '—'}</dd>
+      </div>
+      <div>
+        <dt>Floors</dt>
+        <dd>{t.floors ? (t.floors === 1 ? 'G' : `G+${t.floors - 1}`) : '—'}</dd>
+      </div>
+      <div>
+        <dt>Footprint</dt>
+        <dd>{t.count ? `${t.width} × ${t.depth} m` : '—'}</dd>
+      </div>
+      <div>
+        <dt>Plot</dt>
+        <dd>
+          {state.plot.x * CELL} × {state.plot.z * CELL} m
+        </dd>
+      </div>
+      <div>
+        <dt>Foundation</dt>
+        <dd>
+          {FOUNDATION_HEIGHTS[state.foundation.h]} mm <small>{state.foundation.type === 'plinth' ? 'with L plinth' : 'footings'}</small>
+        </dd>
+      </div>
+      <div>
+        <dt>Finish</dt>
+        <dd className="sum__finish">
+          {finishes.map(([name, f]) => (
+            <span key={name} title={`${name}: ${f?.name}`}>
+              <i style={{ background: f?.hex }} aria-hidden="true" />
+              <span className="sr-only">{name}: </span>
+              {f?.name}
+            </span>
+          ))}
+        </dd>
+      </div>
+    </dl>
+  );
+  const sumAddOns = (
+    <div className="sum__addons">
+      <p className="sum__label">Add-ons</p>
+      {chosen.length || t.floors > 1 ? (
+        <ul>
+          {chosen.map((name) => (
+            <li key={name}>{name}</li>
+          ))}
+          {t.floors > 1 && <li className="is-given">Gallery and outer staircase</li>}
+        </ul>
+      ) : (
+        <p className="sum__none">None chosen</p>
+      )}
+    </div>
+  );
+  const sumBill = price.total > 0 && (
+    <details className="sum__bill">
+      <summary>
+        <span className="sum__label">Price breakdown</span>
+        <span className="sum__bill-total">{formatPrice(price.total)}</span>
+      </summary>
+      <table>
+        <tbody>
+          {price.lines.map((l) => (
+            <tr key={l.id}>
+              <th scope="row">{l.label}</th>
+              <td>{l.detail}</td>
+              <td>{formatPrice(Math.round(l.amount / 100) * 100)}</td>
+            </tr>
+          ))}
+          <tr className="sum__bill-finish">
+            <th scope="row">Finishes</th>
+            <td>Shell, deck and trim colours</td>
+            <td>Included</td>
+          </tr>
+        </tbody>
+      </table>
+      <p className="sum__bill-note">{pricingNote}</p>
+    </details>
+  );
+  const floorTabs = (
+    <div className="floors" role="tablist" aria-label="Floor shown on the plan">
+      {Array.from({ length: Math.max(floors, 1) }, (_, i) => (
+        <button key={i} type="button" role="tab" aria-selected={floor === i} className={`floor${floor === i ? ' is-on' : ''}`} onClick={() => setFloor(i)}>
+          {i === 0 ? 'G' : i}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
-    <div className="cfg" ref={root}>
+    <div className={`cfg${full ? ' is-full' : ''}`} ref={root}>
       <div className="cfg__main">
         <div
           className={`cfg__viewport${addOnTool ? ' is-placing' : ''}`}
@@ -472,31 +658,53 @@ export default function Configurator() {
 
           <div className="cfg__toolbar" role="toolbar" aria-label="Build tools">
             <div className="seg" role="radiogroup" aria-label="Shell to place">
-              {(['A', 'B'] as const).map((s) => (
-                <button key={s} type="button" role="radio" aria-checked={tool === s} className={`seg__btn${tool === s ? ' is-on' : ''}`} onClick={() => choose(s)}>
-                  <span className={`shell-icon shell-icon--${s}${turn % 2 && s === 'A' ? ' is-turned' : ''}`} aria-hidden="true" />
-                  Shell {s}
-                  <small>{s === 'A' ? '6 × 3 m' : '3 × 3 m'}</small>
-                </button>
-              ))}
+              {(['A', 'B'] as const).map((s) =>
+                // A compact layout: the tools on one row, without running off it (2026-10-15): the shell's letter, its plan beside it.
+                compact ? (
+                  <button key={s} type="button" role="radio" aria-checked={tool === s} aria-label={`Shell ${s}`} className={`seg__btn${tool === s ? ' is-on' : ''}`} onClick={() => choose(s)}>
+                    <span className={`shell-icon shell-icon--${s}${turn % 2 && s === 'A' ? ' is-turned' : ''}`} aria-hidden="true" />
+                    {s}
+                  </button>
+                ) : (
+                  <button key={s} type="button" role="radio" aria-checked={tool === s} className={`seg__btn${tool === s ? ' is-on' : ''}`} onClick={() => choose(s)}>
+                    <span className={`shell-icon shell-icon--${s}${turn % 2 && s === 'A' ? ' is-turned' : ''}`} aria-hidden="true" />
+                    Shell {s}
+                    <small>{s === 'A' ? '6 × 3 m' : '3 × 3 m'}</small>
+                  </button>
+                ),
+              )}
               <button type="button" role="radio" aria-checked={tool === null && !addOnTool} className={`seg__btn${tool === null && !addOnTool ? ' is-on' : ''}`} onClick={() => choose(null)}>
                 Select
               </button>
             </div>
-            <div className="cfg__acts">
-              <button type="button" className="tool tool--rotate" onClick={rotate} title="Rotate 90° (R)">
-                <span aria-hidden="true">↻</span> Rotate{selected === null && tool ? ' next' : ''}
-              </button>
-              <button type="button" className="tool" onClick={addAuto} title="Add beside the house">
-                + Add
-              </button>
-              <button type="button" className="tool" onClick={remove} disabled={selected === null && (!piece || piece.k === 'access')} title="Remove the selected shell or add-on (Delete)">
-                Remove
-              </button>
-              <button type="button" className="tool" onClick={undo} title="Undo (Ctrl+Z)">
-                Undo
-              </button>
-            </div>
+            {compact ? (
+              <div className="cfg__acts">
+                <button type="button" className="tool tool--rotate tool--icon" onClick={rotate} aria-label={`Rotate${selected === null && tool ? ' the next shell' : ''} 90°`}>
+                  <span aria-hidden="true">↻</span>
+                </button>
+                <button type="button" className="tool tool--icon" onClick={remove} disabled={selected === null && (!piece || piece.k === 'access')} aria-label="Remove the selected shell or add-on">
+                  <span aria-hidden="true">✕</span>
+                </button>
+                <button type="button" className="tool tool--icon" onClick={undo} aria-label="Undo">
+                  <span aria-hidden="true">↶</span>
+                </button>
+              </div>
+            ) : (
+              <div className="cfg__acts">
+                <button type="button" className="tool tool--rotate" onClick={rotate} title="Rotate 90° (R)">
+                  <span aria-hidden="true">↻</span> Rotate{selected === null && tool ? ' next' : ''}
+                </button>
+                <button type="button" className="tool" onClick={addAuto} title="Add beside the house">
+                  + Add
+                </button>
+                <button type="button" className="tool" onClick={remove} disabled={selected === null && (!piece || piece.k === 'access')} title="Remove the selected shell or add-on (Delete)">
+                  Remove
+                </button>
+                <button type="button" className="tool" onClick={undo} title="Undo (Ctrl+Z)">
+                  Undo
+                </button>
+              </div>
+            )}
             {addOnTool && (
               <button type="button" className="cfg__placing" onClick={() => chooseAddOn(null)}>
                 Placing: {manualKinds.find((k) => k.id === addOnTool)?.name} <span aria-hidden="true">✕</span>
@@ -514,14 +722,46 @@ export default function Configurator() {
             <button type="button" onClick={toggleTop} aria-pressed={top}>
               {top ? '3D view' : 'Top view'}
             </button>
+            {!compact && (
+              <button type="button" className="cfg__full" onClick={toggleFull} aria-pressed={full}>
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <path d={full ? 'M6 2v4H2M10 2v4h4M6 14v-4H2M10 14v-4h4' : 'M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4'} />
+                </svg>
+                {full ? 'Exit full screen' : 'Full screen'}
+              </button>
+            )}
           </div>
           <p className="cfg__status" role="status" aria-live="polite">
             {status}
           </p>
         </div>
 
-        {/* The build in figures, by itself under the view (developer, 2026-10-10): it used to be the last thing the panel scrolled to. */}
-        <section className="sum" aria-label="Your build in figures">
+        {/* A compact layout: the presets as cards under the view, each with its area and its estimated price. */}
+        {compact && (
+          <section className="cfg__presets" aria-label="Start from">
+            <p className="cfg__presets-h">Start from</p>
+            <ul className="cfg__presets-row">
+              {presetCards.map((c) => (
+                <li key={c.id}>
+                  <button type="button" className={`preset${state.preset === c.id ? ' is-on' : ''}`} aria-pressed={state.preset === c.id} onClick={() => loadPreset(c.id)}>
+                    <span className="preset__name">{c.name}</span>
+                    <span className="preset__sqft">{c.sqft} sq.ft.</span>
+                    <span className="preset__price">{formatPrice(c.price)}</span>
+                  </button>
+                </li>
+              ))}
+              <li>
+                <button type="button" className="preset preset--clear" onClick={() => (build.clear(), setSelected(null), setPiece(null), say('Plot cleared.'))}>
+                  <span className="preset__name">Clear the plot</span>
+                  <span className="preset__sqft">Start from nothing</span>
+                </button>
+              </li>
+            </ul>
+          </section>
+        )}
+
+        {/* The build in figures, by itself under the view (developer, 2026-10-10): it used to be the last thing the panel scrolled to. A compact layout has the two figures, and the rest folded under them. */}
+        <section className={`sum${compact ? ' sum--compact' : ''}`} aria-label="Your build in figures">
           <p className="sr-only" aria-live="polite">{t.count ? `Your build: ${t.sqft} square feet, estimated ${formatPrice(price.total)}.` : ""}</p>
           <div className="sum__head">
             <div className="sum__area">
@@ -537,266 +777,227 @@ export default function Configurator() {
               <p className="sum__sub">{price.total ? `${formatPrice(price.perSqft)} a sq.ft. · excl. GST · indicative` : 'Place a shell to see an estimate'}</p>
             </div>
           </div>
-          <dl className="sum__facts">
-            <div>
-              <dt>Shells</dt>
-              <dd>{t.count ? `${t.a} A · ${t.b} B` : '—'}</dd>
-            </div>
-            <div>
-              <dt>Floors</dt>
-              <dd>{t.floors ? (t.floors === 1 ? 'G' : `G+${t.floors - 1}`) : '—'}</dd>
-            </div>
-            <div>
-              <dt>Footprint</dt>
-              <dd>{t.count ? `${t.width} × ${t.depth} m` : '—'}</dd>
-            </div>
-            <div>
-              <dt>Plot</dt>
-              <dd>
-                {state.plot.x * CELL} × {state.plot.z * CELL} m
-              </dd>
-            </div>
-            <div>
-              <dt>Foundation</dt>
-              <dd>
-                {FOUNDATION_HEIGHTS[state.foundation.h]} mm <small>{state.foundation.type === 'plinth' ? 'with L plinth' : 'footings'}</small>
-              </dd>
-            </div>
-            <div>
-              <dt>Finish</dt>
-              <dd className="sum__finish">
-                {finishes.map(([name, f]) => (
-                  <span key={name} title={`${name}: ${f?.name}`}>
-                    <i style={{ background: f?.hex }} aria-hidden="true" />
-                    <span className="sr-only">{name}: </span>
-                    {f?.name}
-                  </span>
-                ))}
-              </dd>
-            </div>
-          </dl>
-          <div className="sum__addons">
-            <p className="sum__label">Add-ons</p>
-            {chosen.length || t.floors > 1 ? (
-              <ul>
-                {chosen.map((name) => (
-                  <li key={name}>{name}</li>
-                ))}
-                {t.floors > 1 && <li className="is-given">Gallery and outer staircase</li>}
-              </ul>
-            ) : (
-              <p className="sum__none">None chosen</p>
-            )}
-          </div>
-          {price.total > 0 && (
-            <details className="sum__bill">
+          {compact ? (
+            <details className="cfg__fold sum__more">
               <summary>
-                <span className="sum__label">Price breakdown</span>
-                <span className="sum__bill-total">{formatPrice(price.total)}</span>
+                <span className="cfg__fold-name">In figures</span>
+                <span className="cfg__fold-value">{t.count ? `${t.a} A · ${t.b} B · ${t.floors === 1 ? 'G' : `G+${t.floors - 1}`}` : 'Shells, floors, plot'}</span>
               </summary>
-              <table>
-                <tbody>
-                  {price.lines.map((l) => (
-                    <tr key={l.id}>
-                      <th scope="row">{l.label}</th>
-                      <td>{l.detail}</td>
-                      <td>{formatPrice(Math.round(l.amount / 100) * 100)}</td>
-                    </tr>
-                  ))}
-                  <tr className="sum__bill-finish">
-                    <th scope="row">Finishes</th>
-                    <td>Shell, deck and trim colours</td>
-                    <td>Included</td>
-                  </tr>
-                </tbody>
-              </table>
-              <p className="sum__bill-note">{pricingNote}</p>
+              <div className="cfg__fold-body">
+                {sumFacts}
+                {sumAddOns}
+                {sumBill}
+              </div>
             </details>
+          ) : (
+            <>
+              {sumFacts}
+              {sumAddOns}
+              {sumBill}
+            </>
           )}
         </section>
       </div>
 
       <aside className="cfg__panel" aria-label="Configuration">
-        <section className="cfg__group">
-          <h3 className="cfg__h">Start from</h3>
-          <div className="chips chips--pair">
-            {presets.map((p) => (
-              <button key={p.id} type="button" className={`chip${state.preset === p.id ? ' is-on' : ''}`} onClick={() => loadPreset(p.id)}>
-                {p.name}
-                <small>{p.note}</small>
+        {!compact && (
+          <section className="cfg__group">
+            <h3 className="cfg__h">Start from</h3>
+            <div className="chips chips--pair">
+              {presets.map((p) => (
+                <button key={p.id} type="button" className={`chip${state.preset === p.id ? ' is-on' : ''}`} onClick={() => loadPreset(p.id)}>
+                  {p.name}
+                  <small>{p.note}</small>
+                </button>
+              ))}
+              <button type="button" className="chip chip--quiet" onClick={() => (build.clear(), setSelected(null), setPiece(null), say('Plot cleared.'))}>
+                Clear the plot
               </button>
-            ))}
-            <button type="button" className="chip chip--quiet" onClick={() => (build.clear(), setSelected(null), setPiece(null), say('Plot cleared.'))}>
-              Clear the plot
-            </button>
-          </div>
-        </section>
+            </div>
+          </section>
+        )}
 
-        <section className="cfg__group">
+        {group(
+          'Plot',
+          `${state.plot.x * CELL} m × ${state.plot.z * CELL} m`,
           <h3 className="cfg__h">
             Plot <span className="cfg__tag">{state.plot.x * CELL} m × {state.plot.z * CELL} m</span>
-          </h3>
-          <div className="steppers">
-            <div className="stepper">
-              <span className="t-label">Width</span>
-              <button type="button" onClick={() => extend(1, -1)} disabled={state.plot.x <= PLOT_LIMITS.min.x} aria-label="Narrower">
-                −
-              </button>
-              <b>{state.plot.x * CELL} m</b>
-              <button type="button" onClick={() => extend(1, 1)} disabled={state.plot.x >= PLOT_LIMITS.max.x} aria-label="Wider">
-                +
-              </button>
+          </h3>,
+          <>
+            <div className="steppers">
+              <div className="stepper">
+                <span className="t-label">Width</span>
+                <button type="button" onClick={() => extend(1, -1)} disabled={state.plot.x <= PLOT_LIMITS.min.x} aria-label="Narrower">
+                  −
+                </button>
+                <b>{state.plot.x * CELL} m</b>
+                <button type="button" onClick={() => extend(1, 1)} disabled={state.plot.x >= PLOT_LIMITS.max.x} aria-label="Wider">
+                  +
+                </button>
+              </div>
+              <div className="stepper">
+                <span className="t-label">Depth</span>
+                <button type="button" onClick={() => extend(2, -1)} disabled={state.plot.z <= PLOT_LIMITS.min.z} aria-label="Shallower">
+                  −
+                </button>
+                <b>{state.plot.z * CELL} m</b>
+                <button type="button" onClick={() => extend(2, 1)} disabled={state.plot.z >= PLOT_LIMITS.max.z} aria-label="Deeper">
+                  +
+                </button>
+              </div>
             </div>
-            <div className="stepper">
-              <span className="t-label">Depth</span>
-              <button type="button" onClick={() => extend(2, -1)} disabled={state.plot.z <= PLOT_LIMITS.min.z} aria-label="Shallower">
-                −
-              </button>
-              <b>{state.plot.z * CELL} m</b>
-              <button type="button" onClick={() => extend(2, 1)} disabled={state.plot.z >= PLOT_LIMITS.max.z} aria-label="Deeper">
-                +
-              </button>
-            </div>
-          </div>
-          <p className="cfg__note">Or use the + handles on each edge of the plot to extend it that way.</p>
-        </section>
+            <p className="cfg__note">Or use the + handles on each edge of the plot to extend it that way.</p>
+          </>,
+        )}
 
         {/* The ground comes before what stands on it: the plot, then how high the house sits above it (developer, 2026-10-10). */}
-        <section className="cfg__group">
+        {group(
+          'Foundation',
+          `${FOUNDATION_HEIGHTS[state.foundation.h]} mm · ${foundationTypes.find((f) => f.id === state.foundation.type)?.name.toLowerCase() ?? ''}`,
           <h3 className="cfg__h">
             Foundation <span className="cfg__tag">Illustrative</span>
-          </h3>
-          <div className="sides" role="radiogroup" aria-label="Height above ground">
-            <span className="t-label">Height</span>
-            {FOUNDATION_HEIGHTS.map((h, i) => (
-              <button key={h} type="button" role="radio" aria-checked={state.foundation.h === i} className={`side${state.foundation.h === i ? ' is-on' : ''}`} onClick={() => build.setFoundation({ h: i as 0 | 1 | 2 })}>
-                {h} mm
-              </button>
-            ))}
-          </div>
-          <div className="sides" role="radiogroup" aria-label="Foundation type">
-            <span className="t-label">Type</span>
-            {foundationTypes.map((f) => (
-              <button key={f.id} type="button" role="radio" aria-checked={state.foundation.type === f.id} className={`side${state.foundation.type === f.id ? ' is-on' : ''}`} onClick={() => build.setFoundation({ type: f.id })} title={f.hint}>
-                {f.name}
-              </button>
-            ))}
-          </div>
-          <p className="cfg__note">Precast footings at every corner, height above ground set per site. Where shells meet they share one footing and one plinth.</p>
-        </section>
-
-        <section className="cfg__group">
-          <h3 className="cfg__h">Add-ons</h3>
-          <div className="seg seg--panel" role="radiogroup" aria-label="How add-ons are placed">
-            <button type="button" role="radio" aria-checked={!manualMode} className={`seg__btn${!manualMode ? ' is-on' : ''}`} onClick={() => (build.setAddOnMode('auto'), chooseAddOn(null))}>
-              Automatic
-            </button>
-            <button type="button" role="radio" aria-checked={manualMode} className={`seg__btn${manualMode ? ' is-on' : ''}`} onClick={() => build.setAddOnMode('manual')}>
-              Place by hand
-            </button>
-          </div>
-          {!manualMode ? (
-            <>
-              <ul className="toggles">
-                {addOnIds.map((id) => {
-                  const on = addOns.includes(id);
-                  return (
-                    <li key={id}>
-                      <button type="button" className={`toggle${on ? ' is-on' : ''}`} aria-pressed={on} onClick={() => build.toggleAddOn(id)}>
-                        <span className="toggle__box" aria-hidden="true" />
-                        <span className="toggle__name">{addOnInfo[id].name}</span>
-                        <span className="toggle__hint">{addOnInfo[id].hint}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-              {addOns.includes('deck') && (
-                <div className="sides" role="radiogroup" aria-label="Deck side">
-                  <span className="t-label">Deck side</span>
-                  {SIDE_NAMES.map((s) => (
-                    <button key={String(s.value)} type="button" role="radio" aria-checked={state.deckSide === s.value} className={`side${state.deckSide === s.value ? ' is-on' : ''}`} onClick={() => build.setDeckSide(s.value)}>
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              <p className="cfg__note">Pick an add-on, then click where it goes on the house. To take one away, choose Select, click it and press Remove.</p>
-              <ul className="palette">
-                {manualKinds.map((k) => (
-                  <li key={k.id}>
-                    <button type="button" className={`palette__btn${addOnTool === k.id ? ' is-on' : ''}`} aria-pressed={addOnTool === k.id} onClick={() => chooseAddOn(addOnTool === k.id ? null : k.id)}>
-                      <span className="palette__name">{k.name}</span>
-                      <span className="palette__count">{placedCount(k.id) || ''}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <ul className="toggles toggles--row">
-                {deckDetails.map((id) => {
-                  const on = addOns.includes(id);
-                  return (
-                    <li key={id}>
-                      <button type="button" className={`toggle${on ? ' is-on' : ''}`} aria-pressed={on} onClick={() => build.toggleAddOn(id)}>
-                        <span className="toggle__box" aria-hidden="true" />
-                        <span className="toggle__name">{addOnInfo[id].name}</span>
-                        <span className="toggle__hint">On every deck you place.</span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-              {state.manual.length > 0 && (
-                <button type="button" className="link cfg__share" onClick={() => (build.clearManual(), say('Placed add-ons cleared.'))}>
-                  Clear placed add-ons
+          </h3>,
+          <>
+            <div className="sides" role="radiogroup" aria-label="Height above ground">
+              <span className="t-label">Height</span>
+              {FOUNDATION_HEIGHTS.map((h, i) => (
+                <button key={h} type="button" role="radio" aria-checked={state.foundation.h === i} className={`side${state.foundation.h === i ? ' is-on' : ''}`} onClick={() => build.setFoundation({ h: i as 0 | 1 | 2 })}>
+                  {h} mm
                 </button>
-              )}
-            </>
-          )}
-        </section>
+              ))}
+            </div>
+            <div className="sides" role="radiogroup" aria-label="Foundation type">
+              <span className="t-label">Type</span>
+              {foundationTypes.map((f) => (
+                <button key={f.id} type="button" role="radio" aria-checked={state.foundation.type === f.id} className={`side${state.foundation.type === f.id ? ' is-on' : ''}`} onClick={() => build.setFoundation({ type: f.id })} title={f.hint}>
+                  {f.name}
+                </button>
+              ))}
+            </div>
+            <p className="cfg__note">Precast footings at every corner, height above ground set per site. Where shells meet they share one footing and one plinth.</p>
+          </>,
+        )}
 
-        <section className="cfg__group">
+        {group(
+          'Add-ons',
+          manualMode ? `${state.manual.length} placed by hand` : chosen.length ? `${chosen.length} chosen` : 'None chosen',
+          <h3 className="cfg__h">Add-ons</h3>,
+          <>
+            <div className="seg seg--panel" role="radiogroup" aria-label="How add-ons are placed">
+              <button type="button" role="radio" aria-checked={!manualMode} className={`seg__btn${!manualMode ? ' is-on' : ''}`} onClick={() => (build.setAddOnMode('auto'), chooseAddOn(null))}>
+                Automatic
+              </button>
+              <button type="button" role="radio" aria-checked={manualMode} className={`seg__btn${manualMode ? ' is-on' : ''}`} onClick={() => build.setAddOnMode('manual')}>
+                Place by hand
+              </button>
+            </div>
+            {!manualMode ? (
+              <>
+                <ul className="toggles">
+                  {addOnIds.map((id) => {
+                    const on = addOns.includes(id);
+                    return (
+                      <li key={id}>
+                        <button type="button" className={`toggle${on ? ' is-on' : ''}`} aria-pressed={on} onClick={() => build.toggleAddOn(id)}>
+                          <span className="toggle__box" aria-hidden="true" />
+                          <span className="toggle__name">{addOnInfo[id].name}</span>
+                          <span className="toggle__hint">{addOnInfo[id].hint}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {addOns.includes('deck') && (
+                  <div className="sides" role="radiogroup" aria-label="Deck side">
+                    <span className="t-label">Deck side</span>
+                    {SIDE_NAMES.map((s) => (
+                      <button key={String(s.value)} type="button" role="radio" aria-checked={state.deckSide === s.value} className={`side${state.deckSide === s.value ? ' is-on' : ''}`} onClick={() => build.setDeckSide(s.value)}>
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="cfg__note">Pick an add-on, then click where it goes on the house. To take one away, choose Select, click it and press Remove.</p>
+                <ul className="palette">
+                  {manualKinds.map((k) => (
+                    <li key={k.id}>
+                      <button type="button" className={`palette__btn${addOnTool === k.id ? ' is-on' : ''}`} aria-pressed={addOnTool === k.id} onClick={() => chooseAddOn(addOnTool === k.id ? null : k.id)}>
+                        <span className="palette__name">{k.name}</span>
+                        <span className="palette__count">{placedCount(k.id) || ''}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <ul className="toggles toggles--row">
+                  {deckDetails.map((id) => {
+                    const on = addOns.includes(id);
+                    return (
+                      <li key={id}>
+                        <button type="button" className={`toggle${on ? ' is-on' : ''}`} aria-pressed={on} onClick={() => build.toggleAddOn(id)}>
+                          <span className="toggle__box" aria-hidden="true" />
+                          <span className="toggle__name">{addOnInfo[id].name}</span>
+                          <span className="toggle__hint">On every deck you place.</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {state.manual.length > 0 && (
+                  <button type="button" className="link cfg__share" onClick={() => (build.clearManual(), say('Placed add-ons cleared.'))}>
+                    Clear placed add-ons
+                  </button>
+                )}
+              </>
+            )}
+          </>,
+        )}
+
+        {group(
+          'Finish',
+          finishes.map(([, f]) => f?.name).join(' · '),
           <h3 className="cfg__h">
             Finish <span className="cfg__tag">Indicative</span>
-          </h3>
-          {(
-            [
-              ['Shell', shellFinishes, state.shell, build.setShell],
-              ['Deck', deckFinishes, state.deck, build.setDeck],
-              ['Trim', trimFinishes, state.trim, build.setTrim],
-            ] as const
-          ).map(([name, list, current, set]) => (
-            <div key={name} className="swatches" role="radiogroup" aria-label={`${name} finish`}>
-              <span className="t-label">{name}</span>
-              {list.map((f) => (
-                <button key={f.id} type="button" role="radio" aria-checked={current === f.id} className={`swatch${current === f.id ? ' is-on' : ''}`} style={{ background: f.hex }} title={f.name} aria-label={f.name} onClick={() => set(f.id)} />
-              ))}
-              <span className="swatches__name">{list.find((f) => f.id === current)?.name}</span>
-            </div>
-          ))}
-          <p className="cfg__note">{finishNote}</p>
-        </section>
+          </h3>,
+          <>
+            {(
+              [
+                ['Shell', shellFinishes, state.shell, build.setShell],
+                ['Deck', deckFinishes, state.deck, build.setDeck],
+                ['Trim', trimFinishes, state.trim, build.setTrim],
+              ] as const
+            ).map(([name, list, current, set]) => (
+              <div key={name} className="swatches" role="radiogroup" aria-label={`${name} finish`}>
+                <span className="t-label">{name}</span>
+                {list.map((f) => (
+                  <button key={f.id} type="button" role="radio" aria-checked={current === f.id} className={`swatch${current === f.id ? ' is-on' : ''}`} style={{ background: f.hex }} title={f.name} aria-label={f.name} onClick={() => set(f.id)} />
+                ))}
+                <span className="swatches__name">{list.find((f) => f.id === current)?.name}</span>
+              </div>
+            ))}
+            <p className="cfg__note">{finishNote}</p>
+          </>,
+        )}
 
-        <section className="cfg__group cfg__group--sheet">
+        {group(
+          'Your house, plan',
+          t.count ? `${t.count} ${t.count === 1 ? 'shell' : 'shells'} · ${t.floors === 1 ? 'G' : `G+${t.floors - 1}`}` : 'Nothing placed yet',
           <div className="cfg__sheet-head">
             <h3 className="cfg__h">Your house</h3>
-            <div className="floors" role="tablist" aria-label="Floor shown on the plan">
-              {Array.from({ length: Math.max(floors, 1) }, (_, i) => (
-                <button key={i} type="button" role="tab" aria-selected={floor === i} className={`floor${floor === i ? ' is-on' : ''}`} onClick={() => setFloor(i)}>
-                  {i === 0 ? 'G' : i}
-                </button>
-              ))}
-            </div>
-          </div>
-          <BuildPlan units={units} addOns={addOns} deckSide={state.deckSide} manual={manualMode ? state.manual : null} plot={state.plot} floor={floor} selected={selected} onSelect={select} />
-          <p className="cfg__note">Each shell has one door, marked on the plan. It moves to a free wall when another shell stands against it.</p>
-          <p className="cfg__note">
-            Areas are the brief&rsquo;s nominal figures: Shell A 200 sq.ft., Shell B 100 sq.ft. Up to {MAX_FLOORS} floors.
-          </p>
-        </section>
+            {floorTabs}
+          </div>,
+          <>
+            {compact && floorTabs}
+            <BuildPlan units={units} addOns={addOns} deckSide={state.deckSide} manual={manualMode ? state.manual : null} plot={state.plot} floor={floor} selected={selected} onSelect={select} />
+            <p className="cfg__note">Each shell has one door, marked on the plan. It moves to a free wall when another shell stands against it.</p>
+            <p className="cfg__note">
+              Areas are the brief&rsquo;s nominal figures: Shell A 200 sq.ft., Shell B 100 sq.ft. Up to {MAX_FLOORS} floors.
+            </p>
+          </>,
+          ' cfg__group--sheet',
+        )}
 
         <div className="cfg__cta">
           <a className="btn" href="#contact" onClick={quote}>

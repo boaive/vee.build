@@ -68,7 +68,10 @@ source. Never resolve a conflict by inventing a third value.
 - The capsule's form follows the client's three reference renders of
   2026-10-09 (`src/three/kit/capsule.ts`). Its lengths are the brief's
   10′, 16′ and 20′; nothing else about it is supplied (notes C5, C9). No
-  mark, name or figure from those renders.
+  mark, name or figure from those renders. On a compact layout it stands
+  on a home-like section (`POD_HOME`: the same lengths and openings, a
+  taller hull, less rounding; developer, 2026-10-14: the 10′ "looks like a
+  cat home"); desktop keeps `POD`. CONFIRM (notes R4).
 - No invented projects, customers, testimonials, certifications, prices,
   timelines or engineering specifications. Missing facts get a neutral
   presentation plus an entry in `vee-build-notes.md`.
@@ -109,7 +112,7 @@ source. Never resolve a conflict by inventing a third value.
   stands on it: the steps do not run on into the ground, their frame ends
   in a level sole on the pier's head (`carriedStairGeometry`). The hero's
   house has them too, under its landing and its steps (client, the same
-  day), and so does the building of "08 On site", under its deck's posts
+  day), and so does the building of "09 On site", under its deck's posts
   and its steps (client, 2026-10-11; `piers` on `House`, heights in
   `PIER`, `kit/house.tsx`; set by the film's clock just before the
   add-ons, `installClock`). CONFIRM: the configurator and the 3D tour
@@ -163,6 +166,8 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   time, both on the client's instruction of 2026-10-10. The truck's drive
   (`Transit.tsx`) plays by itself, once: its progress is seconds, and the
   page is held while it plays (`play` in `Film.tsx`, `film/hold.ts`).
+  On a compact layout it follows the scroll like any film and holds
+  nothing (developer, 2026-10-14: "make it skippable or scrollable").
   The installation has a clock of its own that the scroll starts and runs
   back (`film/installTimeline.ts`). Each is still drawn by one function
   of its numbers, and with reduced motion each shows settled poses and
@@ -283,7 +288,10 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   As a fill with ink text on it (`--mark`) the green is used on the dark
   films only, for a thing in play: the add-on that has just landed, a key
   or tag under the pointer, and every call-out box of "Componentized
-  building". Never white text on it (1.3 to 1).
+  building". Never white text on it (1.3 to 1). On a compact layout a
+  call-out box stands at the screen's edge on its point's side, its tick
+  running in to the point, so that the building is not under it (Film,
+  `place`; developer, 2026-10-14).
   In 3D the same: `mat.accent` (vermilion) on a light stage,
   `mat.accentInk` (green) on a dark one.
   CONFIRM: the client suggested (2026-10-06, again 2026-10-09) green
@@ -380,8 +388,10 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   photograph for the angle). It plays once, by itself, and holds the page
   while it does; it can never keep it (`film/hold.ts` lets go on a timer,
   on Escape, when the page is hidden). It only ever holds a scroll the
-  visitor is making: a link gliding past does not start it.
-- The installation ("08 On site") begins with the site made ready, on
+  visitor is making: a link gliding past does not start it. On a compact
+  layout it is scrolled through instead (notes R).
+- The installation ("09 On site", a chapter of its own since 2026-10-14:
+  "if it is marked as 08, then onsite should follow 09") begins with the site made ready, on
   the scroll: the plot pegged out, pits dug, plug footings lowered in, L
   plinths laid, backfilled (client, 2026-10-11, morning: the section
   "Ready before the shells arrive" and the installation as one film;
@@ -508,6 +518,12 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   app's browser pane does not draw frames while hidden). Details in
   `vee-build-progress.md`, QA aids.
 - `node scripts/og-image.mjs` regenerates `public/og.png`.
+- `node scripts/cards.mjs [base] [film]` captures the compact cards'
+  pictures from the running dev server's own scenes into
+  `public/images/cards` (the hero's three, the factory's stations, On
+  site's stages; `film` limits it to one). Run it again whenever one of
+  those pictures changes. A dev server on IPv6 only needs
+  `http://[::1]:4321` as the base.
 - `node scripts/textures.mjs` bakes `public/textures/*.webp` again (the
   same files from the same seeds) and prints their sizes.
 - To time a set of materials against another, swap them inside one page

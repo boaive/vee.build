@@ -750,6 +750,24 @@ button {
     transform: translateY(-0.42rem) rotate(-45deg);
   }
 }
+/*
+ * Phones and tablets, and narrow windows: the header is one translucent band
+ * of its ground, the same over every section, films included, so that what
+ * scrolls under it never reads against the lockup (developer, 2026-10-15:
+ * "the header is transparent, and allows overlapping, keep in translucent
+ * and consistent"). On desktop the rule of 2026-10-07 holds: no frosted
+ * band over a picture (notes S).
+ */
+@media (max-width: 860px), (hover: none) and (pointer: coarse) {
+  .hdr,
+  .hdr.is-solid,
+  .hdr.is-solid.is-bare {
+    background: rgb(var(--scrim) / 0.7);
+    box-shadow: 0 1px 0 var(--line);
+    -webkit-backdrop-filter: saturate(1.5) blur(16px);
+    backdrop-filter: saturate(1.5) blur(16px);
+  }
+}
 @media (min-width: 861px) {
   .menu {
     display: none;

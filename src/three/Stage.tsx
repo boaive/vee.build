@@ -753,6 +753,14 @@ function Resolution({ ceiling, set, plain = false }: { ceiling: number; set: (dp
 
 const DEFAULT_POST: PostOptions = { ao: true, bloom: 0.32, bloomThreshold: 1.6 };
 const DEFAULT_POST_COMPACT: PostOptions = { ao: false, bloom: 0.25, bloomThreshold: 1.6 };
+/**
+ * A film in a card on a compact layout (Film, `pick`: the factory, On site):
+ * the canvas is the card, half the pixels of the screen, so it keeps the
+ * occlusion pass the other compact stages give up (2026-10-15: "improve the
+ * texture, realism and others for mobile/tab only ... we want premium
+ * finish"). A budget device still goes without it (Stage).
+ */
+export const POST_CARD: PostOptions = { ao: true, bloom: 0.28, bloomThreshold: 1.6 };
 
 /**
  * The only <Canvas> component in the project. On-demand rendering, a
@@ -767,7 +775,9 @@ export default function Stage(props: StageProps) {
    * pixel, the smallest shadow map. Decided before the first frame.
    */
   const lite = useMemo(() => isLite(), []);
-  const finish = compact || lite ? postCompact : post;
+  const chosen = compact || lite ? postCompact : post;
+  // A budget device never draws the occlusion pass, whatever a scene asks of a compact layout (a film in a card does).
+  const finish = useMemo(() => (lite && chosen ? { ...chosen, ao: false } : chosen), [lite, chosen]);
   // What a canvas has where the GPU has nothing more to give (kit/gpu.ts): at most this many pixels to the CSS pixel.
   const ceiling = lite ? 1 : compact || finish ? 1.5 : 1.75;
   const [dpr, setDpr] = useState(() => plainDpr(ceiling));

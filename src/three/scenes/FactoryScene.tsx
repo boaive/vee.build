@@ -6,10 +6,10 @@ import { FACTORY as T } from '../../film/factoryTimeline';
 import type { SceneProps } from '../../film/progress';
 import { clamp01, ease, hold, lerp, sampleCamera, stagger, win, type CameraKey } from '../../film/timeline';
 import { isLite } from '../../film/tier';
-import Stage, { aim, useLabel, useWarmAll, type Rig } from '../Stage';
+import Stage, { POST_CARD, aim, useLabel, useWarmAll, type Rig } from '../Stage';
 import { UNIT_BOX, box, cyl, memo, merge, mergeGroups, setInst } from '../kit/geometry';
 import { LIFT, MobileCrane, PUMP_OUTLET, Pump, TRUCK, Truck, prepareMachines } from '../kit/machines';
-import { instanced, mat, moduleMats } from '../kit/materials';
+import { instanced, kit, mat, moduleMats } from '../kit/materials';
 import { jackBaseGeometry, jackScrewGeometry, moduleGeometry } from '../kit/parts';
 import { HOOKS, SHELL, castRoofGeometry, castWallsGeometry, epsFloorGeometry, epsRoofGeometry, epsWallGeometry, frameGeometry, shellJoinery, wallBays, type FrameStage } from '../kit/shell';
 import { boxUV } from '../kit/textures';
@@ -483,7 +483,13 @@ const insideMat = new MeshBasicMaterial({ color: '#34363a', side: BackSide });
  * plane that travels with the spray gantry); the finished module is drawn
  * behind it.
  */
-function Shell({ progress, label }: Prog & { label: ReturnType<typeof useLabel> }) {
+/**
+ * `fine`: a compact layout on a device that is not a budget one, where the
+ * film is a card (2026-10-15: "improve the texture, realism ... for
+ * mobile/tab only"): the sprayed shell and its trim in the refined finishes
+ * of the opening card (kit/materials.ts). Desktop: as it was.
+ */
+function Shell({ progress, label, fine = false }: Prog & { label: ReturnType<typeof useLabel>; fine?: boolean }) {
   const shellHex = useBuild((s) => shown(s).shellHex);
   const refs = useRef<(Mesh | null)[]>([]);
   const walls = useRef<Mesh>(null);
@@ -510,11 +516,11 @@ function Shell({ progress, label }: Prog & { label: ReturnType<typeof useLabel> 
       panel: mat.panel,
       reveal: raw(mat.panel),
       cast: raw(mat.cast),
-      joinery: [raw(mat.fascia), raw(mat.glass), raw(mat.frame)],
+      joinery: [raw(kit('fascia', fine)), raw(mat.glass), raw(mat.frame)],
       // Sprayed in the finish the visitor chose.
-      painted: moduleMats(shellHex).map((m) => cut(m, planes.painted)),
+      painted: moduleMats(shellHex, 'day', undefined, fine).map((m) => cut(m, planes.painted)),
     };
-  }, [planes, shellHex]);
+  }, [planes, shellHex, fine]);
   useLayoutEffect(() => () => [mats.hooks, mats.reveal, mats.cast, ...mats.joinery, ...mats.painted].forEach((m) => m.dispose()), [mats]);
 
   const pieces = useMemo<Piece[]>(() => {
@@ -736,9 +742,16 @@ function Dispatch({ progress, label }: Prog & { label: ReturnType<typeof useLabe
 
 /** On an upright screen the eye stands this much higher and nearer over what it looks at: the top of the picture, where the chapter's line is, is then slab and not what stands at the back of the yard. */
 const UPRIGHT = { rise: 1.75, in: 0.8 };
+/**
+ * The film in a card (a compact layout, Film's `pick`): while its title
+ * opens and the card rises, the camera comes down into the bay from high
+ * over the yard and round from the side, and is at the first station when
+ * the card is in place (2026-10-15: "give a proper animation").
+ */
+const OPENING = { turn: -0.62, out: 2.1, rise: 1.45 };
 const _eye: V3 = [0, 0, 0];
 
-function Director({ progress, rig, compact }: Prog & { rig: Rig; compact: boolean }) {
+function Director({ progress, rig, compact }: { progress: SceneProps['progress']; rig: Rig; compact: boolean }) {
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
   useFrame(() => {
@@ -748,6 +761,16 @@ function Director({ progress, rig, compact }: Prog & { rig: Rig; compact: boolea
     _eye[0] = c.look[0] + (c.pos[0] - c.look[0]) * (up ? UPRIGHT.in : 1);
     _eye[1] = c.look[1] + (c.pos[1] - c.look[1]) * (up ? UPRIGHT.rise : 1);
     _eye[2] = c.look[2] + (c.pos[2] - c.look[2]) * (up ? UPRIGHT.in : 1);
+    if (compact && progress.pick && progress.pre < 1) {
+      const o = ease.inOutCubic(clamp01(progress.pre / 0.9));
+      const a = OPENING.turn * (1 - o);
+      const m = lerp(OPENING.out, 1, o);
+      const dx = _eye[0] - c.look[0];
+      const dz = _eye[2] - c.look[2];
+      _eye[0] = c.look[0] + (dx * Math.cos(a) + dz * Math.sin(a)) * m;
+      _eye[1] = c.look[1] + (_eye[1] - c.look[1]) * m * lerp(OPENING.rise, 1, o);
+      _eye[2] = c.look[2] + (dz * Math.cos(a) - dx * Math.sin(a)) * m;
+    }
     aim(camera, _eye, c.look, size.width / size.height, 1.4, 0.7);
     rig.lightTarget.set(c.look[0], 0, c.look[2]);
     // Seen from above the horizon: there is no sky in the picture, and none is drawn.
@@ -766,7 +789,7 @@ function Factory({ progress, place, rig, compact }: SceneProps & { rig: Rig }) {
       <Director progress={progress} rig={rig} compact={compact} />
       <Yard progress={progress} bare={compact || isLite()} />
       <Piers progress={progress} />
-      <Shell progress={progress} label={label} />
+      <Shell progress={progress} label={label} fine={compact && !isLite()} />
       <Formwork progress={progress} />
       <Pump position={PUMP_AT} ry={PUMP_TURN} />
       <Dispatch progress={progress} label={label} />
@@ -776,7 +799,7 @@ function Factory({ progress, place, rig, compact }: SceneProps & { rig: Rig }) {
 
 export default function FactoryScene(props: SceneProps) {
   return (
-    <Stage {...props} look="clear" ground="land" focus={[0.67, 0.56]} focusCompact={[0.5, 0.36]} zoomCompact={1.75} shadowExtent={30} localClipping>
+    <Stage {...props} look="clear" ground="land" focus={[0.67, 0.56]} focusCompact={[0.5, 0.36]} zoomCompact={1.75} postCompact={POST_CARD} shadowExtent={30} localClipping>
       {(rig) => <Factory {...props} rig={rig} />}
     </Stage>
   );

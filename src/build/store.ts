@@ -157,6 +157,19 @@ const clampPlot = (p: Plot): Plot => ({
   z: Math.min(PLOT_LIMITS.max.z, Math.max(PLOT_LIMITS.min.z, p.z)),
 });
 
+/**
+ * What loading a preset lays out, on the plot as it stands (`loadPreset`):
+ * its shells, centred, and the plot grown to hold them. The compact
+ * layout's preset cards price it before it is chosen (Configurator).
+ */
+export function presetLayout(id: string, s: Pick<BuildState, 'plot'> = build.get()) {
+  const p = presets.find((x) => x.id === id);
+  if (!p) return null;
+  const plot = clampPlot({ x: Math.max(s.plot.x, plotFor(p.units).x), z: Math.max(s.plot.z, plotFor(p.units).z) });
+  const units = admit(centred(p.units, plot), plot) ?? [];
+  return { p, plot, units };
+}
+
 /** Accept a list of shells only if every one is valid in order (ground first). */
 function admit(specs: readonly UnitSpec[], plot: Plot): Unit[] | null {
   const units: Unit[] = [];
@@ -356,12 +369,10 @@ export const build = {
     return { ok: true };
   },
   loadPreset(id: string) {
-    const p = presets.find((x) => x.id === id);
-    if (!p) return;
     const s = build.get();
-    const plot = clampPlot({ x: Math.max(s.plot.x, plotFor(p.units).x), z: Math.max(s.plot.z, plotFor(p.units).z) });
-    const units = admit(centred(p.units, plot), plot) ?? [];
-    commit({ ...s, units, addOns: p.addOns, deckSide: p.deckSide, plot, addOnMode: 'auto', manual: [], preset: p.id, nextId: units.length + 1 });
+    const l = presetLayout(id, s);
+    if (!l) return;
+    commit({ ...s, units: l.units, addOns: l.p.addOns, deckSide: l.p.deckSide, plot: l.plot, addOnMode: 'auto', manual: [], preset: l.p.id, nextId: l.units.length + 1 });
   },
   clear() {
     const s = build.get();

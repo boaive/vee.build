@@ -386,6 +386,115 @@
     margin-top: 0.9rem;
   }
 }
+/* The point's comparison on its own card: compact layouts only (below). */
+.diff__instead {
+  display: none;
+}
+
+/*
+ * Phones and tablets held upright (film/device.ts, COMPACT_QUERY): the six
+ * points as six cards, one at a time (2026-10-15: "can we keep it as
+ * cards?? ... if the user views it he should read it and remember it"). Each
+ * card is one point: its number, its mark, the word, the claim, what it
+ * means, and what it replaces, struck through, where the brief names it.
+ * As the page scrolls each card stops under the header and the next comes
+ * up over it, leaving the edge of the ones before it showing, a stack of
+ * the six. The comparison table is on the cards, so it is not repeated.
+ */
+@media (max-width: 860px), (max-width: 1100px) and (orientation: portrait) and (hover: none) and (pointer: coarse) {
+  .diff {
+    padding-block: clamp(3.5rem, 12vw, 5rem) clamp(3rem, 10vw, 4.5rem);
+  }
+  .diff__head {
+    margin-bottom: 1.75rem;
+  }
+  .diff__grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+  .diff__cell,
+  .diff__cell:nth-child(n) {
+    position: sticky;
+    top: calc(var(--hdr) + 1rem);
+    min-height: min(21rem, 62svh);
+    padding: 1.35rem 1.35rem 1.5rem;
+    border: 1px solid var(--line);
+    border-radius: 1.35rem;
+    background: var(--surface);
+    box-shadow: 0 -14px 30px -22px rgb(17 18 20 / 0.32);
+    align-content: start;
+    gap: 0.7rem;
+  }
+  /* Each stops a little lower than the one before it: the edges of those under it show, a stack. */
+  .diff__cell:nth-child(2) {
+    top: calc(var(--hdr) + 1.55rem);
+  }
+  .diff__cell:nth-child(3) {
+    top: calc(var(--hdr) + 2.1rem);
+  }
+  .diff__cell:nth-child(4) {
+    top: calc(var(--hdr) + 2.65rem);
+  }
+  .diff__cell:nth-child(5) {
+    top: calc(var(--hdr) + 3.2rem);
+  }
+  .diff__cell:nth-child(6) {
+    top: calc(var(--hdr) + 3.75rem);
+  }
+  .diff__cell::before,
+  .diff__cell::after {
+    display: none;
+  }
+  .diff__n {
+    font-size: 0.72rem;
+    color: var(--title);
+  }
+  .diff__n::after {
+    content: ' / 06';
+    color: var(--mute);
+  }
+  .diff__cell .diff__icon,
+  .diff__cell:nth-child(n) .diff__icon {
+    top: 1.15rem;
+    right: 1.2rem;
+    width: 2.7rem;
+  }
+  .diff__word {
+    margin-top: 2.6rem;
+    font-size: clamp(2.1rem, 9.6vw, 2.9rem);
+  }
+  .diff__claim {
+    font-size: 1.06rem;
+  }
+  .diff__detail {
+    font-size: 0.95rem;
+    color: var(--mute);
+  }
+  .diff__instead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.6rem;
+    margin-top: auto;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.92rem;
+    color: var(--mute);
+  }
+  .diff__instead span {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .diff__instead s {
+    text-decoration-thickness: 1px;
+  }
+  .diff__vs {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .diff [data-rv],
   .diff__ln > span,

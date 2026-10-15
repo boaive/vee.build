@@ -21,12 +21,16 @@ const labels: FilmLabel[] = [
  * The tour's title screen. After "your house" it takes the whole screen in
  * ink with one line; scrolling opens it from the middle of the picture onto
  * the whole yard, seen on the diagonal, and the film then goes in to the
- * one bay where a shell is made from its frame to its finish.
+ * one bay where a shell is made from its frame to its finish. On a compact
+ * layout the film is a page of cards on paper (Film, `pick`): the title
+ * stands on the paper, and the picture rises into its card under it while
+ * the camera comes down into the bay (2026-10-15).
  */
 const opening: Prelude = {
   length: 1,
   lengthCompact: 0.75,
   tone: 'ink',
+  toneCompact: 'paper',
   content: (
     <div className="prelude">
       <div className="prelude__top">

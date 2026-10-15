@@ -121,7 +121,7 @@ function KindPick() {
               <img src={c.src} alt="" width={240} height={150} loading="lazy" decoding="async" />
               <span className="film__card-text">
                 <small>{c.code}</small>
-                {c.name}
+                <span className="film__card-name">{c.name}</span>
               </span>
             </button>
           </li>
