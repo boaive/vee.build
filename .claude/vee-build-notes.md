@@ -5,7 +5,7 @@
 | # | Item | Why it blocks | Current handling |
 | --- | --- | --- | --- |
 | A1 | Contact email, phone, address, legal entity name | Footer, structured data, mailto fallback | `src/data/site.ts` → `contact` is null; footer shows nothing invented |
-| A2 | Enquiry form destination | Forms cannot deliver | `PUBLIC_ENQUIRY_ENDPOINT` env var; unset = form reports it cannot send |
+| A2 | Enquiry form destination | Settled 2026-10-16 | The site's own API, `/api/enquiries` (notes U); `PUBLIC_ENQUIRY_ENDPOINT` overrides |
 | A3 | Real photography: modules in transit, crane installs, handovers, factory | Section 7 is proof; cannot be faked | Gallery is manifest-driven (`src/data/gallery.ts`); empty slots render as labelled "awaiting photograph" frames |
 | A4 | Clean export of the module render | Supplied JPEG carries a third-party "ReRender" watermark | Used once, uncropped, labelled "Visualisation"; replace file in `public/images/` |
 | A5 | Capsule home renders of VEE.BUILD's own | Capsule page requirement | Three reference renders came on 2026-10-09 (another maker's product, one with its watermark): used for form only (C9). The page shows the real-time model built after them, in 10′/16′/20′ |
@@ -2573,4 +2573,61 @@ The developer: "currently on some phones, like even with sd 695, the frames are 
 
 **Measured.** GPU time of a frame on the laptop as a budget phone (412 × 915 at 2.625, `?lite=1`, three rounds in each order, medians before / after): the hero's house 1.40 / 1.27 and 6.96 / 1.51 ms; its capsule 4.65 / 1.43 and 4.08 / 1.50 ms (20 draw calls, 12 after); the institutional building 1.34 / 1.81 and 1.41 / 1.72 ms; section 3 5.53 / 1.81 and 1.71 / 1.75 ms; How it works 5.77 / 2.39 and 2.43 / 2.34 ms (45 calls, 37); On site 2.73 / 1.46 and 5.30 / 2.40 ms (80 calls, 72), with 56 % more pixels and 4x multisampling where it had 2x. The laptop's GPU is not a phone's: a tiled GPU's multisampling is cheaper still. The main thread, profiled over one scroll through six sections with the CPU slowed four times on production builds: the 1.4 to 1.7 s of layout read by the films' scroll handlers is gone as such; the texture sets are drawn in idle time. A steady scripted scroll's frame rate on this laptop under that slowdown swung from 5 to 56 fps between identical runs and ranks nothing.
 
+**Desktop.** Production builds of the tree before the round (the commit "updated mobile layout v2") and after, fingerprinted as in R, item 9: the five pages at seven desktop sizes the same but for the two scroll cues' endless animation; every film's elements at nineteen poses at three sizes (1,057 each) the same.
+
 **Not verified.** A Snapdragon 695 phone, or any real phone; Safari's autoplay of the clips (muted and inline, as it asks); the bar on a real phone.
+
+## U. The admin panel and the backend (2026-10-16) and how it was carried out
+
+The developer, 2026-10-16: merge the admin panel with the website, keep only the features that are needed, host it all on Cloudflare ("entire cloud flare set up including d1 and r2. no supabase"), one login and no roles ("only one login no others, so no rbac"), proper security ("rate limiting, bot attack protection, every other thing required"), and a simple UI ("simple, easy to use and understand").
+
+**Where it lives.** `admin/` in this repo, with its own `package.json` and `node_modules`, so the site's dependency tree is untouched: `admin/api` (Hono on Cloudflare Workers), `admin/panel` (the panel: React, Vite, Tailwind, shadcn; it was `vee-admin/apps/web`), `admin/shared` (the rules both use: zod schemas, `priceBuild`, CSV), `admin/migrations` (D1), `admin/scripts/set-password.mjs`, `admin/wrangler.jsonc`, and the set-up guide `admin/README.md`. The separate `vee-admin` repo (stages 1 to 5, on mock data) is left as it was and is superseded by this folder; nothing of it is deployed.
+
+**One Worker for everything.** `wrangler.jsonc` serves `../dist` as static assets (the site, with `not_found_handling: 404-page`), and runs the Worker first for `/api/*` and `/admin/*`. The panel builds into `dist/admin` after `astro build` (`npm run build:all` at the root). Same origin for the site, the panel and the API: no CORS anywhere. D1 database `vee`, R2 bucket `vee-build-files`, three edge rate limiters, a nightly cron (20:30 UTC, 02:00 in India).
+
+**Kept and dropped.** Kept: Overview (who waits for a reply, quotes out), Enquiries (list, search, status tabs, CSV, detail with reply by email / call / WhatsApp, notes, files, delete for good), Quotes (from an enquiry's configurator build or a preset; draft priced at the published rates, sent fixes them; print / save as PDF), Prices (edit, preview on the presets, publish a version, load an old one), Settings (business details for quotes, quote defaults, email notifications, password, signed-in devices, activity, download everything). Dropped from the panel's first draft: customers as a directory (an enquiry shows the other enquiries from the same email), the pipeline board (the status tabs do it), follow-up tasks, email templates and sending from the panel (replies go from the owner's own mail app or WhatsApp; nothing to warm up, no deliverability to manage), in-panel notifications (an email per enquiry and per sign-in instead), website content editing (the site's copy stays in `src/data`, under this file's rules), the audit-log screen (an activity list in Settings), quote revisions (a sent quote goes back to draft to change; "Make a copy" for a second option), demo data and the demo clock.
+
+**Statuses.** Enquiry: new, contacted, quoted, won, lost, spam. Sending a quote moves its enquiry to quoted; an accepted quote moves it to won. Quote: draft, sent, accepted, declined, expired (set by the nightly job when the validity date passes).
+
+**The site, changed.** (1) The enquiry form posts to `/api/enquiries` by default (`PUBLIC_ENQUIRY_ENDPOINT` still overrides; the `mailto:` fallback is gone, it never worked with `site.contact` empty). It sends the honeypot to the server rather than dropping the submission in the browser, gets a Turnstile token (`src/components/forms/turnstile.ts`, loaded when the form island mounts, invisible unless Cloudflare asks for a tick: the box is out of the form's grid until then, so the form's layout is as it was) and shows the server's own message on a refusal. (2) The configurator prices with the published list (`src/build/rates.ts`: `GET /api/pricing` once a visit, the site's own `data/pricing.ts` until it arrives or if it never does) and sends the build's counts with "Request a quote" (`quantities()` split out of `estimate()` in `src/build/price.ts`; `prefill.ts` carries `build`). (3) `public/_headers` (HSTS, nosniff, frame options, referrer and permissions policies, immutable `_astro`), `robots.txt` disallows `/admin/` and `/api/`. (4) `astro dev` proxies `/api` to `wrangler dev` on :8787.
+
+**Security as built.** See `admin/README.md`, "Security, in short". PBKDF2-SHA256 at 100,000 rounds (the Workers maximum), compared in constant time, a dummy hash when the email is wrong; lockout after 5 failures from one address or 30 from anywhere in 15 minutes; `__Host-` cookie, HttpOnly, Secure, SameSite=Strict, token stored as SHA-256, 24 h idle and 7 days absolute; Origin and Sec-Fetch-Site checked on every change; JSON only, size limits; Turnstile on the form and the sign-in, failing closed without a secret; edge rate limits (5 enquiries, 10 sign-ins a minute per address) and 10 enquiries a day per salted IP hash; the same message twice in 10 minutes kept once; a strict CSP on the panel (no inline script: the theme script is `panel/public/theme.js`), never framed or indexed; uploads by allow-list and file signature, downloads as attachments under a sandboxing CSP; parameterised SQL throughout; CSV cells defused against formulas; sign-in and password-change emails to the owner; a nightly JSON backup in R2 kept 30 days, on top of D1's Time Travel. The panel's UI components imported `cn` from an unrelated npm package named `cn`; they now use the panel's own `lib/utils`.
+
+**Checked.** `npm test` in `admin/` (63: the panel's price rule against all 16 site presets, and the site's own `quantities()` + `estimate()` run against `priceBuild()` line for line; the first price list in the migration equal to `src/data/pricing.ts`; form and CSV rules), both typechecks, `npm run check` and `npm run build:all` at the root, no legacy brand in `src`, `public`, `dist` or `admin`. Against `wrangler dev` with local D1 and R2: every refusal (no Origin, another origin, form-encoded, bad fields, no Turnstile token, honeypot, burst limit, lockout with the right password, stale or invalid or unchanged prices, illegal quote moves, fake PDF, .exe), the happy paths, the cron and its R2 backup; in the browser: sign-in through Turnstile's test key, each panel screen, a quote from a configurator enquiry, publishing prices, the site's form on `/capsule/` (₹, ′ and Tamil intact) and the home page's configurator: "Request a quote" at price list v3 showed ₹20,97,000 and the panel prices the same counts to ₹20,97,000. The panel at 375 px: no sideways scroll.
+
+**Not verified.** A real deployment (no Cloudflare account or domain yet: steps 1 to 8 of `admin/README.md`); Turnstile with a real key (an interactive challenge, the box appearing in the form); Email Routing's send binding delivering (`notifyOwner` builds plain MIME by hand, base64 body, RFC 2047 subject); the CPU time of a sign-in on Cloudflare (PBKDF2 at 100,000 rounds needs the Workers Paid plan; the free plan's 10 ms would refuse it); the desktop fingerprint of R for the form (one new element, `.form__check`, out of the layout).
+
+**Open points.**
+
+- U1. CONFIRM: the features dropped from the panel (list above). Any can come back; the data model leaves room.
+- U2. CONFIRM: the session lengths (24 hours idle, 7 days), the lockout (5 / 30 in 15 minutes) and the enquiry caps (5 a minute, 10 a day per address).
+- U3. CONFIRM: quotes are printed to PDF from the browser; no server-side PDF (Cloudflare's Browser Rendering would be a paid add-on).
+- U4. Done the same day: the site has an enforced Content Security Policy (below).
+- U5. Workers Paid ($5 a month) is assumed (README). On the free plan sign-in fails.
+- U6. A2 is settled: the form's destination is the site's own API.
+
+**U4, the site's Content Security Policy (2026-10-16).** Written at build time by `scripts/csp.mjs`, an Astro integration (`astro.config.mjs`). After `astro build` it reads every page in dist/ (not dist/admin, which has its own policy). It hashes every inline script that runs (SHA-256, after turning CRLF into LF as the browser's parser does: the sources mix the two). Then it adds one policy to the `/*` block of dist/_headers, so Cloudflare sends it as a header on every path, the 404 included. Today: 8 hashes, 834 characters; the line limit is 2,000, and the build stops past it. It also refuses to build a page with an inline event handler (`onclick=`) or a `javascript:` URL, which no hash can allow.
+
+Astro's own `security.csp` was tried first and dropped, for three reasons: it leaves out the three `is:inline` scripts of Base.astro (no-js, boot, arrive), which it would then block; its `<meta>` comes after the first script; and its style hashes would void `'unsafe-inline'` and block the pages' style attributes (111 on the home page).
+
+The policy:
+- `default-src 'self'`;
+- scripts from this origin, the hashes, and `https://challenges.cloudflare.com` (Turnstile);
+- styles `'self' 'unsafe-inline'`;
+- images `'self' data: blob:`;
+- fonts, media (the factory clips), fetch and workers `'self'` only;
+- frames only Turnstile's;
+- `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'self'`;
+- no `'unsafe-eval'`.
+
+What the pages load was read from the build first: no workers, eval or WebAssembly, and no host but Turnstile's. Violations are reported to `POST /api/csp-report` (both report formats; rate-limited, 16 kB, nothing stored), which logs one line each into Workers Logs. `CSP_REPORT_ONLY=1` at build time sends the policy as report-only, should something need it.
+
+Checked: in a headless Edge, on production builds served by `wrangler dev`, every route (/, /modular/, /capsule/, /prefab/, /partnership/, the 404) on desktop (1440 × 900) and on an emulated phone with touch (390 × 844 at 3). Each was scrolled top to bottom, and / was also loaded once with its boot screen.
+- No violation, nothing blocked, no new error (only three.js deprecation warnings, there before).
+- WebGL drawn, 11 texture files loaded, the factory's clips loaded on the phone, `/api/pricing` fetched, Turnstile loaded, and the form sent under the policy.
+- An injected inline script, a script and an image from another host, and a fetch to another host are all refused.
+- The build step's own rules, checked on made-up pages: CRLF normalised, JSON-LD skipped, no duplicate line, report-only, `onclick` and `javascript:` refused, admin/ skipped.
+
+Not verified: a browser delivering its own reports (Chrome did not send them from 127.0.0.1 within a minute; the endpoint answers both formats when posted to), Safari and Firefox, a real deployment.
+
+When the site loads something new from another host (fonts, analytics, a video service), add it to `policy()` in `scripts/csp.mjs`, build, and run the pages through again: scripts/csp-audit.mjs does it (every route, desktop and phone, exits 1 on a violation).

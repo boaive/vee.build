@@ -12,7 +12,14 @@ npm run dev       # Astro dev server on :4321
 npm run build     # static build to dist/
 npm run preview   # serve dist/
 npm run check     # astro check (types)
+npm run build:all # the site, then the admin panel into dist/admin
+npm run deploy    # build:all, then wrangler deploy (admin/README.md first)
 ```
+
+In `admin/` (its own `npm install`): `npm run dev` (`wrangler dev`: site,
+panel and API on :8787 with local D1 and R2), `npm run dev:panel` (the
+panel with reloads on :5174), `npm run typecheck`, `npm test`,
+`npm run db:migrate:local|remote`, `npm run password:local|remote`.
 
 ## Source priority
 
@@ -24,8 +31,9 @@ source. Never resolve a conflict by inventing a third value.
 ## Brand rules
 
 - Public brand is **VEE.BUILD**. "Wieldy", "Wieldly", its logo, tagline,
-  email, phone, pricing and testimonials must never appear in `src/` or
-  `public/`. `assets/` is client source material and is not shipped.
+  email, phone, pricing and testimonials must never appear in `src/`,
+  `public/` or `admin/`. `assets/` is client source material and is not
+  shipped.
 - The top menu is **Home | MOD | POD | FAB** and **Contact**, nothing else
   (client, 2026-10-09; Home added 2026-10-14, notes Q). **Home** is the
   main page (`/`), everything that used to be under MOD; **MOD** is a page
@@ -160,6 +168,45 @@ Astro (static HTML per route) + React islands + React Three Fiber.
 | Website | `src/layouts`, `src/components/site`, `src/components/sections`, `src/pages` | Semantic HTML first. Sections work with JS disabled. |
 | Animation | `src/film/` | Scroll progress, damping, timeline helpers, sticky film shell, DOM labels. |
 | 3D | `src/three/` | `kit/` reusable geometry, `scenes/` one file per scene, `Stage.tsx` the only `<Canvas>`. |
+| Backend | `admin/api` | Hono on one Cloudflare Worker that also serves the site's `dist/` and the panel. D1, R2. |
+| Admin panel | `admin/panel` | React + Vite SPA at `/admin`, built into `dist/admin`. |
+| Shared rules | `admin/shared` | Zod schemas, `priceBuild`, CSV. The API and the panel import them; the site does not (no zod in the site's bundle). |
+
+The admin panel and backend (developer, 2026-10-16; notes U; set-up and
+security in `admin/README.md`):
+
+- Everything is on Cloudflare: one Worker (`admin/wrangler.jsonc`), D1, R2,
+  Turnstile, Email Routing. No other host or database ("no supabase").
+- **One login, no roles.** The owner's password is set from the command
+  line only (`admin/scripts/set-password.mjs`); there is no sign-up,
+  no reset by email, no second account. Do not add staff accounts or RBAC.
+- The panel has five sections: Overview, Enquiries, Quotes, Prices,
+  Settings (`admin/panel/src/lib/nav.ts`). The rest of the first draft was
+  dropped on purpose (notes U, U1); do not bring a section back unasked.
+- Every API change goes through the same locks: `sameOrigin`, JSON bodies
+  read with `readJson` against a zod schema, size limits, parameterised SQL.
+  A public endpoint also gets an edge rate limiter and Turnstile, failing
+  closed. Never put a secret in `wrangler.jsonc`, `.env` or a `VITE_` /
+  `PUBLIC_` variable: `wrangler secret put`.
+- The panel's Content Security Policy runs no inline script (`panel.ts`):
+  keep scripts in files.
+- Prices: the panel publishes versions to D1; the site reads
+  `GET /api/pricing` (`src/build/rates.ts`) and falls back to
+  `src/data/pricing.ts`. The site's `quantities()` + `estimate()` and the
+  panel's `priceBuild()` are one rule in two places, held together by
+  `admin/shared/site.test.ts`: change both, and run `npm test` in `admin/`.
+- A database change is a new numbered file in `admin/migrations`; an
+  applied migration is never edited.
+- The site has an enforced Content Security Policy, written into
+  dist/_headers at build time by `scripts/csp.mjs` (an Astro integration)
+  with a hash for every inline script (notes U4). No inline event handlers
+  (`onclick=`) and no `javascript:` URLs: the build stops on them. A new
+  host the site loads from (fonts, analytics, video) is added to `policy()`
+  there, and the pages are run through again (`node scripts/csp-audit.mjs`
+  against `wrangler dev`: every route, desktop and phone, scrolled through;
+  it exits 1 on any violation). Do not write a policy in
+  `public/_headers` by hand, and do not use Astro's `security.csp` (it
+  misses the `is:inline` scripts).
 
 - A scene is a pure function of one damped progress value (0–1). No scene
   owns scroll listeners; `src/film/Film.tsx` does. Two films also run on
@@ -543,7 +590,8 @@ Astro (static HTML per route) + React islands + React Three Fiber.
 - Routes: `/` (Home, the main page, the factory tour included),
   `/modular/` (MOD, since 2026-10-14, asked for), `/capsule/`, `/prefab/`,
   `/partnership/`, `404`. Do not move a section to a route of its own, or
-  add or remove one, without asking first.
+  add or remove one, without asking first. Besides the site: `/admin/*`
+  (the panel, noindex, disallowed in `robots.txt`) and `/api/*` (2026-10-16).
 - The catalogue is built but not shown (client, 2026-10-10: "hide without
   removing"): `shown` in `src/data/site.ts`. The chapters' numbers, the
   rail, the menus and the links to it follow that flag; do not delete the
@@ -555,6 +603,11 @@ Astro (static HTML per route) + React islands + React Three Fiber.
   search `src/`, `public/` and `dist/` for the legacy brand name. After
   changing CSS too: the dev server serves a stylesheet with a broken rule
   in it without a word, and the build stops on it (2026-10-10).
+- After changing `admin/` or the site's form, prices or configurator: in
+  `admin/`, `npm run typecheck` and `npm test`; then `npm run build:all` at
+  the root and try it end to end on `wrangler dev` (:8787; the local login
+  is in `admin/.dev.vars`, which is never committed). The legacy brand
+  search covers `admin/` too.
 - Phones and tablets are emulated in the headless Edge with touch on
   (`Emulation.setTouchEmulationEnabled` and the pointer and hover media
   features: the touch clauses of `device.ts` match only then). `?lite=1`

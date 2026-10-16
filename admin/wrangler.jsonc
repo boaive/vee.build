@@ -1,0 +1,61 @@
+// The one Cloudflare Worker behind vee.build: the static site, the admin
+// panel at /admin and the API at /api. Set-up, step by step: admin/README.md.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "vee-build",
+  "main": "api/src/index.ts",
+  "compatibility_date": "2026-10-01",
+
+  // The built site (npm run build:all at the repo root), with the panel in dist/admin.
+  "assets": {
+    "directory": "../dist",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "html_handling": "auto-trailing-slash",
+    "run_worker_first": ["/api/*", "/admin", "/admin/*"]
+  },
+
+  // Uncomment once the domain is on Cloudflare (step 6 of admin/README.md):
+  // "routes": [
+  //   { "pattern": "vee.build", "custom_domain": true },
+  //   { "pattern": "www.vee.build", "custom_domain": true }
+  // ],
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "vee",
+      // From `npx wrangler d1 create vee` (README, step 2).
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "vee-build-files" }],
+
+  // Burst limits, counted at Cloudflare's edge. The database keeps the longer ones
+  // (sign-in lockout, enquiries a day).
+  "ratelimits": [
+    { "name": "ENQUIRY_LIMIT", "namespace_id": "4101", "simple": { "limit": 5, "period": 60 } },
+    { "name": "LOGIN_LIMIT", "namespace_id": "4102", "simple": { "limit": 10, "period": 60 } },
+    { "name": "ADMIN_LIMIT", "namespace_id": "4103", "simple": { "limit": 300, "period": 60 } },
+    { "name": "REPORT_LIMIT", "namespace_id": "4104", "simple": { "limit": 20, "period": 60 } }
+  ],
+
+  // Emails to the owner through Email Routing. Uncomment once Email Routing is on
+  // and NOTIFY_TO is a verified destination (README, step 7).
+  // "send_email": [{ "name": "MAIL", "destination_address": "owner@example.com" }],
+
+  "vars": {
+    "NOTIFY_FROM": "noreply@vee.build",
+    "NOTIFY_TO": ""
+  },
+  // Secrets, set with `npx wrangler secret put <NAME>` (never written here):
+  //   TURNSTILE_SECRET_KEY   Turnstile's secret key
+  //   IP_SALT                any long random string
+
+  // 02:00 in India every night: expire quotes, tidy sign-ins, back up to R2.
+  "triggers": { "crons": ["30 20 * * *"] },
+
+  "observability": { "enabled": true }
+}

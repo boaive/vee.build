@@ -66,7 +66,7 @@ distribution partners.
 | 5 | Catalogue | What can I choose? | Architectural index, document flow. Built, hidden since 2026-10-10 ("not currently required") |
 | 6 | Factory tour | Can I see the real process? | A full-screen title ("See how VEE manufactures it."), then a pinned film seen on the diagonal: one shell made in one bay (structural frame – core shell, insulation panels, formwork, concreting, de-shuttering, doors and windows, spray finish), then craned onto the truck by its four hooks |
 | 7 | Photo gallery | Is this real? | Documentary grid, document flow |
-| 8 | Contact | How do I start? | Enquiry form |
+| 8 | Contact | How do I start? | Enquiry form; every enquiry lands in the owner's admin panel at `/admin` (notes U) |
 
 The main page has grown beyond these: `configure` (the configurator),
 `your-house` (the "3D tour"), `delivery`, `installation` ("On site",
@@ -157,7 +157,7 @@ the lights come on last.
 
 ## Not supplied (see notes)
 
-Logo, contact details, form endpoint, real photography, capsule renders
+Logo, contact details, a Cloudflare account and the domain on it (the admin panel and its backend are built, not deployed: `admin/README.md`), real photography, capsule renders
 of VEE.BUILD's own (three reference renders of another maker's capsule
 came on 2026-10-09 and set its form), labour-camp renders, engineering
 drawings for Hook & Cleat and foundations, floor plans for the 500 and 600

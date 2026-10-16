@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, useState, type InputHTMLAttributes, type SubmitEvent } from 'react';
 import { partnerTypes } from '../../data/partnership';
-import { projectCategories, site } from '../../data/site';
-import { onEnquiry } from './prefill';
+import { projectCategories } from '../../data/site';
+import { onEnquiry, type PrefillBuild } from './prefill';
+import { turnstileToken, useTurnstile } from './turnstile';
 
 type Variant = 'contact' | 'partnership';
 type Status = { state: 'idle' | 'sending' | 'sent' | 'error'; message?: string };
@@ -12,7 +13,12 @@ interface Props {
   preset?: string;
 }
 
-const ENDPOINT = (import.meta.env.PUBLIC_ENQUIRY_ENDPOINT as string | undefined)?.trim();
+/**
+ * The site's own API (admin/api, the same Worker that serves the site), which
+ * stores the enquiry for the admin panel and emails the owner. Another
+ * endpoint can be set with PUBLIC_ENQUIRY_ENDPOINT.
+ */
+const ENDPOINT = (import.meta.env.PUBLIC_ENQUIRY_ENDPOINT as string | undefined)?.trim() || '/api/enquiries';
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 const copy = {
@@ -37,18 +43,23 @@ export default function EnquiryForm({ variant = 'contact', preset }: Props) {
   const uid = useId();
   const form = useRef<HTMLFormElement>(null);
   const statusEl = useRef<HTMLParagraphElement>(null);
+  const check = useRef<HTMLDivElement>(null);
   const [choice, setChoice] = useState(preset ?? '');
   const [message, setMessage] = useState('');
+  const [build, setBuild] = useState<PrefillBuild | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<Status>({ state: 'idle' });
+  // Cloudflare Turnstile: shows nothing unless it needs the visitor to tick a box.
+  const turnstile = useTurnstile(check);
 
-  // Prefill from elsewhere on the page (the catalogue's enquire buttons).
+  // Prefill from elsewhere on the page (the catalogue's enquire buttons, the configurator's quote).
   useEffect(() => {
     if (variant !== 'contact') return;
     return onEnquiry((d) => {
       if (d.category) setChoice(d.category);
       const line = d.message;
-      if (line) setMessage((m) => (m.trim() && !m.startsWith('Model ') ? m : line));
+      if (line) setMessage((m) => (m.trim() && !m.startsWith('Model ') && !m.startsWith('My configuration') ? m : line));
+      setBuild(d.build ?? null);
     });
   }, [variant]);
 
@@ -67,8 +78,6 @@ export default function EnquiryForm({ variant = 'contact', preset }: Props) {
     ev.preventDefault();
     if (status.state === 'sending') return;
     const data = new FormData(ev.currentTarget);
-    // Honeypot: real visitors never fill this.
-    if (data.get('company_website')) return;
 
     const found = validate(data);
     setErrors(found);
@@ -79,50 +88,46 @@ export default function EnquiryForm({ variant = 'contact', preset }: Props) {
       return;
     }
 
-    const payload: Record<string, string> = {
+    const payload: Record<string, unknown> = {
       form: variant,
       name: String(data.get('name')).trim(),
       email: String(data.get('email')).trim(),
       [variant === 'contact' ? 'category' : 'partnerType']: choice,
       message: message.trim(),
       page: window.location.href,
+      // The honeypot goes to the server, which keeps nothing a bot sends.
+      company_website: String(data.get('company_website') ?? ''),
     };
     for (const k of ['phone', 'organisation', 'region']) {
       const v = String(data.get(k) ?? '').trim();
       if (v) payload[k] = v;
     }
-
-    if (!ENDPOINT) {
-      if (site.contact.email) {
-        const subject = `${variant === 'contact' ? 'Enquiry' : 'Partnership enquiry'}: ${choice}`;
-        const body = Object.entries(payload)
-          .filter(([k]) => k !== 'form' && k !== 'page')
-          .map(([k, v]) => `${k}: ${v}`)
-          .join('\n');
-        window.location.href = `mailto:${site.contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        setStatus({ state: 'sent', message: 'Your email app has opened with the enquiry ready to send.' });
-      } else {
-        // No destination configured: say so rather than pretend it was sent.
-        setStatus({ state: 'error', message: 'Enquiries cannot be sent from this page yet. Please try again later.' });
-        console.warn('[vee.build] PUBLIC_ENQUIRY_ENDPOINT is not set; enquiry was not sent.', payload);
-      }
-      return;
-    }
+    if (build && variant === 'contact') payload.build = build;
 
     setStatus({ state: 'sending' });
     try {
+      payload.turnstileToken = await turnstileToken(turnstile);
       const res = await fetch(ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error(String(res.status));
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string; fields?: Record<string, string> } | null;
+        const fields = body?.fields ?? {};
+        setErrors(Object.fromEntries(Object.entries(fields).map(([k, v]) => [k === 'category' || k === 'partnerType' ? 'choice' : k, v])));
+        throw new Error(body?.error ?? 'The enquiry could not be sent. Please try again.');
+      }
       setStatus({ state: 'sent', message: `Thank you, ${payload.name}. Your enquiry has been sent.` });
       form.current?.reset();
       setMessage('');
+      setBuild(null);
       setChoice(preset ?? '');
-    } catch {
-      setStatus({ state: 'error', message: 'The enquiry could not be sent. Check your connection and try again.' });
+    } catch (e) {
+      const msg = e instanceof TypeError ? 'The enquiry could not be sent. Check your connection and try again.' : e instanceof Error ? e.message : 'The enquiry could not be sent.';
+      setStatus({ state: 'error', message: msg });
+    } finally {
+      turnstile.current?.reset();
     }
   };
 
@@ -214,6 +219,8 @@ export default function EnquiryForm({ variant = 'contact', preset }: Props) {
           <input type="text" name="company_website" tabIndex={-1} autoComplete="off" />
         </label>
       </div>
+
+      <div className="form__check" ref={check} />
 
       <div className="form__foot">
         <button type="submit" className="btn btn--light form__submit" disabled={status.state === 'sending'}>

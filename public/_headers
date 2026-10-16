@@ -1,0 +1,16 @@
+# Security headers for the static site, applied by Cloudflare to every file it
+# serves from dist/ (the admin panel and the API set their own, stricter ones
+# in admin/api). This file itself is not served. The Content Security Policy is
+# added to the /* block at build time, with the pages' inline script hashes
+# (scripts/csp.mjs): do not write one here.
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Cross-Origin-Opener-Policy: same-origin
+
+# Built files carry a hash in their name and never change.
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable

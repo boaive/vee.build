@@ -20,7 +20,8 @@ import {
   type UnitSpec,
 } from '../../data/build';
 import { CELL, describe, floorName, totals, type Piece } from '../../build/model';
-import { estimate, formatPrice } from '../../build/price';
+import { estimate, formatPrice, quantities } from '../../build/price';
+import { loadRates, ratesVersion, useRates } from '../../build/rates';
 import { build, encode, presetLayout, useBuild } from '../../build/store';
 import { pricingNote } from '../../data/pricing';
 import { COMPACT_QUERY } from '../../film/device';
@@ -79,10 +80,13 @@ export default function Configurator() {
   const state = useBuild((s) => s);
   const { units, addOns } = state;
   const t = useMemo(() => totals(units), [units]);
+  // The published price list from the admin panel, or the site's own until it arrives (build/rates.ts).
+  const rates = useRates();
+  useEffect(loadRates, []);
   // The indicative price of what stands on the plot, counted from the laid-out pieces (build/price.ts).
   const price = useMemo(
-    () => estimate({ units, addOns, deckSide: state.deckSide, manual: state.addOnMode === 'manual' ? state.manual : null, foundation: state.foundation, plot: state.plot }),
-    [units, addOns, state.deckSide, state.addOnMode, state.manual, state.foundation, state.plot],
+    () => estimate({ units, addOns, deckSide: state.deckSide, manual: state.addOnMode === 'manual' ? state.manual : null, foundation: state.foundation, plot: state.plot }, rates),
+    [units, addOns, state.deckSide, state.addOnMode, state.manual, state.foundation, state.plot, rates],
   );
 
   const [tool, setTool] = useState<Tool>('A');
@@ -310,8 +314,11 @@ export default function Configurator() {
     const trim = trimFinishes.find((f) => f.id === s.trim)?.name;
     const foundation = `${FOUNDATION_HEIGHTS[s.foundation.h]} mm above ground, ${foundationTypes.find((f) => f.id === s.foundation.type)?.name.toLowerCase()}`;
     const link = `${window.location.origin}/?build=${encode(s)}#configure`;
+    // The counts go with the enquiry, so the admin panel can price a quote from exactly this build.
+    const counted = quantities({ units: s.units, addOns: s.addOns, deckSide: s.deckSide, manual: s.addOnMode === 'manual' ? s.manual : null, foundation: s.foundation, plot: s.plot });
     requestEnquiry({
       category: 'Modular Home',
+      build: s.units.length ? { link, quantities: counted, total: price.total, pricingVersion: ratesVersion() } : undefined,
       message: s.units.length
         ? `My configuration: ${describe(s.units)}.\nPlot: ${s.plot.x * CELL} m × ${s.plot.z * CELL} m.\nFoundation: ${foundation}.\nAdd-ons: ${names.length ? names.join(', ') : 'none'}.\nFinish (indicative): ${shell} shell, ${deck} deck, ${trim} trim.\nEstimate shown (indicative, excl. GST): ${formatPrice(price.total)}.\n${link}\n\nSite location: `
         : 'I would like to discuss a modular home.\n\nSite location: ',
@@ -467,11 +474,11 @@ export default function Configurator() {
         ? presets.map((p) => {
             const l = presetLayout(p.id, state);
             const units = l?.units ?? [];
-            const e = estimate({ units, addOns: p.addOns, deckSide: p.deckSide, manual: null, foundation: state.foundation, plot: l?.plot ?? state.plot });
+            const e = estimate({ units, addOns: p.addOns, deckSide: p.deckSide, manual: null, foundation: state.foundation, plot: l?.plot ?? state.plot }, rates);
             return { id: p.id, name: p.name, sqft: totals(units).sqft, price: e.total };
           })
         : [],
-    [compact, state],
+    [compact, state, rates],
   );
 
   /**

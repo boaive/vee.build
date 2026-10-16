@@ -1067,6 +1067,13 @@
   height: 1px;
   overflow: hidden;
 }
+/* Turnstile's box: out of the layout (no grid gap) unless it asks the visitor to tick it. */
+.form__check:not(.is-asking) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
 .form__foot {
   display: grid;
   gap: 1rem;

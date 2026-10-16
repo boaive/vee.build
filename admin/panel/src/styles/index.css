@@ -1,0 +1,212 @@
+@import '@fontsource-variable/archivo';
+@import '@fontsource/dm-mono/400.css';
+@import '@fontsource/dm-mono/500.css';
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design tokens. They follow the public site (vee.build, src/styles/tokens.css):
+ * warm concrete paper and charcoal ink, one accent that follows its ground
+ * (vermilion on paper, hi-vis green on ink), used for measurement and
+ * interaction only. The green is flat: no glow, no gradient.
+ *
+ * shadcn's own `accent` names a hover surface, so the brand accent is called
+ * `signal` here (bg-signal, text-signal, ring-signal).
+ */
+:root {
+  --radius: 0.375rem;
+
+  --background: #f2f0eb;
+  --foreground: #111214;
+  --card: #fbfaf7;
+  --card-foreground: #111214;
+  --popover: #fbfaf7;
+  --popover-foreground: #111214;
+  --primary: #111214;
+  --primary-foreground: #f7f5f0;
+  --secondary: #e8e5de;
+  --secondary-foreground: #111214;
+  --muted: #e8e5de;
+  --muted-foreground: #5f6269;
+  --accent: #e8e5de;
+  --accent-foreground: #111214;
+  --destructive: #b8320c;
+  --border: rgb(17 18 20 / 0.12);
+  --border-strong: rgb(17 18 20 / 0.26);
+  --input: rgb(17 18 20 / 0.2);
+  --ring: #b5370f;
+
+  /* Brand accent: text, rules, dots, focus. As a fill it carries white text. */
+  --signal: #d9431b;
+  --signal-text: #b5370f;
+  --signal-foreground: #ffffff;
+
+  /* Status tones. Text on paper, so each is dark enough to read at 4.5:1. */
+  --ok: #2f6b3a;
+  --warn: #8a5a00;
+  --danger: #b8320c;
+  --info: #2d5a86;
+
+  --sidebar: #ebe8e1;
+  --sidebar-foreground: #111214;
+  --sidebar-border: rgb(17 18 20 / 0.12);
+
+  --chart-1: #111214;
+  --chart-2: #d9431b;
+  --chart-3: #6b6e74;
+  --chart-4: #a8a49a;
+  --chart-5: #2d5a86;
+
+  --shadow-sm: 0 1px 2px rgb(17 18 20 / 0.05);
+  --shadow-md: 0 1px 2px rgb(17 18 20 / 0.05), 0 12px 32px -16px rgb(17 18 20 / 0.22);
+}
+
+.dark {
+  --background: #0a0b0d;
+  --foreground: #f2f0eb;
+  --card: #16181b;
+  --card-foreground: #f2f0eb;
+  --popover: #16181b;
+  --popover-foreground: #f2f0eb;
+  --primary: #f2f0eb;
+  --primary-foreground: #0a0b0d;
+  --secondary: #1d2024;
+  --secondary-foreground: #f2f0eb;
+  --muted: #1d2024;
+  --muted-foreground: #9a9da2;
+  --accent: #1d2024;
+  --accent-foreground: #f2f0eb;
+  --destructive: #ff9d7d;
+  --border: rgb(242 240 235 / 0.12);
+  --border-strong: rgb(242 240 235 / 0.28);
+  --input: rgb(242 240 235 / 0.2);
+  --ring: #c8f031;
+
+  --signal: #c8f031;
+  --signal-text: #c8f031;
+  --signal-foreground: #0a0b0d;
+
+  --ok: #8fd19a;
+  --warn: #e6b955;
+  --danger: #ff9d7d;
+  --info: #8db9e6;
+
+  --sidebar: #111316;
+  --sidebar-foreground: #f2f0eb;
+  --sidebar-border: rgb(242 240 235 / 0.12);
+
+  --chart-1: #f2f0eb;
+  --chart-2: #c8f031;
+  --chart-3: #8d9095;
+  --chart-4: #5a5d62;
+  --chart-5: #8db9e6;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 1px 2px rgb(0 0 0 / 0.4), 0 16px 40px -20px rgb(0 0 0 / 0.7);
+}
+
+@theme inline {
+  --font-sans: 'Archivo Variable', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: 'DM Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-signal: var(--signal);
+  --color-signal-text: var(--signal-text);
+  --color-signal-foreground: var(--signal-foreground);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    min-height: 100dvh;
+  }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.012em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--signal);
+    color: var(--signal-foreground);
+  }
+}
+
+@layer components {
+  /* Prices, identifiers, versions, measurements: monospaced and aligned. */
+  .data {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+  }
+  /* The small title over a section: the whole line in the accent of its ground. */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--signal-text);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
