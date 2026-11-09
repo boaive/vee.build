@@ -1,12 +1,13 @@
 import { lazy, useCallback, useEffect, useRef, useState } from 'react';
-import { heroCards, heroSteps, kinds, podLengths } from '../../data/narrative';
+import { heroCards, heroSteps, kinds } from '../../data/narrative';
+import { story } from '../../data/site';
 import Film, { type FilmLabel, type Prelude } from '../../film/Film';
-import { prefetchScenes } from '../../film/prefetch';
 import type { SceneProps } from '../../film/progress';
 import { chooseHero, heroChoice } from '../../film/heroChoice';
 import { isLite } from '../../film/tier';
 import { useCompact } from '../../film/useCompact';
-import { POD_FEET_LABELS } from './labels';
+import { POD_LENGTH_LABELS } from './labels';
+import PodPick from './PodPick';
 
 const Desktop = lazy(() => import('../../three/scenes/HeroScene'));
 const Mobile = lazy(() => import('../../three/scenes/HeroMobileScene'));
@@ -27,22 +28,23 @@ const SOON = 'Coming soon';
 const labels: FilmLabel[] = [
   // On the opening card: each of the three is named where it stands, under the menu's short name for it.
   ...kinds.map((k): FilmLabel => ({ id: `kind-${k.id}`, sub: k.soon ? `${k.code} · ${SOON}` : k.code, text: k.word, kind: 'kind' })),
-  ...POD_FEET_LABELS,
-  { id: 'panel-0', text: '36′ wall panel', kind: 'pulse' },
-  { id: 'panel-1', text: '36′ wall panel', kind: 'pulse' },
+  ...POD_LENGTH_LABELS,
 ];
 
+/* The configurator and "How it works" are on the MOD page since 2026-11-07 (data/site.ts, `story`). */
 const actions = {
   [heroSteps[0].id]: (
     <div className="hero__actions">
-      <a className="btn" href="#configure">
+      <a className="btn" href={`${story}#configure`}>
         Build your own
       </a>
-      <a className="btn btn--ghost btn--down" href="#how-it-works">
+      <a className="btn btn--ghost" href={`${story}#how-it-works`}>
         How it works
       </a>
     </div>
   ),
+  // The capsule's step: one pod, its other two lengths a click away (desktop: in the caption; a phone: at the foot, below).
+  [heroSteps[1].id]: <PodPick />,
 };
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -132,39 +134,6 @@ function KindPick() {
 }
 
 /**
- * The capsule's step on a phone or a tablet held upright: its three lengths
- * to choose from under it (the developer's capsule screen). The one chosen
- * comes up on the floor (HeroMobileScene). Shown only in that step
- * (film.css); nothing of it on desktop.
- */
-function PodPick() {
-  const compact = useCompact();
-  const [feet, setFeet] = useState(heroChoice.feet);
-  if (!compact) return null;
-  return (
-    <div className="hero__pods" role="group" aria-label="Capsule length" data-band="foot">
-      {podLengths.map((f) => (
-        <button
-          key={f}
-          type="button"
-          className="hero__pod"
-          aria-pressed={feet === f}
-          onClick={() => {
-            setFeet(f);
-            chooseHero({ feet: f });
-          }}
-        >
-          <svg viewBox="0 0 44 14" aria-hidden="true">
-            <rect x={(44 - f * 2) / 2 + 0.75} y="0.75" width={f * 2 - 1.5} height="12.5" rx="4" />
-          </svg>
-          {f}′
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/**
  * The opening card: the system in a sentence, over the three kinds of
  * building, one behind another on a polished floor in warm light, seen on
  * the diagonal and fitted to the screen (HeroScene). Each comes up out of
@@ -217,16 +186,16 @@ export default function Hero() {
       theme="light"
       captions="blur"
       steps={heroSteps}
-      length={4.9}
-      lengthCompact={5.1}
+      // Three sets since 2026-11-07, each with the scroll it had among four (film/heroTimeline.ts).
+      length={3.45}
+      lengthCompact={3.6}
       Scene={Scene}
       labels={labels}
       stepExtras={actions}
       prelude={opening}
-      onReady={() => window.setTimeout(prefetchScenes, 1500)}
       eager
     >
-      <PodPick />
+      <PodPick where="foot" />
     </Film>
   );
 }

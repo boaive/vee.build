@@ -97,7 +97,7 @@ describe('quotes', () => {
 });
 
 describe('the website form', () => {
-  const ok = { form: 'contact', name: ' Asha ', email: 'asha@example.in', category: 'Modular Home', message: 'A home near Coimbatore', page: 'https://vee.build/' };
+  const ok = { form: 'contact', name: ' Asha ', email: 'asha@example.in', category: 'Modular Home', message: 'A home near Coimbatore', page: 'https://veedo.space/' };
 
   it('accepts what the site sends, trimmed, with empty optional fields dropped', () => {
     const r = EnquirySubmission.parse({ ...ok, phone: '  ' });
@@ -107,7 +107,7 @@ describe('the website form', () => {
   });
 
   it('accepts a configurator build and refuses a bad one', () => {
-    const build = { link: 'https://vee.build/?build=v2~A0010#configure', quantities: SAMPLE_BUILDS[0]!.quantities, total: 660000, pricingVersion: 1 };
+    const build = { link: 'https://veedo.space/modular/?build=v2~A0010#configure', quantities: SAMPLE_BUILDS[0]!.quantities, total: 660000, pricingVersion: 1 };
     expect(EnquirySubmission.parse({ ...ok, build }).build?.total).toBe(660000);
     expect(EnquirySubmission.safeParse({ ...ok, build: { ...build, link: 'javascript:alert(1)' } }).success).toBe(false);
     expect(EnquirySubmission.safeParse({ ...ok, build: { ...build, quantities: { ...build.quantities, posts: -1 } } }).success).toBe(false);

@@ -32,10 +32,10 @@ export const Settings = z.object({
 export type Settings = z.infer<typeof Settings>;
 
 export const DEFAULT_SETTINGS: Settings = {
-  business: { name: 'VEE.BUILD', address: '', phone: '', email: '', gstin: '' },
+  business: { name: 'veedo.space', address: '', phone: '', email: '', gstin: '' },
   quotes: {
     validityDays: 30,
-    terms: 'Indicative estimate in Indian rupees, ex-works, excluding GST. Delivery within 100 km. Confirm with VEE.BUILD.',
+    terms: 'Indicative estimate in Indian rupees, ex-works, excluding GST. Delivery within 100 km. Please confirm with Vee.',
   },
   notify: { newEnquiry: true, signIn: true },
 };

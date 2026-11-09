@@ -84,6 +84,14 @@
   pointer-events: auto;
 }
 
+/* Controls over the picture from the first screen on, over an opening's words too (Film, `dock`). */
+.film__dock {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
 /* The chapter's line, number and name: a small title (base.css), all of it in the accent. */
 .film__head {
   justify-self: start;
@@ -1174,6 +1182,59 @@ button.film__tag:focus-visible::before {
   align-items: center;
   gap: 0.75rem;
   margin-top: 0.5rem;
+}
+
+/*
+ * The capsule's lengths in its caption (PodPick, desktop): one pod stands,
+ * the other two lengths a click away. Each button carries the pod's plan to
+ * its length; the one standing takes the accent of its ground.
+ */
+.pod-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  pointer-events: auto;
+}
+
+.pod-pick .hero__pod {
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  min-width: 4.9rem;
+  padding: 0.55rem 0.8rem 0.5rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 0.9rem;
+  background: rgb(var(--scrim) / 0.3);
+  color: var(--text-2);
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    color 0.25s var(--ease),
+    border-color 0.25s var(--ease);
+}
+
+.pod-pick .hero__pod svg {
+  width: 2.6rem;
+  height: auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+}
+
+.pod-pick .hero__pod:hover {
+  color: var(--text);
+}
+
+.pod-pick .hero__pod:focus-visible {
+  outline: 2px solid var(--accent-line);
+  outline-offset: 2px;
+}
+
+.pod-pick .hero__pod[aria-pressed='true'] {
+  border-color: var(--accent-line);
+  color: var(--accent);
 }
 
 /* ---------- Footprint counter (how it works) ---------- */
@@ -2268,6 +2329,12 @@ button.film__tag:focus-visible::before {
     visibility: hidden;
   }
 
+  /* The POD page: its lengths stand at the foot the whole film long (PodHero). */
+  .film--hero .hero__pods.pod-pick--always {
+    opacity: 1;
+    visibility: visible;
+  }
+
   .hero__pod {
     display: grid;
     justify-items: center;
@@ -2673,4 +2740,50 @@ button.film__tag:focus-visible::before {
 .film__clips video.is-on,
 .film__clip-still {
   opacity: 1;
+}
+
+/*
+ * The MOD page's opening (ModHero.tsx; developer, 2026-11-07): the hero's
+ * card with the house alone. Its scroll is all the land's: there is no row
+ * of three to leave first (HeroScene, `solo`), so the backdrop and the words
+ * follow the whole of it. No mist (Film, opening `studio`).
+ */
+#modular.has-prelude .film__sticky {
+  --lineup: 0.0001;
+}
+
+#modular .prelude__top {
+  gap: clamp(0.9rem, 2.2svh, 1.5rem);
+}
+
+#modular .prelude__rest {
+  gap: 1.25rem;
+  max-width: min(34rem, 40vw);
+}
+
+/* The card's buttons: the card itself lets the pointer through to the page, they do not. */
+.prelude__actions {
+  pointer-events: auto;
+}
+
+/* Once the card's words have gone (Film: --pre past a fifth), its buttons go out of the way, so they never lie unseen over the film's own. */
+#modular .prelude__actions {
+  translate: 0 calc(clamp(0, (var(--pre, 0) - 0.2) * 1000, 1) * 200vh);
+}
+
+@media (max-width: 860px), (max-width: 1100px) and (orientation: portrait) and (hover: none) and (pointer: coarse) {
+  #modular .film__prelude-cue {
+    display: flex;
+  }
+
+  #modular .prelude__rest {
+    max-width: none;
+    padding-top: 0.9rem;
+    gap: 0.8rem;
+  }
+
+  #modular .prelude__sub {
+    font-size: 1rem;
+  }
+
 }

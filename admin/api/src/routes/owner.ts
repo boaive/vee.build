@@ -76,6 +76,6 @@ owner.get('/export', async (c) => {
     out[t] = results;
   }
   await logActivity(c.env, 'Downloaded all data', null, { ip: clientIp(c), country: clientCountry(c) });
-  c.header('Content-Disposition', `attachment; filename="vee-build-data-${now().slice(0, 10)}.json"`);
+  c.header('Content-Disposition', `attachment; filename="veedo-data-${now().slice(0, 10)}.json"`);
   return c.json({ exportedAt: now(), ...out });
 });

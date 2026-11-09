@@ -1,0 +1,44 @@
+---
+/*
+ * The home page after its banners (developer, 2026-11-07): the three lines,
+ * MOD, POD and FAB, as cards. Each card is one link: the picture with the
+ * menu's code and, where it applies, "Coming soon" on it; the name; one
+ * line; where it leads. The details are on each line's page. Static HTML:
+ * it needs no script.
+ */
+import { lines, linesHead } from '../../data/lines';
+---
+
+<section class="section lines theme-light" id="lines" data-theme="light" aria-labelledby="lines-heading">
+  <div class="wrap">
+    <header class="lines__head">
+      <h2 class="lines__title" id="lines-heading" data-reveal>{linesHead.title}</h2>
+      <p class="t-lead" data-reveal style="--i:1">{linesHead.lead}</p>
+    </header>
+    <ul class="lines__grid">
+      {
+        lines.map((l, i) => (
+          <li data-reveal style={`--i:${i}`}>
+            <a class="lines__card" href={l.href}>
+              <span class="lines__pic">
+                <img src={l.src} alt={l.alt} width="960" height="600" loading="lazy" decoding="async" />
+                <span class="lines__tags">
+                  <span class="lines__code">{l.code}</span>
+                  {l.soon && <span class="lines__soon">Coming soon</span>}
+                </span>
+              </span>
+              <span class="lines__body">
+                <span class="lines__name">{l.name}</span>
+                <span class="lines__text">{l.text}</span>
+              </span>
+              <span class="lines__foot">
+                <span>Explore {l.code}</span>
+                <span class="lines__arrow" aria-hidden="true" />
+              </span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>

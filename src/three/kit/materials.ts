@@ -1,7 +1,8 @@
-import { CanvasTexture, DoubleSide, MeshPhysicalMaterial, MeshStandardMaterial, SRGBColorSpace, Vector2, type Material, type MeshStandardMaterialParameters } from 'three';
+import { CanvasTexture, DoubleSide, MeshPhysicalMaterial, MeshStandardMaterial, SRGBColorSpace, Vector2, Vector3, Vector4, type Material, type MeshStandardMaterialParameters } from 'three';
 import { deckFinishes, roofing, shellFinishes, trimFinishes } from '../../data/build';
 import { asphaltSet, concreteSet, gravelSet, renderSet, ribSet, soilSet, tile, timberSet } from './pbr';
 import { fileTexture } from './textures';
+import { POD_PIECES } from './podPlan';
 
 const std = (color: string, roughness = 0.9, metalness = 0, extra: MeshStandardMaterialParameters = {}) =>
   new MeshStandardMaterial({ color, roughness, metalness, ...extra });
@@ -33,11 +34,20 @@ const ROOM_PARS_VERTEX = /* glsl */ `
 #ifdef VEE_ROOM
 attribute vec3 roomLo;
 attribute vec3 roomHi;
+attribute float roomKind;
 varying vec3 vRoomPos;
 varying vec3 vRoomEye;
 flat varying vec3 vRoomLo;
 flat varying vec3 vRoomHi;
 flat varying float vRoomSeed;
+flat varying float vRoomKind;
+#ifdef VEE_PLAN
+uniform float uPodLength;
+uniform vec3 uBedLo;
+uniform vec3 uBedHi;
+uniform vec3 uLiveLo;
+uniform vec3 uLiveHi;
+#endif
 #endif
 `;
 
@@ -51,7 +61,40 @@ const ROOM_VERTEX = /* glsl */ `
   vRoomEye = ( inverse( roomModel ) * vec4( cameraPosition, 1.0 ) ).xyz;
   vRoomLo = roomLo;
   vRoomHi = roomHi;
-  vRoomSeed = fract( sin( dot( roomModel[ 3 ].xyz, vec3( 12.9898, 78.233, 37.719 ) ) ) * 43758.5453 );
+  vRoomKind = roomKind;
+  // The number that picks a room's furniture, colours and lamp: from where it stands, or, for a room of the plan
+  // (a kind given: the pod), from the room itself and its bay, which do not move with the building. From where it
+  // stood, the pod's rooms changed and their lamps blinked whenever it moved: rising, sinking, growing (2026-11-09).
+  vec3 seedAt = roomModel[ 3 ].xyz;
+  if ( roomKind > -0.5 ) {
+    seedAt = roomLo * 1.7 + roomHi * 0.61 + vec3( roomKind * 3.1 );
+    #ifdef USE_INSTANCING
+      seedAt.x += instanceMatrix[ 3 ].x;
+    #endif
+  }
+  vRoomSeed = fract( sin( dot( seedAt, vec3( 12.9898, 78.233, 37.719 ) ) ) * 43758.5453 );
+  #ifdef VEE_PLAN
+    // The pod (kit/pod.tsx): one interior after its plan, in the pod's own space (x from its head end), whatever
+    // part the glass is in: the head end is there already; a middle bay is placed in it by its instance; the far
+    // end stands at the pod's length, mirrored. So every window looks into the same room (2026-11-09).
+    if ( roomHi.x > roomLo.x + 0.05 ) {
+      vec3 planP = transformed;
+      vec3 planE = vRoomEye;
+      #ifdef USE_INSTANCING
+        planP = ( instanceMatrix * vec4( planP, 1.0 ) ).xyz;
+        planE = ( instanceMatrix * vec4( planE, 1.0 ) ).xyz;
+      #else
+        if ( roomKind < 0.5 ) {
+          planP.x = uPodLength - planP.x;
+          planE.x = uPodLength - planE.x;
+        }
+      #endif
+      vRoomPos = planP;
+      vRoomEye = planE;
+      vRoomLo = roomKind > 0.5 ? uBedLo : uLiveLo;
+      vRoomHi = roomKind > 0.5 ? uBedHi : uLiveHi;
+    }
+  #endif
 #endif
 `;
 
@@ -60,8 +103,10 @@ const ROOM_VERTEX = /* glsl */ `
  * the glass. The ray from the eye through this point of the pane is followed
  * to whatever it meets first: a wall, the floor, the ceiling, or one of a few
  * pieces of furniture standing against the wall opposite the window. Each
- * room is a living room or a bedroom, its colours picked by a number of its
- * own (from where it stands), and lit by a light under the ceiling and a
+ * room is a living room or a bedroom: the plan's, where the geometry says
+ * which (`roomKind`: 0 living, 1 bedroom; the pod, after its floor plan),
+ * or else picked by a number of its own (from where it stands), which also
+ * picks its colours; and lit by a light under the ceiling and a
  * lamp. What comes back is the room's light, which the glazing's own glow
  * colour and brightness scale (so it is dark until the building is lit).
  */
@@ -72,6 +117,7 @@ varying vec3 vRoomEye;
 flat varying vec3 vRoomLo;
 flat varying vec3 vRoomHi;
 flat varying float vRoomSeed;
+flat varying float vRoomKind;
 
 void roomHit( vec3 ro, vec3 inv, vec3 bmin, vec3 bmax, float id, inout float t, inout vec3 n, inout float hid ) {
   vec3 t0 = ( bmin - ro ) * inv;
@@ -96,7 +142,7 @@ void roomPiece( vec3 ro, vec3 inv, bool alongX, float into, float back, float mi
   roomHit( ro, inv, bmin, bmax, id, t, n, hid );
 }
 
-vec3 roomLight( vec3 p, vec3 rd, vec3 lo, vec3 hi, float seed ) {
+vec3 roomLight( vec3 p, vec3 rd, vec3 lo, vec3 hi, float seed, float kind ) {
   rd += vec3( 1e-5 ) * ( 1.0 - step( 1e-5, abs( rd ) ) );
   vec3 inv = 1.0 / rd;
   vec3 t0 = ( lo - p ) * inv;
@@ -120,7 +166,7 @@ vec3 roomLight( vec3 p, vec3 rd, vec3 lo, vec3 hi, float seed ) {
   float s3 = fract( seed * 13.71 );
   float mid = 0.5 * ( a0 + a1 ) + ( s2 - 0.5 ) * max( 0.0, width - 3.0 ) * 0.8;
   float f = lo.y;
-  bool bed = seed > 0.62;
+  bool bed = kind > -0.5 ? kind > 0.5 : seed > 0.62;
   float side = s3 > 0.5 ? 1.0 : -1.0;
   // The lamp: beside the bed, or a floor lamp at the end of the sofa.
   float lampAt = bed ? 1.05 : 1.42;
@@ -188,13 +234,79 @@ vec3 roomLight( vec3 p, vec3 rd, vec3 lo, vec3 hi, float seed ) {
   // The lamp's shade glows by itself.
   return hid > 3.5 && hid < 4.5 ? c : c * e;
 }
+
+#ifdef VEE_PLAN
+#define PLAN_PIECES ${POD_PIECES}
+// The plan's pieces of furniture, both rooms': xyz of a box's corners; w, its room (lo) and its finish (hi, 0 unused).
+uniform vec4 uPieceLo[ PLAN_PIECES ];
+uniform vec4 uPieceHi[ PLAN_PIECES ];
+uniform vec3 uBedLamp;
+uniform vec3 uLiveLamp;
+
+vec3 planFinish( float id ) {
+  if ( id < 1.5 ) return vec3( 0.46, 0.31, 0.19 );
+  if ( id < 2.5 ) return vec3( 0.9, 0.89, 0.85 );
+  if ( id < 3.5 ) return vec3( 0.74, 0.7, 0.62 );
+  if ( id < 4.5 ) return vec3( 0.52, 0.38, 0.28 );
+  if ( id < 5.5 ) return vec3( 0.86, 0.84, 0.8 );
+  if ( id < 6.5 ) return vec3( 0.22, 0.15, 0.1 );
+  if ( id < 7.5 ) return vec3( 0.8, 0.79, 0.76 );
+  if ( id < 8.5 ) return vec3( 2.6, 2.2, 1.6 );
+  if ( id < 9.5 ) return vec3( 0.04 );
+  return vec3( 0.45, 0.34, 0.24 );
+}
+
+// The pod's room after its plan: its walls, floor and ceiling, its furniture where the plan puts it, lit by a light
+// under the middle of the ceiling and its lamp. No number of its own: the same room through every window.
+vec3 roomPlan( vec3 p, vec3 rd, vec3 lo, vec3 hi, float kind ) {
+  rd += vec3( 1e-5 ) * ( 1.0 - step( 1e-5, abs( rd ) ) );
+  vec3 inv = 1.0 / rd;
+  vec3 t0 = ( lo - p ) * inv;
+  vec3 t1 = ( hi - p ) * inv;
+  vec3 tf = max( t0, t1 );
+  float t = min( min( tf.x, tf.y ), tf.z );
+  vec3 n = - sign( rd ) * step( tf, tf.yzx ) * step( tf, tf.zxy );
+  float hid = 0.0;
+  for ( int k = 0; k < PLAN_PIECES; k ++ ) {
+    vec4 a = uPieceLo[ k ];
+    vec4 b = uPieceHi[ k ];
+    if ( b.w < 0.5 || abs( a.w - kind ) > 0.5 ) continue;
+    roomHit( p, inv, a.xyz, b.xyz, b.w, t, n, hid );
+  }
+  vec3 h = p + rd * t;
+  vec3 c;
+  if ( hid < 0.5 ) {
+    if ( n.y > 0.5 ) {
+      // Floor boards along the pod.
+      float board = fract( h.z / 0.19 );
+      c = mix( vec3( 0.42, 0.29, 0.18 ), vec3( 0.5, 0.36, 0.23 ), fract( floor( h.z / 0.19 ) * 0.618 ) ) * ( 0.82 + 0.18 * smoothstep( 0.0, 0.06, min( board, 1.0 - board ) ) );
+    } else if ( n.y < -0.5 ) c = vec3( 0.86, 0.83, 0.78 );
+    else c = vec3( 0.78, 0.74, 0.67 );
+    vec3 q = min( h - lo, hi - h );
+    vec3 m = mix( q, vec3( 9.0 ), abs( n ) );
+    c *= mix( 0.55, 1.0, smoothstep( 0.0, 0.5, min( min( m.x, m.y ), m.z ) ) );
+  } else c = planFinish( hid );
+  vec3 lamp = kind > 0.5 ? uBedLamp : uLiveLamp;
+  vec3 top = vec3( 0.5 * ( lo.x + hi.x ), hi.y - 0.25, 0.5 * ( lo.z + hi.z ) );
+  vec3 l1 = top - h;
+  float d1 = length( l1 );
+  vec3 l2 = lamp - h;
+  float d2 = length( l2 );
+  float e = 0.2 + 1.2 * max( dot( n, l1 / d1 ), 0.0 ) / ( 1.0 + 0.32 * d1 * d1 ) + 1.1 * max( dot( n, l2 / d2 ), 0.0 ) / ( 1.0 + 2.2 * d2 * d2 );
+  return hid > 7.5 && hid < 8.5 ? c : c * e;
+}
+#endif
 #endif
 `;
 
 const ROOM_FRAGMENT = /* glsl */ `
 #include <emissivemap_fragment>
 #ifdef VEE_ROOM
-  if ( vRoomHi.x > vRoomLo.x + 0.05 ) totalEmissiveRadiance = emissive * roomLight( vRoomPos, normalize( vRoomPos - vRoomEye ), vRoomLo, vRoomHi, vRoomSeed );
+  #ifdef VEE_PLAN
+    if ( vRoomHi.x > vRoomLo.x + 0.05 ) totalEmissiveRadiance = emissive * roomPlan( vRoomPos, normalize( vRoomPos - vRoomEye ), vRoomLo, vRoomHi, vRoomKind );
+  #else
+    if ( vRoomHi.x > vRoomLo.x + 0.05 ) totalEmissiveRadiance = emissive * roomLight( vRoomPos, normalize( vRoomPos - vRoomEye ), vRoomLo, vRoomHi, vRoomSeed, vRoomKind );
+  #endif
 #endif
 `;
 
@@ -204,14 +316,18 @@ const ROOM_FRAGMENT = /* glsl */ `
  * (geometry.ts, withRoom), its lit windows show a room in it instead of a
  * flat glow, at the cost of a few box tests for each pixel of glass. Where
  * it does not, the glow is as it was. The material is changed in place;
- * a copy of it (litGlass, instanced) is given the same again.
+ * a copy of it (litGlass, instanced) is given the same again. `plan`: the
+ * pod's (roomPlanUniforms): its one interior after its floor plan, the same
+ * through every window, in place of a room a window.
  */
-export function interiorGlass<M extends Material>(m: M): M {
+export function interiorGlass<M extends Material>(m: M, plan?: RoomPlan): M {
   const d = m as unknown as { defines?: Record<string, string>; defaultAttributeValues?: Record<string, number[]> };
-  d.defines = { ...(d.defines ?? {}), VEE_ROOM: '' };
-  d.defaultAttributeValues = { roomLo: [0, 0, 0], roomHi: [0, 0, 0] };
+  d.defines = { ...(d.defines ?? {}), VEE_ROOM: '', ...(plan ? { VEE_PLAN: '' } : {}) };
+  d.defaultAttributeValues = { roomLo: [0, 0, 0], roomHi: [0, 0, 0], roomKind: [-1] };
   m.userData.interior = true;
+  if (plan) planOf.set(m, plan);
   m.onBeforeCompile = (shader) => {
+    if (plan) Object.assign(shader.uniforms, plan);
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>\n${ROOM_PARS_VERTEX}`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>\n${ROOM_VERTEX}`);
@@ -219,8 +335,36 @@ export function interiorGlass<M extends Material>(m: M): M {
       .replace('#include <common>', `#include <common>\n${ROOM_PARS_FRAGMENT}`)
       .replace('#include <emissivemap_fragment>', ROOM_FRAGMENT);
   };
-  m.customProgramCacheKey = () => 'vee-room-v1';
+  m.customProgramCacheKey = () => (plan ? 'vee-room-plan-v1' : 'vee-room-v3');
   return m;
+}
+
+/** The pod's interior as the room shader reads it (kit/pod.tsx writes it, podPlan.ts lays it out). */
+export interface RoomPlan {
+  uPodLength: { value: number };
+  uBedLo: { value: Vector3 };
+  uBedHi: { value: Vector3 };
+  uLiveLo: { value: Vector3 };
+  uLiveHi: { value: Vector3 };
+  uPieceLo: { value: Vector4[] };
+  uPieceHi: { value: Vector4[] };
+  uBedLamp: { value: Vector3 };
+  uLiveLamp: { value: Vector3 };
+}
+const planOf = new WeakMap<Material, RoomPlan>();
+export function roomPlanUniforms(): RoomPlan {
+  const v4 = () => Array.from({ length: POD_PIECES }, () => new Vector4());
+  return {
+    uPodLength: { value: 10 },
+    uBedLo: { value: new Vector3() },
+    uBedHi: { value: new Vector3() },
+    uLiveLo: { value: new Vector3() },
+    uLiveHi: { value: new Vector3() },
+    uPieceLo: { value: v4() },
+    uPieceHi: { value: v4() },
+    uBedLamp: { value: new Vector3() },
+    uLiveLamp: { value: new Vector3() },
+  };
 }
 
 /** Made on first use and kept. */
@@ -490,7 +634,7 @@ export function instanced(m: Material | Material[]): Material | Material[] {
   if (!copy) {
     copy = m.clone();
     // A clone keeps the material's settings but not what it does to its shader.
-    if (m.userData.interior) interiorGlass(copy);
+    if (m.userData.interior) interiorGlass(copy, planOf.get(m));
     instancedOf.set(m, copy);
   }
   return copy;
@@ -527,6 +671,28 @@ export function deckMat(hex: string) {
 export function trimMat(hex: string, fine = false) {
   if (fine) return cached(`fine-trim-${hex}`, fineCoat(hex, 0.5));
   return cached(`trim-${hex}`, () => std(hex, 0.5, 0.35));
+}
+
+/**
+ * Precast concrete in a colour of its own, on the kit's precast surface
+ * (UVs in metres): the prefab building's panels and its frame
+ * (kit/prefab.tsx). `fine`: its refined finish.
+ */
+export function precastMat(hex: string, fine = false) {
+  if (fine) return cached(`fine-precast-${hex}`, finePrecast(hex));
+  return cached(`precast-${hex}`, () => {
+    const c = concreteSet();
+    return std(hex, 0.86, 0, { map: tile(c.map, 1.4), normalMap: tile(c.normalMap, 1.4), roughnessMap: tile(c.roughnessMap, 1.4), normalScale: new Vector2(0.8, 0.8) });
+  });
+}
+
+/** Glazing by day with a tint of its own: the kit's glass, catching the sky. */
+export function tintedGlass(hex: string) {
+  return cached(`glass-${hex}`, () => {
+    const g = mat.glass.clone();
+    g.color.set(hex);
+    return g;
+  });
 }
 
 /**
@@ -573,8 +739,8 @@ const moduleSets = new Map<string, Material[]>();
  * glazing went, and its copy for instanced meshes follows it. `fine`: its
  * refined finish, for a refined scene (kit/refined.ts).
  */
-export function litGlass(fine = false) {
-  const material = interiorGlass(mat.glassLit.clone());
+export function litGlass(fine = false, plan?: RoomPlan) {
+  const material = interiorGlass(mat.glassLit.clone(), plan);
   // Refined: a pane is polished, and gives back the sky it faces over the room behind it, most at a glancing angle.
   if (fine) {
     material.roughness = 0.03;

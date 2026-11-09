@@ -86,17 +86,20 @@ try {
       { name: 'any-hover', value: 'none' },
     ],
   });
-  const loaded = new Promise((r) => waiting.set('Page.loadEventFired', r));
-  await send('Page.navigate', { url: `${base}/?still&noboot` });
-  await loaded;
-  await sleep(9000);
-  await evaluate(`(function () {
-    var s = document.createElement('style');
-    s.textContent = '.film__labels, .film__labels .lbl, .film__pick, .prelude__pick, .film__hud, .film__prelude, .hdr { visibility: hidden !important; }';
-    document.head.appendChild(s);
-    document.documentElement.style.scrollBehavior = 'auto';
-    return 1;
-  })()`);
+  /** A page, settled (?still), with everything but the picture hidden. The hero is on the home page; the factory and On site on the MOD page (since 2026-11-07). */
+  const open = async (page) => {
+    const loaded = new Promise((r) => waiting.set('Page.loadEventFired', r));
+    await send('Page.navigate', { url: `${base}${page}?still&noboot` });
+    await loaded;
+    await sleep(9000);
+    await evaluate(`(function () {
+      var s = document.createElement('style');
+      s.textContent = '.film__labels, .film__labels .lbl, .film__pick, .prelude__pick, .film__hud, .film__prelude, .hdr { visibility: hidden !important; }';
+      document.head.appendChild(s);
+      document.documentElement.style.scrollBehavior = 'auto';
+      return 1;
+    })()`);
+  };
   fs.mkdirSync(out, { recursive: true });
 
   /** Each card of a film: chosen (by `choose`), settled, its band captured. `pre`: where in the film to stand (its title card's share, or past it). */
@@ -139,7 +142,9 @@ try {
   };
 
   // The hero's three, on its opening card (its band: the steps' own; the kinds stand in the card's room above it).
+  if (!only || only === 'overview') await open('/');
   if (!only || only === 'overview') await film('overview', ['kind-mod', 'kind-pod', 'kind-fab'], (i) => `document.querySelectorAll('.prelude__pick .film__card')[${i}] ? (document.querySelectorAll('.prelude__pick .film__card')[${i}].click(), 1) : 0`, 0);
+  if (!only || only !== 'overview') await open('/modular/');
   if (!only || only === 'factory') await film('factory', ['factory-frame', 'factory-panels', 'factory-formwork', 'factory-concreting', 'factory-deshutter', 'factory-joinery', 'factory-spray', 'factory-dispatch'], (i) => `document.querySelectorAll('#factory .film__card')[${i}].click()`, 1);
   if (!only || only === 'installation') await film('installation', ['site-prep', 'site-arrive', 'site-place', 'site-assemble', 'site-home'], (i) => `document.querySelectorAll('#installation .film__card')[${i}].click()`, 1);
 } finally {

@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box3, MeshBasicMaterial, ShadowMaterial, Vector3, Vector4, type Group, type Mesh, type PerspectiveCamera } from 'three';
-import { HERO_CUTS } from '../../film/heroTimeline';
+import { HERO_CUTS, HERO_STRETCH } from '../../film/heroTimeline';
 import type { SceneProps } from '../../film/progress';
 import { clamp01, ease, lerp } from '../../film/timeline';
 import Stage, { aim, useLabel, type Rig } from '../Stage';
@@ -11,7 +11,9 @@ import { PLAZA_Y, PlazaFloor, plazaMaterial } from '../kit/plaza';
 import { Refined } from '../kit/refined';
 import { FARM_YAW, ROW_BAYS } from '../kit/row';
 import { fitRow, type Band, type RowFit } from '../kit/rowfit';
-import { CampusSet, FarmSet, Lineup, PodSet, SETS, WorkSet, type SetName } from '../kit/sets';
+import { CampusSet, FarmSet, HouseAlone, Lineup, PodLand, PodSet, SETS, type SetName } from '../kit/sets';
+import { Pod, type PodTrack } from '../kit/pod';
+import { POD_DEFAULT, podReach } from '../kit/podPlan';
 
 /**
  * Hero: the kinds of building VEE.BUILD makes, each shot alone against a
@@ -52,18 +54,15 @@ import { CampusSet, FarmSet, Lineup, PodSet, SETS, WorkSet, type SetName } from 
  * over it.
  */
 
-const ORDER: SetName[] = ['farm', 'pods', 'work', 'campus'];
+/** The sets, in order. The workforce set ('work') stood third until 2026-11-07, when its banner was deleted. */
+const ORDER: SetName[] = ['farm', 'pods', 'campus'];
 /** Progress at which one set gives way to the next: the captions change on the same numbers (film/heroTimeline.ts). */
 const CUTS = HERO_CUTS;
-const RANGE: [number, number][] = [
-  [0, CUTS[0]],
-  [CUTS[0], CUTS[1]],
-  [CUTS[1], CUTS[2]],
-  [CUTS[2], 1],
-];
-/** How much of its stretch each set's building takes to go up. */
-const BUILD = [0.45, 0.45, 0.45, 0.6];
-const VEIL = 0.03;
+const RANGE: [number, number][] = ORDER.map((_, k) => [k === 0 ? 0 : CUTS[k - 1], k < CUTS.length ? CUTS[k] : 1]);
+/** How much of its stretch each set's building takes to go up. The prefab building's is a short illustration, a few turns of the wheel (2026-11-07). */
+const BUILD = [0.45, 0.45, 0.45];
+/** The dissolve over a cut, in progress: the same length on the page as with four sets. */
+const VEIL = 0.03 * HERO_STRETCH;
 /**
  * The opening, in seconds: when each of the three comes up out of the floor,
  * whole, in the menu's order (MOD, POD, FAB). Each one's lights come on once
@@ -76,13 +75,13 @@ const INTRO = { total: 5, house: [0, 1.6], capsule: [1, 2.6], prefab: [2, 3.7], 
  * be measured: the house with its roof and panels, the capsule on its legs,
  * the block of two floors with its gallery rail.
  */
-const UNDER = [4.6, 3.6, 7.4] as const;
-/** The block's own ground line is its set's gravel pad: on the card it stands on the bare floor, this much lower. */
-const BLOCK_Y = -0.06;
+const UNDER = [4.6, 3.6, 11] as const;
+/** The prefab building stands on its own ground line: on the card, the bare floor. */
+const BLOCK_Y = 0;
 /** The first house waits this long at most for the other sets to be warmed. */
 const INTRO_WAIT = 4000;
 /** How far before a cut the next set must exist, in progress (about a third of a screen). */
-const AHEAD = 0.07;
+const AHEAD = 0.07 * HERO_STRETCH;
 const COMPOSED = 1.55;
 const PULL = 0.5;
 /**
@@ -101,6 +100,15 @@ const reach = (t: number) => 2.5 * (Math.exp(5.2 * t) - 1);
 /** While it is alone the house stands this much nearer, and this many metres higher in the frame, clear of the mist at its feet. */
 const NEAR = 0.9;
 const LIFT = 0.62;
+/** The MOD page's house alone on an upright screen comes this much nearer again (`solo`). */
+const SOLO_NEAR = 0.68;
+/**
+ * The POD page's pod on an upright screen: on the floor it comes nearer by
+ * less than the house (it is long, and is framed by its length), and in its
+ * land it stands nearer than the set's own pose, which is the desktop's.
+ */
+const POD_NEAR = 0.89;
+const POD_STAND = 0.86;
 /** How dark the shadows lie on the floor: the card's. */
 const FLOOR_SHADOW = LOOKS.card.shadow.opacity;
 /** How strongly the floor mirrors what stands on it (kit/mirror.tsx), at a grazing angle. */
@@ -286,7 +294,40 @@ interface RowView {
   ends: [number, number];
 }
 
-function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Rig }) {
+/**
+ * `solo`: the MOD page's opening (developer, 2026-11-07: "we start with
+ * simply the modular home, then scrolling that it will get you the
+ * background"). The house alone on the card's polished floor, coming up out
+ * of it on load; the card's scroll is then all the second part, the land
+ * spreading from under the house and the sky coming up. No row of three, no
+ * later sets. `bare` (a budget device, film/tier.ts): the same without the
+ * land, which is the heaviest thing the hero draws; the sky still comes.
+ */
+interface Solo {
+  solo?: boolean;
+  bare?: boolean;
+  /**
+   * What stands alone: the modular house (the MOD page) or the capsule home
+   * (the POD page, developer, 2026-11-09: "mimic the mod page, start with the
+   * pod in plain background ... after that ... the animated background"). The
+   * pod stands where the house does, in the hero's second banner's land and
+   * light (blue hour, sets.tsx PodLand), and follows the visitor's choice of
+   * length (film/podChoice.ts).
+   */
+  subject?: 'house' | 'pod';
+}
+
+function Hero({ progress, place, reduced, compact, rig, solo = false, bare = false, subject = 'house' }: SceneProps & Solo & { rig: Rig }) {
+  /** The pod alone (the POD page): its set and its light in place of the farm's. */
+  const pod = solo && subject === 'pod';
+  const soloSet = pod ? SETS.pods : SETS.farm;
+  const soloLook = pod ? LOOKS.blueHour : LOOKS.sunset;
+  /** The pod's length as drawn (the POD page's, or the second banner's): the camera stands back for the 12 m (podReach). */
+  const podTrack = useMemo<PodTrack>(() => ({ length: POD_DEFAULT, settled: POD_DEFAULT }), []);
+  /** The set at a progress: always the first when the house is alone. */
+  const setOf = (p: number) => (solo ? 0 : setAt(p));
+  /** The sets this scene has. */
+  const sets = solo ? 1 : ORDER.length;
   const intro = useMemo(() => ({ t: reduced ? 1 : 0 }), [reduced]);
   const label = useLabel(place);
   const camera = useThree((s) => s.camera);
@@ -431,6 +472,25 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
     }
     return rowView.current;
   };
+  /**
+   * The house alone (`solo`): its floor ends well round it, as the card's does round the three, and the shade's
+   * glow stands where the floor would meet the sky from the camera by the house. Once a size.
+   */
+  const soloKey = useRef('');
+  const placeSolo = () => {
+    const key = `${size.width}x${size.height}`;
+    if (soloKey.current === key) return;
+    soloKey.current = key;
+    plaza.fade.set(0, 0, 48, 178);
+    plaza.near.set(0, 1, 1e5, 1e5 + 1);
+    const backdrop = gl.domElement.closest('.film__sticky')?.querySelector<HTMLElement>('.film__backdrop--studio');
+    if (backdrop) {
+      const farm = soloSet;
+      const at = farm.from.look.map((q, k) => q - (k === 1 ? LIFT : 0));
+      backdrop.style.setProperty('--floor', horizon(farm.from.pos.map((q, k) => at[k] + (q - at[k]) * NEAR), at).toFixed(2));
+      backdrop.style.setProperty('--floor-drop', '0svh');
+    }
+  };
   /** The look last set for the first set's stretch: how far the card's light has gone over to the sunset. */
   const lit = useRef(-1);
 
@@ -454,12 +514,12 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
    * Read from the scroll itself wherever it is needed, not kept from one frame to the next: the parts of the
    * scene draw in an order of their own, and one frame may be all a jump of the page gets.
    */
-  const lead = () => (setAt(progress.value) === 0 ? clamp01(progress.pre / LINEUP) : 1);
+  const lead = () => (solo ? 1 : setOf(progress.value) === 0 ? clamp01(progress.pre / LINEUP) : 1);
 
   useFrame((_, dt) => {
     if (!go.current && !booting.current) {
       started.current ||= performance.now();
-      go.current = warmed.current >= ORDER.length || progress.pre > 0.02 || progress.value > 0 || performance.now() - started.current > INTRO_WAIT;
+      go.current = warmed.current >= sets || progress.pre > 0.02 || progress.value > 0 || performance.now() - started.current > INTRO_WAIT;
     }
     if (intro.t < 1 && go.current) {
       intro.t = Math.min(1, intro.t + Math.min(dt, 0.05) / INTRO.total);
@@ -468,24 +528,26 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
     // Dev only: `window.__veeIntro = <seconds>` holds the opening at that moment, for captures (its clock runs slow under them).
     const hold = import.meta.env.DEV ? (window as unknown as { __veeIntro?: number }).__veeIntro : undefined;
     if (hold !== undefined) intro.t = clamp01(hold / INTRO.total);
+    // The house alone: its floor and the shade's glow, before the camera is aimed for the frame (`horizon` aims it).
+    if (solo) placeSolo();
     const p = progress.value;
-    const i = setAt(p);
+    const i = setOf(p);
     groups.current.forEach((g, k) => g && (g.visible = k === i));
     // The opening card, in its two parts. Only the first set has one.
     const pre = i === 0 ? progress.pre : 1;
     const led = lead();
-    const open = clamp01((pre - LINEUP) / (1 - LINEUP));
+    const open = solo ? pre : clamp01((pre - LINEUP) / (1 - LINEUP));
     if (i === 0) {
       // The card has a light of its own; as the land comes in it becomes the farm's sunset.
       const m = ease.inOut(span(open, LIGHT_IN));
-      if (m !== lit.current || current.current !== 0) rig.mixLook(LOOKS.card, LOOKS.sunset, m);
+      if (m !== lit.current || current.current !== 0) rig.mixLook(LOOKS.card, soloLook, m);
       lit.current = m;
     } else if (i !== current.current) rig.setLook(LOOKS[SETS[ORDER[i]].look]);
     current.current = i;
-    const s = SETS[ORDER[i]];
+    const s = pod ? SETS.pods : SETS[ORDER[i]];
     const u = ease.inOut(localU(p, i));
     // How far the land has spread (1: all of it) and how much sky there is.
-    const t = span(open, LAND_IN);
+    const t = bare ? 0 : span(open, LAND_IN);
     if (t < 1) {
       const r = reach(t);
       rig.clear[2] = r;
@@ -497,7 +559,7 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
     if (others.current) others.current.visible = led < 1;
     // The floor's shadows go just before the ground comes: the land's trees and shrubs cast theirs as soon as it is there,
     // before the clearing has reached them, and on a bare floor those lay about the house as marks with nothing to cast them.
-    floorMat.opacity = FLOOR_SHADOW * (1 - clamp01(open / LAND_IN[0]));
+    floorMat.opacity = bare ? FLOOR_SHADOW : FLOOR_SHADOW * (1 - clamp01(open / LAND_IN[0]));
     // The floor's reflection goes with its shadows, and is not there once the other sets are.
     gloss.current = i === 0 ? GLOSS * (1 - clamp01((t - 0.02) / 0.1)) : 0;
     if (floor.current) floor.current.visible = floorMat.opacity > 0.003;
@@ -509,7 +571,9 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
     // and the grass and shrubs the clearing has not reached darkened the floor where they stand, as stains.
     if (land.current) land.current.userData.unoccluded = paved > 0.003;
     const alone = 1 - ease.inOut(open);
-    const near = lerp(1, NEAR, alone);
+    // The house alone on a phone (`solo`): nearer, since an upright screen stands every pose well back (`aim`).
+    const close = solo && compact ? (pod ? POD_NEAR : SOLO_NEAR) : 1;
+    const near = lerp(pod && compact ? POD_STAND : 1, NEAR * close, alone) * (pod || ORDER[i] === 'pods' ? podReach(podTrack.length) : 1);
     const inRow = 1 - ease.inOut(led);
     const view = inRow > 0 ? viewOfRow() : null;
     // On a narrow screen the floor's near edge is for the card's words: as the camera leaves the three it moves off, well before it could be seen.
@@ -547,8 +611,8 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
       label('kind-fab', ...tags[2], named * clamp01((a - INTRO.prefab[1] + 0.5) * 2.5));
     }
     // A visitor who scrolls straight through: have the next set ready before its cut.
-    const next = setAt(Math.min(1, p + AHEAD)) + 1;
-    if (next > built) setBuilt(Math.min(ORDER.length, next));
+    const next = setOf(Math.min(1, p + AHEAD)) + 1;
+    if (next > built) setBuilt(Math.min(sets, next));
   });
 
   /*
@@ -572,6 +636,8 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
         // The first set's own land, not drawn while the house stands alone: shown off screen so it is on the GPU
         // before the scroll asks for it. Twice, for its two programs: inside a clearing, and with none.
         const pass = landWarm.current++;
+        // The pod's land is lit at blue hour: its light is made ready with its land.
+        if (pod && pass === 0) rig.prepare(LOOKS.blueHour);
         rig.warm(() => {
           const g = land.current;
           const was = g?.visible ?? false;
@@ -607,7 +673,7 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
         cancel = idle(step);
         return;
       }
-      if (built < ORDER.length) setBuilt(built + 1);
+      if (built < sets) setBuilt(built + 1);
       // Everything is warm: a frame, so that the assembly starts.
       else invalidate();
     };
@@ -623,13 +689,13 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
 
   /** Building k assembles as its set arrives. */
   const arrive = (k: number) => () => {
-    const i = setAt(progress.value);
+    const i = setOf(progress.value);
     if (i > k) return 1;
     return i === k ? clamp01((localU(progress.value, k) - 0.04) / BUILD[k]) : 0;
   };
-  const showIf = (k: number) => () => (setAt(progress.value) === k ? 1 : 0);
+  const showIf = (k: number) => () => (setOf(progress.value) === k ? 1 : 0);
   const veil = () => {
-    if (reduced) return 0;
+    if (reduced || solo) return 0;
     const p = progress.value;
     let o = 0;
     for (const c of CUTS) o = Math.max(o, 1 - Math.abs(p - c) / VEIL);
@@ -648,8 +714,8 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
       firstLit: lit(INTRO.house[1]),
       capsuleLit: lit(INTRO.capsule[1], LEAVE.capsule),
       prefabLit: lit(INTRO.prefab[1], LEAVE.prefab),
-      arrive: [1, 2, 3].map(arrive),
-      show: [1, 2, 3].map(showIf),
+      arrive: [1, 2].map(arrive),
+      show: [1, 2].map(showIf),
       };
     },
     // The getters only read mutable state.
@@ -666,7 +732,19 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
         <PlazaFloor plaza={plaza} hold={plazaHold} />
         {/* The opening card's three are in the kit's refined finishes (kit/refined.ts): they alone, not the sets that follow. */}
         <Refined value>
-          <FarmSet getA={getters.first} getLit={getters.firstLit} look={looks[0]} land={land} house={house} />
+          {pod ? (
+            <>
+              {!bare && <PodLand land={land} />}
+              <group ref={house}>
+                <Pod follow look={looks[0]} getLit={getters.firstLit} track={podTrack} lamp={(LOOKS.blueHour.lamps ?? 0) * 1.6} />
+              </group>
+            </>
+          ) : bare ? (
+            <HouseAlone getLit={getters.firstLit} look={looks[0]} house={house} />
+          ) : (
+            <FarmSet getA={getters.first} getLit={getters.firstLit} look={looks[0]} land={land} house={house} />
+          )}
+          {!solo && (
           <Lineup
             getCapsuleLit={getters.capsuleLit}
             getPrefabLit={getters.prefabLit}
@@ -674,9 +752,10 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
             hold={others}
             capsule={capsule}
             prefab={prefab}
-            feet={20}
+            podLength={POD_DEFAULT}
             bays={ROW_BAYS}
           />
+          )}
         </Refined>
         <group ref={mirror} />
         <mesh ref={floor} material={floorMat} rotation-x={-Math.PI / 2} position={[0, SHADOW_Y, -20]} receiveShadow>
@@ -685,17 +764,12 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
       </group>
       {built > 1 && (
         <group ref={slot(1)} visible={false}>
-          <PodSet getA={getters.arrive[0]} label={label} getShow={getters.show[0]} look={looks[1]} />
+          <PodSet getA={getters.arrive[0]} label={label} getShow={getters.show[0]} look={looks[1]} track={podTrack} />
         </group>
       )}
       {built > 2 && (
         <group ref={slot(2)} visible={false}>
-          <WorkSet getA={getters.arrive[1]} look={looks[2]} />
-        </group>
-      )}
-      {built > 3 && (
-        <group ref={slot(3)} visible={false}>
-          <CampusSet getA={getters.arrive[2]} label={label} getShow={getters.show[2]} look={looks[3]} />
+          <CampusSet getA={getters.arrive[1]} label={label} getShow={getters.show[1]} look={looks[2]} />
         </group>
       )}
       <Veil getOpacity={veil} />
@@ -703,10 +777,10 @@ function Hero({ progress, place, reduced, compact, rig }: SceneProps & { rig: Ri
   );
 }
 
-export default function HeroScene(props: SceneProps) {
+export default function HeroScene({ solo, bare, subject, ...props }: SceneProps & Solo) {
   return (
-    <Stage {...props} look="sunset" ground="none" focus={[0.73, 0.7]} focusCompact={[0.5, 0.36]} shadowExtent={40}>
-      {(rig) => <Hero {...props} rig={rig} />}
+    <Stage {...props} look={solo && subject === 'pod' ? 'blueHour' : 'sunset'} ground="none" focus={[0.73, 0.7]} focusCompact={[0.5, 0.36]} shadowExtent={40}>
+      {(rig) => <Hero {...props} rig={rig} solo={solo} bare={bare} subject={subject} />}
     </Stage>
   );
 }

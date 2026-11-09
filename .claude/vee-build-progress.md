@@ -1,6 +1,6 @@
-# VEE.BUILD — progress
+# veedo.space (formerly VEE.BUILD) — progress
 
-Last updated: 2026-10-16 (the admin panel merged into this repo with a backend, all on Cloudflare, notes U: `admin/` holds the API (Hono on Workers, D1, R2), the panel at `/admin` cut to five screens (Overview, Enquiries, Quotes, Prices, Settings), one login with lockout, sessions and Turnstile, and the set-up guide `admin/README.md`; the site's enquiry form posts to `/api/enquiries` with Turnstile, and the configurator prices with the published price list and sends its build with a quote request). Before that: 2026-10-15, evening (the developer's third phone round, notes T and F16: a lean finish on phones and tablets, 4x multisampled as it moves and never drawn twice, a budget phone at 1.25 pixels to the CSS pixel; no layout read in a scroll handler, one scroll listener for the page; the texture sets drawn in idle time; no blur over a live picture on a touch screen; films never shorter than the tallest window seen; the institutional building's left end always whole with room beside it; the factory on phones and upright tablets as recorded clips rendered offline from its own scene). Before that: 2026-10-15, afternoon (the developer's second phone round, notes S and F15: a translucent header on phones and tablets; the phone hero's four steps as a camera glide through a showroom, the capsule filling its picture; call-outs kept apart; "How VEE is different" as stacking cards; the configurator on a phone with preset cards and folded settings, and full screen on desktop; the factory and On site as a short film in parts that plays by itself, in a frame under their words, with a new opening for the factory and On site nearer; occlusion and refined finishes for those two on phones; delivery playing by itself and never holding the page, desktop included; a budget tablet's opening card with the three; the tier by the GPU's name; no strip under a film when Chrome's bar hides). Before that: 2026-10-15 (the mobile and tablet round of 2026-10-14 and 15, notes R and F14: phones and tablets held upright have layouts of their own (the words at the top and the building under them, large, framed in the band they leave; dashes and a count at the foot; a header of the lockup, a Contact pill and three bars); the phone's hero is a showroom on the polished floor, its opening card the three kinds as cards to swipe between, its four steps scrolled, the capsule's step with its three lengths; the factory and On site a step at a time, chosen with cards that carry the scene's own picture; the product pages' buildings alone on the polished floor, the capsule's length chosen; the capsule home-like on phones; call-outs at the screen's edge; delivery scrolled on phones; On site is chapter 09; a budget touch device draws lighter; the desktop checked element for element against the tree before). Before that: 2026-10-14 (the developer's round of that day, notes Q and F13: the opening card's three come up out of the floor whole, one after another, and the two that leave go back down into it whole; a Home tab for the main page and MOD a page of its own, `/modular/`; on MOD and FAB, links into the home page's chapters before the enquiry form; the Hemisphere One logo in its own colours on every ground; one "See how VEE manufactures it" button on MOD and FAB, to the factory; a film reached by a link stands at the top of the window). Before that: 2026-10-12 (the developer's brief of that day, notes P: the opening card's three in refined finishes, on the real-time 3D as it is: plaster, standing-seam roof, coated steel, the capsule's coat, polished glass, a floor that mirrors the lit windows, more light and shade; the card only). Before that: 2026-10-11, evening (the client's second brief of that day, notes O and F12: the opening card made again: the three one behind another on a diagonal, on a polished floor that mirrors them, in warm light on a warm shade, fitted to any screen; jack piers under the deck and steps of "08 On site". That morning, notes N and F11: Powered by with the logo under the wordmark, rooms behind lit glass, the capsules at life size, each shell lifted by its own hooks in 2.2, prices in the configurator, the site's preparation as the first part of the installation film). Before that: 2026-10-10, evening (the client's brief of that day, notes M and F10: the factory made again as one shell in one bay, seen on the diagonal, lifted by four hooks; the journey as a short film that holds the page; the installation placing one shell and assembling the rest by itself, lights last; doors and windows of 2.3; "Add-on" tags; jack piers on the hero's house; Powered by Hemisphere One under the wordmark; the catalogue hidden; "VEE" for "we"). Earlier the same day: the developer's two rounds (notes K and F9; notes L: the second burst, the accent settled as vermilion on paper and green on ink, the build in figures under the configurator's view). Before that: 2026-10-09 (the client's corrections sheet, notes J and F7).
+Last updated: 2026-11-09 (the POD built after its draft, notes W9 to W16: one parametric pod of 8, 10 and 12 m, 10 m first, skinned in TRC panels with the band and the skirt jointed over the wall panels; each window showing its plan room, the 12 m with its balcony; the lengths chosen live in the hero's second banner and on the POD page, which now opens as the MOD page does; refined finishes wherever it stands; behind the glass one interior after the plan, the same through every window, after two reports of rooms that flickered and disagreed (W17); looked at on desktop and an emulated phone, measured against the tree before, W16). Before that: 2026-11-08 (the prefab's banner and colours, notes V12) and 2026-11-07 (the developer's round of that day, notes V: the name is veedo.space, with the developer's own concrete logo in fixed colours; Home is the hero's three banners, numbered 01 to 03, the range of three lines and the enquiry form; the MOD page opens on the modular house alone, then its land, with Build your own and Enquire now, and carries every chapter Home had; the copy of Home and MOD rewritten short; GPU time not measured, V7). Before that: 2026-10-16 (the admin panel merged into this repo with a backend, all on Cloudflare, notes U: `admin/` holds the API (Hono on Workers, D1, R2), the panel at `/admin` cut to five screens (Overview, Enquiries, Quotes, Prices, Settings), one login with lockout, sessions and Turnstile, and the set-up guide `admin/README.md`; the site's enquiry form posts to `/api/enquiries` with Turnstile, and the configurator prices with the published price list and sends its build with a quote request). Before that: 2026-10-15, evening (the developer's third phone round, notes T and F16: a lean finish on phones and tablets, 4x multisampled as it moves and never drawn twice, a budget phone at 1.25 pixels to the CSS pixel; no layout read in a scroll handler, one scroll listener for the page; the texture sets drawn in idle time; no blur over a live picture on a touch screen; films never shorter than the tallest window seen; the institutional building's left end always whole with room beside it; the factory on phones and upright tablets as recorded clips rendered offline from its own scene). Before that: 2026-10-15, afternoon (the developer's second phone round, notes S and F15: a translucent header on phones and tablets; the phone hero's four steps as a camera glide through a showroom, the capsule filling its picture; call-outs kept apart; "How VEE is different" as stacking cards; the configurator on a phone with preset cards and folded settings, and full screen on desktop; the factory and On site as a short film in parts that plays by itself, in a frame under their words, with a new opening for the factory and On site nearer; occlusion and refined finishes for those two on phones; delivery playing by itself and never holding the page, desktop included; a budget tablet's opening card with the three; the tier by the GPU's name; no strip under a film when Chrome's bar hides). Before that: 2026-10-15 (the mobile and tablet round of 2026-10-14 and 15, notes R and F14: phones and tablets held upright have layouts of their own (the words at the top and the building under them, large, framed in the band they leave; dashes and a count at the foot; a header of the lockup, a Contact pill and three bars); the phone's hero is a showroom on the polished floor, its opening card the three kinds as cards to swipe between, its four steps scrolled, the capsule's step with its three lengths; the factory and On site a step at a time, chosen with cards that carry the scene's own picture; the product pages' buildings alone on the polished floor, the capsule's length chosen; the capsule home-like on phones; call-outs at the screen's edge; delivery scrolled on phones; On site is chapter 09; a budget touch device draws lighter; the desktop checked element for element against the tree before). Before that: 2026-10-14 (the developer's round of that day, notes Q and F13: the opening card's three come up out of the floor whole, one after another, and the two that leave go back down into it whole; a Home tab for the main page and MOD a page of its own, `/modular/`; on MOD and FAB, links into the home page's chapters before the enquiry form; the Hemisphere One logo in its own colours on every ground; one "See how VEE manufactures it" button on MOD and FAB, to the factory; a film reached by a link stands at the top of the window). Before that: 2026-10-12 (the developer's brief of that day, notes P: the opening card's three in refined finishes, on the real-time 3D as it is: plaster, standing-seam roof, coated steel, the capsule's coat, polished glass, a floor that mirrors the lit windows, more light and shade; the card only). Before that: 2026-10-11, evening (the client's second brief of that day, notes O and F12: the opening card made again: the three one behind another on a diagonal, on a polished floor that mirrors them, in warm light on a warm shade, fitted to any screen; jack piers under the deck and steps of "08 On site". That morning, notes N and F11: Powered by with the logo under the wordmark, rooms behind lit glass, the capsules at life size, each shell lifted by its own hooks in 2.2, prices in the configurator, the site's preparation as the first part of the installation film). Before that: 2026-10-10, evening (the client's brief of that day, notes M and F10: the factory made again as one shell in one bay, seen on the diagonal, lifted by four hooks; the journey as a short film that holds the page; the installation placing one shell and assembling the rest by itself, lights last; doors and windows of 2.3; "Add-on" tags; jack piers on the hero's house; Powered by Hemisphere One under the wordmark; the catalogue hidden; "VEE" for "we"). Earlier the same day: the developer's two rounds (notes K and F9; notes L: the second burst, the accent settled as vermilion on paper and green on ink, the build in figures under the configurator's view). Before that: 2026-10-09 (the client's corrections sheet, notes J and F7).
 
 ## Status
 
@@ -28,6 +28,8 @@ Last updated: 2026-10-16 (the admin panel merged into this repo with a backend, 
 | 20 Mobile and tablet round (2026-10-14 and 15) | done on emulated phones and tablets, measured on a phone-sized screen, desktop fingerprinted before and after on production builds; notes R and F14; open points R1 to R4 |
 | 22 Third phone round (2026-10-15, evening) | done on an emulated budget phone (412 × 915 at 2.625, `?lite=1`) and phones from 360 to 425 wide; GPU timed and the main thread profiled before and after on production builds; desktop fingerprinted; notes T and F16; open point T1 |
 | 23 Admin panel and backend (2026-10-16) | built and tested locally against `wrangler dev` (local D1 and R2) and in the browser; 63 tests in `admin/`; not deployed: no Cloudflare account or domain yet (`admin/README.md`, steps 1 to 8); notes U, open points U1 to U6; the site's Content Security Policy, built by scripts/csp.mjs and enforced, checked on every route on desktop and phone (U4) |
+| 24 Developer's round of 2026-11-07 | done and looked at in headless Edge on desktop (1280 × 720 at 1.5) and an emulated phone (390 × 844 at 2), production build, `npm run check`, admin typecheck and tests; old links forwarded; not measured for GPU time (notes V7) |
+| 25 The POD built (2026-11-09) | done: `kit/pod.tsx`, the POD page's opening, the banner's one pod with its lengths, the phone's capsule step, the range and card pictures; looked at in headless Edge on desktop (1280 × 720 at 1.5) and an emulated phone (390 × 844 at 3, touch), `npm run check`, `npm run build`; GPU timed against the tree before, interleaved and reversed (notes W16) |
 | 21 Second phone round (2026-10-15) | done on emulated phones (390 × 844, 425 × 707) and a sideways tablet, measured on a phone-sized screen, desktop fingerprinted before and after; notes S and F15; open points S1 to S4 |
 
 `npm run check` → 0 errors. `npm run build` → 6 routes, sitemap, optimised images. `npm run build:all` adds the admin panel in `dist/admin`; in `admin/`, `npm run typecheck` and `npm test` (63) pass.
@@ -36,20 +38,24 @@ Last updated: 2026-10-16 (the admin panel merged into this repo with a backend, 
 
 - **Admin panel and backend** (`admin/`, notes U): one Cloudflare Worker serves the site, the panel at `/admin` and the API at `/api`; D1 for data, R2 for files and nightly backups. Panel: Overview, Enquiries, Quotes, Prices, Settings, one owner login. Set-up and security: `admin/README.md`.
 - **Routes:** `/` (Home), `/modular/` (MOD, since 2026-10-14), `/capsule/`, `/prefab/`, `/partnership/`, `404`.
+- **Since 2026-11-07 (notes V):** Home is `overview` (the opening card and three banners: modular house, capsule homes, institutional building, numbered 01 to 03), `lines` ("What Vee builds.", three cards, `Lines.astro`) and `contact`. The prefab building everywhere is the G+2 precast-panel building of notes V10 (`kit/prefab.tsx`), in colour since 2026-11-08, its panels carrying their doors and windows, and its banner one crane panel with the rest coming in at once (notes V12). The POD (capsule) is to change to a new scheme: 8, 10 and 12 m, a steel frame clad in TRC panels, the length grown by middle panels, layouts after the developer's references; drafted (draft 2), not built (`.claude/pod-draft.md`, notes W). The MOD page is `modular` (its opening, `ModHero.tsx`: the house alone, then its land) and then every chapter listed below, numbered 02 to 11, with the rail; the enquiry form last. Below, "home page" means the MOD page where it lists chapters.
 - **Menu:** Home | MOD | POD | FAB and Contact (`primaryNav`). **Bottom band**
   under the footer, on paper: Partnership, Investors, Technology, and
   "Powered by" with the Hemisphere One logo (`bandNav`, `Footer.astro`).
-- **Product pages** (MOD, POD, FAB): a head with the client's line, a
-  real-time picture of the building (`Showcase.tsx`; MOD shows the
-  opening card's house in its meadow, whole), what the brief states about
-  it, and the enquiry form last. MOD and FAB have "Continue on the home
-  page" just before the form: MOD 03 and 06, FAB 02, 05 and 06
-  (`src/data/onward.ts`, `Onward.astro`).
-- **Home page, 13 sections shown, in this order** (numbered from the list
+- **Product pages**: FAB has a head with the client's line, a
+  real-time picture of the building (`Showcase.tsx`: the G+2
+  precast-panel building, whole), what is stated about it, and the
+  enquiry form last. POD since 2026-11-09 (notes W14): its own opening
+  (`PodHero.tsx`: the pod alone on the studio floor, then its land at blue
+  hour; its three lengths to choose all the while), the lengths as facts,
+  the register form. FAB has "Continue on the MOD
+  page" just before the form: 02, 05 and 06 (`src/data/onward.ts`,
+  `Onward.astro`). MOD is the story page since 2026-11-07 (above).
+- **MOD page since 2026-11-07 (Home's until then), 13 sections shown, in this order** (numbered from the list
   in `src/data/site.ts`; the number is the chapter's; the catalogue is
   built and hidden, `shown.catalogue`): 01 `overview` (an
   opening card: the headline over the three kinds of building, a modular
-  house, a 20′ capsule home and a G+1 prefab block of four bays, standing
+  house, a 10 m capsule home and a G+1 prefab block of four bays, standing
   one behind another on a diagonal and seen on the diagonal, on a
   polished floor of 3 m slabs that mirrors them, in warm light, on the
   page's warm shade; each named on the floor and lit once it stands; the
@@ -90,7 +96,7 @@ Last updated: 2026-10-16 (the admin panel merged into this repo with a backend, 
   piers set under the deck's posts and the steps, the add-ons landing on
   them, lights last), `build-yours` (on the rail, part of 09), [`catalogue`, hidden: 5 models, SVG isometric + plan],
   10 `gallery`, 11 `contact`. Seven films and the configurator have a 3D
-  stage; so do the capsule and prefab pages (`Showcase.tsx`).
+  stage; so do the POD page (`PodHero.tsx`) and the prefab page (`Showcase.tsx`).
 - **Phones and tablets** (notes R; `src/film/device.ts`): *compact* (up to
   860 px wide, or a touch screen up to 1100 px held upright) has a layout
   of its own on every film: the words at the top, the building under them
@@ -100,11 +106,11 @@ Last updated: 2026-10-16 (the admin panel merged into this repo with a backend, 
   `HeroMobileScene.tsx` (the card's three as cards to swipe between, the
   four steps scrolled, the capsule's lengths as cards; `film/heroChoice.ts`),
   the product pages' stage `ShowcaseStudioScene.tsx` (the building alone
-  on the polished floor, a finger turns it, the capsule's lengths to choose),
+  on the polished floor, a finger turns it),
   both framed by `kit/frame.ts`. The factory and On site are cards on a
   phone (`pick` in `Film.tsx`, pictures in `public/images/cards`, made by
-  `node scripts/cards.mjs`). The capsule on a phone is home-like
-  (`POD_HOME`). A touch device's GPU is classed by its name, or timed
+  `node scripts/cards.mjs`). The capsule is the one pod on every
+  screen since 2026-11-09 (`kit/pod.tsx`; notes W9). A touch device's GPU is classed by its name, or timed
   when the name is unknown (`film/tier.ts`); a slow one is *lite*. Tablets
   held sideways keep the desktop's layout. Since 2026-10-15 (notes S): the
   header is one translucent band on phones and tablets; the hero's steps
@@ -115,10 +121,12 @@ Last updated: 2026-10-16 (the admin panel merged into this repo with a backend, 
   configurator has preset cards with price and area and folded settings
   (and desktop a Full screen button); a pinned film is `100lvh` tall on a
   touch screen, its controls `100svh`.
-- **The capsule:** `kit/capsule.ts`, a hull rounded with two radii drawn
-  as a skin over two parameters, so that glazing, frames, seams and light
-  lines are patches of the same surface; one geometry of four material
-  groups for each length (notes C9). `Capsule` in `kit/buildings.tsx`.
+- **The capsule (POD):** `kit/pod.tsx`, one parametric pod since 2026-11-09:
+  two end modules (the far one glazed or, on the 12 m, its balcony), the door
+  bay and 1 m middle bays, each one geometry merged by material; a length
+  is a count of middle bays, changed live on its own clock (`MORPH`;
+  `film/podChoice.ts`, `PodPick`); sizes in `kit/podPlan.ts`, words in
+  `src/data/pod.ts` (notes W9 to W15).
 - **The three on the opening card:** where they stand for a shape of
   picture, `rowFor` in `kit/row.ts`; the camera fitted to the screen and
   the names' places, `fitRow` in `kit/rowfit.ts` (pure geometry, runs in
@@ -550,9 +558,8 @@ From the mobile and tablet round of 2026-10-14 and 15 (notes R):
   finishes (R2).
 - **The budget tier's threshold** (a GPU four times slower than the test
   laptop's) is ours; no budget tablet was at hand (R3).
-- **The capsule's home-like section** on phones (taller hull, less
-  rounding) is ours, as its width and height always were; whether the
-  desktop should take it too (R4).
+- **The capsule's home-like section** on phones (R4): gone with the
+  capsule itself on 2026-11-09 (notes W9).
 
 From the developer's round of 2026-10-14 (notes Q):
 - **Coming up out of the floor** is our reading of "spawn them building
@@ -736,8 +743,8 @@ From earlier rounds:
    The keys keep a backing so they can be read there.
 21. On a phone the footprint counter's scale is hidden (as before), so the
    green mark on the footprint on show is not seen there.
-22. The capsule's lit glazing is a glow on the glass: no interior is
-   modelled, which shows on `/capsule/` more than in the hero.
+22. (Settled on 2026-11-09: the pod's windows show their plan rooms,
+   notes W11.)
 23. `Farmhouse` (issue 14) is still unused; so is the brief's "sci-fi"
    line and the workforce lines, which the client replaced.
 3. Tablet portrait hero has loose spacing between caption and button.

@@ -40,7 +40,11 @@ export interface Prelude {
   tone?: 'paper' | 'ink';
   /** The tone on a compact layout, where it differs (a film in a card stands on paper there). */
   toneCompact?: 'paper' | 'ink';
-  opening?: 'window' | 'mist';
+  /**
+   * `studio`: the subject alone on the warm shade, as `mist` has it, without the mist (the mist is the
+   * hero's opening card's alone: CLAUDE.md). The MOD page's opening (2026-11-07).
+   */
+  opening?: 'window' | 'mist' | 'studio';
 }
 
 /**
@@ -96,6 +100,12 @@ interface FilmProps {
   reach?: number;
   /** Extra DOM pinned with the stage (HUD, counters). */
   children?: ReactNode;
+  /**
+   * Controls pinned over the picture from the first screen on: outside the
+   * HUD, which an opening keeps back until it has opened (the POD page's
+   * lengths on a phone, PodHero).
+   */
+  dock?: ReactNode;
   /** Extra DOM rendered inside a step's caption, keyed by step id. */
   stepExtras?: Record<string, ReactNode>;
   /** A step's title drawn by its section instead of set as text (words that follow the picture), keyed by step id. */
@@ -211,6 +221,9 @@ function stepIndex(steps: FilmStep[], p: number) {
  * events, with one exception the client asked for: a film that plays by
  * itself (`play`) holds the page for its few seconds (film/hold.ts).
  */
+/** How far an opening has gone (its `--pre`) when the controls docked over it take the steps' ground. */
+const DOCK_TURN = 0.28;
+
 export default function Film({
   id,
   index,
@@ -229,6 +242,7 @@ export default function Film({
   eager = false,
   reach = REACH,
   children,
+  dock,
   stepExtras,
   stepTitles,
   captions = 'fade',
@@ -281,12 +295,14 @@ export default function Film({
   const [open, setOpen] = useState(false);
   /** The picture has taken more of the screen than the card: the header reads against the picture from here. */
   const [risen, setRisen] = useState(false);
+  /** The opening has gone far enough that the ground under the dock is the steps' (Film, `dock`). */
+  const [turned, setTurned] = useState(false);
   /** A film that plays by itself is playing, or has played. */
   const [playState, setPlayState] = useState<'' | 'on' | 'done'>('');
   const played = playState === 'done';
   const playing = useRef({ on: false, done: false, raf: 0, ready: false });
 
-  const state = useRef({ raf: 0, last: 0, active: 0, reduced: false, visible: false, pre: '', open: false, risen: false, seen: false, soon: false, early: false });
+  const state = useRef({ raf: 0, last: 0, active: 0, reduced: false, visible: false, pre: '', open: false, risen: false, turned: false, seen: false, soon: false, early: false });
   /** Where the section stands in the document, its height and its stage's: read again only when the layout has changed (watchLayout). */
   const geo = useRef({ epoch: 0, top: 0, height: 0, vh: 1 });
   const where = () => {
@@ -405,6 +421,8 @@ export default function Film({
     const hud = pin.querySelector('.film__hud');
     const mo = new MutationObserver(watch);
     if (hud) mo.observe(hud, { childList: true });
+    const docked = pin.querySelector('.film__dock');
+    if (docked) mo.observe(docked, { childList: true });
     mqSide.addEventListener('change', measure);
     document.fonts?.ready.then(measure);
     return () => {
@@ -495,6 +513,11 @@ export default function Film({
           if (done !== state.current.open) {
             state.current.open = done;
             setOpen(done);
+          }
+          const turn = pre >= DOCK_TURN;
+          if (turn !== state.current.turned) {
+            state.current.turned = turn;
+            setTurned(turn);
           }
           const up = pre >= 0.8;
           if (up !== state.current.risen) {
@@ -912,7 +935,8 @@ export default function Film({
   /* A step can switch the caption theme (a dark sky needs light text). */
   /** The step on show: chosen with the cards, or where the scroll is. */
   const shown = picking ? picked : active;
-  const stepTheme = (compact ? themeCompact : undefined) ?? steps[shown].theme ?? theme;
+  // Behind a title card, a step's own theme waits until the picture has taken the screen: the card is on its own ground (the POD page's paper card before its blue hour).
+  const stepTheme = (compact ? themeCompact : undefined) ?? (prelude && !risen ? theme : (steps[shown].theme ?? theme));
   /* What stands under the header: an ink title card until it has opened, then the film. */
   const headerTheme = prelude && tone === 'ink' && !risen ? 'dark' : stepTheme;
   useEffect(() => {
@@ -950,7 +974,7 @@ export default function Film({
         style={{ '--film-len': len, '--film-len-c': lenC } as CSSProperties}
       >
         <div className="film__sticky" ref={sticky}>
-          {prelude && <div className={`film__backdrop film__backdrop--${prelude.opening === 'mist' ? 'studio' : tone}`} aria-hidden="true" />}
+          {prelude && <div className={`film__backdrop film__backdrop--${prelude.opening === 'mist' || prelude.opening === 'studio' ? 'studio' : tone}`} aria-hidden="true" />}
           <div className={`film__stage${ready ? ' is-ready' : ''}`} aria-hidden="true" ref={stageRef}>
             {mount && <Suspense fallback={null}>{scene}</Suspense>}
             <div className="film__labels" ref={labelsBox}>
@@ -984,7 +1008,7 @@ export default function Film({
 
           <div className="film__hud">
             <header className="film__head" data-band="words">
-              <span className="film__index">{index}</span>
+              <span className="film__index">{steps[shown].index ?? index}</span>
               <Heading id={`${id}-heading`} className="film__heading">
                 {heading}
               </Heading>
@@ -1123,6 +1147,9 @@ export default function Film({
               </span>
             </div>
           )}
+
+          {/* On the steps' ground before the words have changed: an opening's land and sky come in under it first. */}
+          {dock && <div className={`film__dock${prelude && turned && !risen && (steps[shown].theme ?? theme) === 'dark' ? ' on-ink' : ''}`}>{dock}</div>}
         </div>
       </section>
     </FilmContext.Provider>

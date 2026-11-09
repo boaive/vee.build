@@ -3,22 +3,13 @@ import { COMPACT_QUERY } from '../../film/device';
 import type { FilmLabel } from '../../film/Film';
 import { createProgress, type PlaceLabel } from '../../film/progress';
 import type { ShowcaseKind } from '../../three/scenes/ShowcaseScene';
-import { POD_FEET_LABELS } from './labels';
 
 const Scene = lazy(() => import('../../three/scenes/ShowcaseScene'));
 /** Phones and tablets held upright: the building alone on the polished floor (ShowcaseStudioScene). Only fetched there. */
 const Studio = lazy(() => import('../../three/scenes/ShowcaseStudioScene'));
-/** The capsule's three lengths (the brief's), one at a time on a compact layout. */
-const FEET = [10, 16, 20] as const;
-
 const LABELS: Record<ShowcaseKind, FilmLabel[]> = {
   house: [],
-  capsule: POD_FEET_LABELS,
-  workforce: [],
-  institutional: [
-    { id: 'panel-0', text: '36′ wall panel', kind: 'pulse' },
-    { id: 'panel-1', text: '36′ wall panel', kind: 'pulse' },
-  ],
+  prefab: [],
 };
 
 interface Props {
@@ -42,8 +33,6 @@ export default function Showcase({ kind, description, note }: Props) {
   const [ready, setReady] = useState(false);
   const [compact, setCompact] = useState(false);
   const [reduced, setReduced] = useState(false);
-  /** Compact layouts: the capsule on show. */
-  const [feet, setFeet] = useState<number>(20);
 
   useEffect(() => {
     const el = root.current;
@@ -131,13 +120,13 @@ export default function Showcase({ kind, description, note }: Props) {
   const onReady = useCallback(() => setReady(true), []);
 
   return (
-    <div className={`showcase showcase--${kind}${compact && kind === 'capsule' ? ' on-ink' : ''}${reduced ? ' is-still' : ''}`} ref={root} role={compact ? undefined : 'img'} aria-label={compact ? undefined : description}>
+    <div className={`showcase showcase--${kind}${reduced ? ' is-still' : ''}`} ref={root} role={compact ? undefined : 'img'} aria-label={compact ? undefined : description}>
       {/* With controls under it (compact), the picture alone is the image. */}
       <div className={`showcase__stage${ready ? ' is-ready' : ''}`} role={compact ? 'img' : undefined} aria-label={compact ? description : undefined}>
         {near && (
           <Suspense fallback={null}>
             {compact ? (
-              <Studio kind={kind} feet={feet} progress={progress} place={place} compact={compact} active={visible} reduced={reduced} onReady={onReady} />
+              <Studio kind={kind} progress={progress} place={place} compact={compact} active={visible} reduced={reduced} onReady={onReady} />
             ) : (
               <Scene kind={kind} progress={progress} place={place} compact={compact} active={visible} reduced={reduced} onReady={onReady} />
             )}
@@ -162,18 +151,6 @@ export default function Showcase({ kind, description, note }: Props) {
       {note && <p className="t-label showcase__note">{note}</p>}
       {compact && (
         <div className="showcase__foot">
-          {kind === 'capsule' && (
-            <div className="showcase__pick" role="group" aria-label="Capsule length">
-              {FEET.map((f) => (
-                <button key={f} type="button" className="showcase__len" aria-pressed={feet === f} onClick={() => setFeet(f)}>
-                  <svg viewBox="0 0 44 14" aria-hidden="true">
-                    <rect x={(44 - f * 2) / 2 + 0.75} y="0.75" width={f * 2 - 1.5} height="12.5" rx="4" />
-                  </svg>
-                  {f}′
-                </button>
-              ))}
-            </div>
-          )}
           <p className="t-label showcase__hint" aria-hidden="true">
             Drag to turn
           </p>

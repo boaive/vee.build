@@ -1,6 +1,8 @@
-# VEE.BUILD — project rules
+# veedo.space (formerly VEE.BUILD) — project rules
 
-Production website for VEE.BUILD, a modular / precast construction business.
+Production website for veedo.space, a modular / precast construction
+business. It was VEE.BUILD until 2026-11-07 (notes V); file names, the
+Worker, the bucket, `vee:` events and `__vee` dev hooks keep the old name.
 Read `vee-build-context.md` (business + narrative), `vee-build-notes.md`
 (open questions, source conflicts, decisions) and `vee-build-progress.md`
 (state of the build) before changing anything substantial.
@@ -30,14 +32,39 @@ source. Never resolve a conflict by inventing a third value.
 
 ## Brand rules
 
-- Public brand is **VEE.BUILD**. "Wieldy", "Wieldly", its logo, tagline,
-  email, phone, pricing and testimonials must never appear in `src/`,
-  `public/` or `admin/`. `assets/` is client source material and is not
-  shipped.
+- Public brand is **veedo.space** (developer, 2026-11-07; VEE.BUILD
+  before). "VEE.BUILD", "VEE" and "Vee" no longer appear in what is shipped;
+  neither may "Wieldy", "Wieldly", its logo, tagline, email, phone, pricing
+  and testimonials, in `src/`, `public/` or `admin/`. `assets/` is client
+  source material and is not shipped. `site.name` and `site.short` in
+  `src/data/site.ts`.
+- The logo is the developer's own artwork of 2026-11-07: the concrete
+  mark as supplied, and the wordmark ("veedo" heavy, an orange dot, "space"
+  light) set in concrete grey `#7a7873` instead of the artwork's black
+  (`src/assets/brand/veedo-mark.png`, `veedo-word.png`, `veedo-logo.png`,
+  cut and recoloured from it; favicons in `public/`). One logo on every
+  ground, its colours fixed ("it dont change the clr ... it is fixed") and
+  nothing behind it ("do not add white background to it"): the concrete
+  reads on paper and on ink alike. In the header and footer the mark and
+  the wordmark stand on one line, small, and "Powered by" with the
+  Hemisphere One logo under them, no wider (`.brand`, base.css). Do not
+  recolour it per ground, put a plate behind it, or swap it for another
+  mark. Two of ours were replaced the same day (an ink tile with a green v;
+  the artwork on a paper plate on dark grounds).
 - The top menu is **Home | MOD | POD | FAB** and **Contact**, nothing else
-  (client, 2026-10-09; Home added 2026-10-14, notes Q). **Home** is the
-  main page (`/`), everything that used to be under MOD; **MOD** is a page
-  of its own (`/modular/`), as POD and FAB are. Partnership, Investors and
+  (client, 2026-10-09; Home added 2026-10-14, notes Q). Since 2026-11-07
+  (developer, notes V): **Home** (`/`) is the banners (three, numbered 01
+  to 03), "What Vee builds." (MOD, POD, FAB as three cards that lift a
+  little under the pointer: the picture with the code and "Coming soon" on
+  it, the name, one line, one link; no eyebrow, no numbers; `Lines.astro`,
+  `src/data/lines.ts`, pictures in `public/images/range` at 960 × 600)
+  and the enquiry form, nothing else;
+  **MOD** (`/modular/`) tells the whole story: its own opening (the
+  modular house alone, then its land, with Build your own and Enquire
+  now; `ModHero.tsx`), then every chapter that Home had, numbered from 01
+  (`sections`, `story` in `src/data/site.ts`), the rail, and its own
+  enquiry form last. Old links into Home's chapters (`/#factory`,
+  `/?build=…#configure`) are sent on to MOD (`index.astro`). Partnership, Investors and
   Technology are in the bottom band under the footer, with "Powered by"
   and the Hemisphere One logo as supplied
   (`src/assets/brand/hemisphere-one.png`; it is dark on clear, so the band
@@ -45,41 +72,93 @@ source. Never resolve a conflict by inventing a third value.
   Menu and band are `primaryNav` and `bandNav` in `src/data/site.ts`.
   CONFIRM: Investors and Technology have no pages; they lead to the
   enquiry form and to "How it works" (notes J2).
-- The MOD and FAB pages lead on into the home page (developer,
-  2026-10-14): just before the enquiry form, "Continue on the home page"
-  with one link for each chapter that shows that line, MOD 03
-  Componentized building and 06 3D tour, FAB 02 How it works, 05 Build
-  your own and 06 3D tour (`src/data/onward.ts`, `Onward.astro`). Each
-  opens the home page at that chapter. The enquiry form is the last
-  section of a product page (the developer moved it back there the same
-  day). POD has none: the capsule is not made of the shells.
+- The FAB page leads on into the system's chapters (developer,
+  2026-10-14): just before the enquiry form, "Continue on the MOD page"
+  with one link each for 02 How it works, 05 Build your own and 06 3D tour
+  (`src/data/onward.ts`, `Onward.astro`). MOD's own links went when the
+  chapters moved onto it (2026-11-07). The enquiry form is the last
+  section of a product page. POD has none: the capsule is not made of the
+  shells.
 - The three kinds of building are **Modular house**, **Capsule home** and
   **Prefab building**, with the client's line for each (`kinds` in
   `src/data/narrative.ts`). The two shells belong to the modular line
   only: they are not shown or named on the opening card. The capsule and
   the prefab building are not on sale yet and carry a **Coming soon** tag
   wherever they are shown (`soon` in `kinds`; client, 2026-10-10).
-- Where the company is the subject it is named: **VEE** or **VEE.BUILD**,
-  not "we" ("How is VEE different?", "See how VEE manufactures it.";
-  client, 2026-10-10). An ordinary "we" or "us" in a sentence spoken to
-  the visitor ("Tell us what you want to build") stays.
+- Where the company is the subject it is named: **Vee** (the wordmark
+  is veedo.space), not "we" ("How is Vee different?", "See how Vee builds
+  it."; client, 2026-10-10; developer, 2026-11-07: "you can use vee in the
+  places where you need to use we"). An ordinary "we" or "us" in a sentence
+  spoken to the visitor ("Tell us what you would like to build") stays.
+  `site.short` in `src/data/site.ts`.
+- Copy is short (developer, 2026-11-07: "keep minimal as possible, as no
+  one is going to read paras ... short and sweet"): a title, one line,
+  at most two. No exclamation marks. Facts and CONFIRM tags stay; flourish
+  goes.
 - **Powered by Hemisphere One**, with the Hemisphere One logo, stands
   under the wordmark wherever the wordmark does (header, footer, loading
   screen) and nowhere else on the opening card (client, 2026-10-11,
   morning; `Brand.astro`, one lockup). The logo as supplied on every
   ground, never recoloured (developer, 2026-10-14: "the hemisphere one
-  logo turns white ... fix that"): on ink it stands on a small pill of the
-  paper (`.brand__logo`, base.css), whose room is kept on paper too so the
-  lockup does not move when the header changes ground. The reversed copy
+  logo turns white ... fix that"): on ink it alone stands on a small pill
+  of the paper (`.brand__logo`, base.css), whose room is kept on paper too
+  so the lockup does not move when the header changes ground. It is
+  always larger than the words "Powered by" before it (developer,
+  2026-11-07: "the powered by is bigger then hemisphere one. fix that"). The reversed copy
   of 2026-10-11 (`scripts/logo-reversed.mjs`) is no longer used (notes N1,
   Q4).
-- The capsule's form follows the client's three reference renders of
-  2026-10-09 (`src/three/kit/capsule.ts`). Its lengths are the brief's
-  10′, 16′ and 20′; nothing else about it is supplied (notes C5, C9). No
-  mark, name or figure from those renders. On a compact layout it stands
-  on a home-like section (`POD_HOME`: the same lengths and openings, a
-  taller hull, less rounding; developer, 2026-10-14: the 10′ "looks like a
-  cat home"); desktop keeps `POD`. CONFIRM (notes R4).
+- The capsule (POD) is one model wherever it is shown, built on
+  2026-11-09 after the draft (`.claude/pod-draft.md`, notes W; developer:
+  "redesign the pod as per the plan, make it realistic"): 8, 10 and 12 m
+  long, 10 m first, 3.05 m wide, 3.2 m to the top of its band (CONFIRM).
+  The market's usual capsule (galvanised steel frame, rockwool, lining,
+  fit-out) whose one innovation is its skin: 20 mm TRC panels made with
+  RTARIUM by HEMISPHERE ONE, fixed as stud-frame cladding, the top band's
+  and the skirt's joints over the wall panels' (the developer's marked
+  elevation, 2026-11-09). Two end modules of 3 m, the same mirrored (the
+  far one glazed, or on the 12 m its balcony), a door bay of 1 m with
+  precast steps, and 1 m bays between: a length grows or shrinks by bays
+  in the middle only. Plumbing runs in the kicker at the base (set back,
+  dark), the electrics in the band at the top; neither is drawn beyond
+  that. Behind its glass is one interior after the draft's plans, in the
+  pod's own space, the same room through every window, the end glazing
+  included (`podInterior` in `kit/podPlan.ts`, `roomPlan` in
+  `kit/materials.ts`, the pod's glass made with `VEE_PLAN`): the bedroom
+  behind the head end, the far room by length (8 m lounge; 10 m kitchen
+  and lounge; 12 m second bed and lounge before the balcony), the bathroom
+  behind the frosted window. Nothing in it is picked at random or by where
+  the pod stands (developer, 2026-11-09: rooms that changed as the pod
+  moved, and side windows that disagreed, were reported as bugs: "why it
+  is different when interior just follows the floor plan"). `kit/pod.tsx` (parts, `FINISH`, CONFIRM), `kit/podPlan.ts`
+  (sizes), `src/data/pod.ts` (lengths, words). No mark, name, figure or
+  text of the reference pages; the GLB was a mood reference only. Its
+  parts stay separate meshes by material, ready for the construction film
+  that comes next (the frame, the studs and the rockwool are not modelled
+  yet). `kit/capsule.ts`, `POD_HOME` and 10′, 16′ and 20′ are gone.
+- One pod stands; the other two lengths are a click away (developer,
+  2026-11-09: "we only have one pod in there, other 2 will be options to
+  live, on clicking that the pod changes. by default it will be in 10m"):
+  `film/podChoice.ts` holds the page's choice, `PodPick` the buttons
+  (in the caption on desktop, at the picture's foot on a compact layout).
+  The pod goes from one length to another on a clock of its own
+  (`MORPH`): the far end slides, the bays it gains come down into the gap
+  or those it loses go up out of it, one after another; nothing fades. A
+  camera that shows one pod stands back for the 12 m (`podReach`, read
+  through `track` before the frame), never nearer for the 8 m: it is to
+  look shorter. The hero's second banner and the POD page alike; on a
+  phone the hero's capsule step keeps its three pods side by side
+  (`showroom`), the buttons choosing which is in the picture.
+- The POD page (`/capsule/`) opens as the MOD page does (`PodHero.tsx`,
+  `HeroScene` `solo` with `subject="pod"`; developer, 2026-11-09: "mimic
+  the mod page, start with the pod in plain background ... after that ...
+  the animated background"): the pod alone on the studio floor, then its
+  land at blue hour spreads from under it and the sky comes, the words
+  changing with it. The lengths can be chosen all the while: on a phone
+  the buttons are docked at the foot over the opening too (Film `dock`,
+  outside the HUD the opening keeps back) and take the steps' dark ground
+  at `DOCK_TURN`, as the land comes under them. Then the three lengths as
+  facts and the register form. The construction ("burst") film is the
+  next section, not built.
 - No invented projects, customers, testimonials, certifications, prices,
   timelines or engineering specifications. Missing facts get a neutral
   presentation plus an entry in `vee-build-notes.md`.
@@ -136,7 +215,7 @@ source. Never resolve a conflict by inventing a third value.
   can stand along it.
 - A building's lights come on when it stands, never while it is being
   lowered in, brought up, carried or put together (client, 2026-10-10):
-  the hero's three, the capsule homes, the installation, the MOD page's
+  the hero's three, the capsule, the installation, the MOD page's
   house. `litGlass()` in `kit/materials.ts`.
 - "How it works" shows two stacks, the villa and the five-floor
   **Mid-Rise Apartment** ("high-rise" is not used anywhere). The two-floor
@@ -315,9 +394,10 @@ security in `admin/README.md`):
   desktop; do not merge the two. The phone's hero (developer,
   2026-10-14, twice): the opening card shows the three kinds one at a
   time, chosen with cards, arrows or a sideways swipe
-  (`film/heroChoice.ts`); the four steps after it are scrolled through,
-  vertically, as on desktop; only the capsule's step has cards of its own
-  (its three lengths). Do not put the four steps on cards. Between the
+  (`film/heroChoice.ts`); the steps after it (three since 2026-11-07:
+  the workforce banner was deleted) are scrolled through, vertically, as
+  on desktop; only the capsule's step has cards of its own (its three
+  lengths). Do not put the steps on cards. Between the
   steps nothing goes down into the floor or comes up (developer,
   2026-10-15: "a proper professional animation"): the buildings stand in
   a row on one floor, out of each other's pictures (`showroom`), and the
@@ -433,7 +513,7 @@ security in `admin/README.md`):
   1267 × 427 at 150%: the developer drags the window short), on a phone
   and at 4:3. Each of the three comes up out of the polished floor
   whole, one after another in the menu's order (house, capsule, block),
-  never part by part (client, 2026-10-14: the card says what VEE offers,
+  never part by part (client, 2026-10-14: the card says what the company offers,
   not how it is put together; the developer: "spawn them building by
   building"; `raise` and `INTRO` in `HeroScene.tsx`). Scrolling takes the
   capsule and the prefab block back down into the floor, whole, as they
@@ -448,6 +528,55 @@ security in `admin/README.md`):
   only what stands over the floor, and the reflection's copies are kept
   out of the occlusion pass (`userData.unoccluded`, `kit/mirror.tsx`),
   where a building still under the floor stood over it as stains.
+- After the card the hero has three banners since 2026-11-07 (developer:
+  the workforce housing banner deleted): the modular house, the capsule
+  home (one pod, its lengths to choose), the prefab building, each numbered over its caption, 01, 02, 03
+  (`index` on a `FilmStep`; Film shows a step's own number where it has
+  one). Each keeps the scroll it had among four (`film/heroTimeline.ts`,
+  `HERO_STRETCH`).
+- The prefab building (FAB) is one model everywhere it is shown, since
+  2026-11-07 (developer: "our current prefab i.e g+1 should not exist ...
+  it is shared object"): a G+2 block of storey-high precast wall panels
+  with their doors and windows fitted (a panel carries them as it comes
+  in: the building is never seen through), on a precast frame (columns,
+  floor slabs, roof; the gallery's columns at the panel joints only),
+  with an open gallery along the front of each upper floor,
+  one outer staircase at the left flank from the access rule
+  (`prefabStair`, never by hand), a deck along the ground floor's front
+  with one flight of steps at a door (`PrefabBuilding` in
+  `kit/prefab.tsx`, plan and sizes in `kit/prefabPlan.ts`). Its colours
+  since 2026-11-08 (developer: "polish and add some clrs to it"; `FINISH`):
+  warm white panels on a darker precast-grey frame, the joints showing,
+  soft clay doors (a terracotta was refused the same day: "the red clr
+  doors in hero is too much contrast"; keep the doors quiet), charcoal
+  frames, rails and stair, blue-tinted glass by day. CONFIRM (notes V12).
+  Two panels long on the opening card,
+  three in the third banner and on phones, two on the FAB page's phone
+  picture; whole and with no crane on the card and the FAB page ("keep the
+  3d object clear"). In the third banner it is a short illustration, not
+  the construction, over about three turns of the wheel (2026-11-08: "we
+  don't have more scrolling animation, keep it simple ... only one is
+  fixed by crane, all others are fitted by itself. parallelly, with some
+  delay for few panels not all"): the frame stands from the start; every
+  wall panel but one comes in at once and closes on it, three of them a
+  beat later (`LATE`, on the front, never by the words); the one, the
+  middle of the top floor's front, hangs from the mobile crane's
+  spreader beam over the roof (`PANEL_RIG`, `kit/machines.tsx`), is
+  lowered in front of the gallery and drawn in; then the staircase, the
+  deck and the rails (`STEPS` in `kit/prefab.tsx`, `BUILD[2]` in
+  `HeroScene.tsx`). Do not go back to a lift a floor. The panels' real length is
+  never stated on the site, in words or labels (the developer: "don't
+  mention that any where"). For schools, health centres and
+  institutions. The G+1 workforce block, the institutional block and the
+  workforce set are gone.
+- The MOD page opens on the hero's own scene with the house alone
+  (`HeroScene`, `solo`; `ModHero.tsx`): it comes up out of the polished
+  floor on load, and the card's scroll spreads its land from under it and
+  brings the sky up, the words changing with the picture (developer,
+  2026-11-07). No mist: a Film opening `studio` is the card's warm shade
+  without it. A budget device keeps the floor and has no land (`bare`).
+  The film's `length` counts the pinned screen itself: a step needs more
+  than 1, or it has no scroll at all.
 - "Componentized building" opens on the finished house, whole, which
   comes apart twice (developer, 2026-10-10: "easy to understand for very
   common people", then "after fully bursting, we can burst further").
@@ -511,7 +640,7 @@ security in `admin/README.md`):
 - The opening card's three are in refined finishes, and they alone
   (developer, 2026-10-12, with a reference picture as the benchmark of
   realism, not of design; notes P): floated micro concrete with a tooth,
-  standing-seam roofing, coated steel, the capsule's semi-gloss panels,
+  standing-seam roofing, coated steel, the pod's TRC panels,
   polished panes, photovoltaic cells, each shell of the block a shade of
   its own, a floor that gives the lit windows back. The scene asks for
   them (`<Refined>` in `HeroScene`, `kit/refined.ts`); the kit's
@@ -523,7 +652,10 @@ security in `admin/README.md`):
   since (developer, 2026-10-15, "improve the texture, realism ... for
   mobile/tab only"): on a compact layout and not a budget device, the
   factory's sprayed shell and its trim and On site's house are refined
-  too; desktop as it was (notes S9). The house keeps
+  too; desktop as it was (notes S9). Asked again (developer, 2026-11-09:
+  "use the same level of detailing texture, render method"): the pod is
+  refined wherever it stands, the second banner and the POD page
+  included; its land is not (notes W13). The house keeps
   its finishes into the sunset that follows the card: it is the same
   house. CONFIRM: the same house on the MOD page (`/modular/`, the
   showcase's `house`) has the materials as they were, by this rule
@@ -558,7 +690,7 @@ security in `admin/README.md`):
   landscape (the hero and the product pages have none there). On a phone
   held sideways the words are on the left, the building on the right. The
   header there: the lockup, the Contact pill, three bars, on one
-  translucent band. No horizontal page scroll. "How VEE is different" is
+  translucent band. No horizontal page scroll. "How Vee is different" is
   six cards that stack as the page scrolls, each point with what it
   replaces (2026-10-15). (Until 2026-10-14 the rule was the reverse:
   canvas on top, caption below.)
@@ -579,7 +711,7 @@ security in `admin/README.md`):
 - A grid on the ground is one flat sheet whose shader finds the lines, not
   line segments: line segments cost 12 ms a frame in "How it works"
   (notes F7).
-- A film reached by a link (`/#factory`, the rail, the menus) stands at
+- A film reached by a link (`/modular/#factory`, the rail, the menus) stands at
   the top of the window, as it does once scrolled into: `.film` gives
   back the header's room that the page keeps for every other target
   (`scroll-margin-top`, film.css; `scroll-padding-top`, base.css). A
@@ -587,8 +719,10 @@ security in `admin/README.md`):
   again once the page has settled, unless they have begun to scroll
   (`arriveScript`, `Base.astro`; developer, 2026-10-14: the foot of the
   3D tour showed above the factory's title).
-- Routes: `/` (Home, the main page, the factory tour included),
-  `/modular/` (MOD, since 2026-10-14, asked for), `/capsule/`, `/prefab/`,
+- Routes: `/` (Home: banners, the range, the enquiry form),
+  `/modular/` (MOD, since 2026-10-14, asked for; the whole story and the
+  factory tour since 2026-11-07), `/capsule/` (POD: the pod's own
+  opening since 2026-11-09), `/prefab/`,
   `/partnership/`, `404`. Do not move a section to a route of its own, or
   add or remove one, without asking first. Besides the site: `/admin/*`
   (the panel, noindex, disallowed in `robots.txt`) and `/api/*` (2026-10-16).

@@ -25,15 +25,15 @@ const copy = {
   contact: {
     choiceLabel: 'Project category',
     choices: projectCategories as readonly string[],
-    messageLabel: 'Message / site location details',
+    messageLabel: 'Message and site location',
     messageHint: 'What you want to build, where, and roughly when.',
-    submit: 'Initiate build',
+    submit: 'Send enquiry',
   },
   partnership: {
     choiceLabel: 'I am a',
     choices: partnerTypes as readonly string[],
     messageLabel: 'About your operation',
-    messageHint: 'Region, capacity, and the kind of work you do today.',
+    messageHint: 'Your region, your capacity and the kind of work you do today.',
     submit: 'Send partnership enquiry',
   },
 } satisfies Record<Variant, unknown>;

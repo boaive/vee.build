@@ -38,17 +38,17 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" v
   <polygon points="${base}" fill="#e2dfd8"/>
   ${shell(0, 0, 6)}
   ${shell(7.5, 0, 3)}
-  <g fill="none" stroke="#151617" stroke-width="4">
-    <rect x="72" y="74" width="56" height="28"/>
-    <rect x="134" y="74" width="28" height="28"/>
-  </g>
   <g font-family="Arial, Helvetica, sans-serif" fill="#151617">
-    <text x="184" y="100" font-size="34" font-weight="700" letter-spacing="3">VEE<tspan fill="#d9431b">.</tspan>BUILD</text>
     <text x="72" y="452" font-size="66" font-weight="700" letter-spacing="-2">One system.</text>
     <text x="72" y="526" font-size="66" font-weight="700" letter-spacing="-2">Many buildings.</text>
   </g>
-  <text x="72" y="578" font-family="Consolas, 'Courier New', monospace" font-size="22" letter-spacing="3" fill="#62656a">6 M × 3 M × 3 M  ·  3 M × 3 M × 3 M</text>
+  <text x="72" y="578" font-family="Consolas, 'Courier New', monospace" font-size="22" letter-spacing="3" fill="#62656a">6 m × 3 m × 3 m  ·  3 m × 3 m × 3 m</text>
 </svg>`;
 
-await sharp(Buffer.from(svg)).png({ compressionLevel: 9, palette: true }).toFile(join(root, 'public', 'og.png'));
+// The logo as supplied (src/assets/brand/veedo-logo.png), top left.
+const logo = await sharp(join(root, 'src', 'assets', 'brand', 'veedo-logo.png')).resize({ width: 250 }).png().toBuffer();
+await sharp(Buffer.from(svg))
+  .composite([{ input: logo, left: 72, top: 58 }])
+  .png({ compressionLevel: 9 })
+  .toFile(join(root, 'public', 'og.png'));
 console.log('public/og.png written');

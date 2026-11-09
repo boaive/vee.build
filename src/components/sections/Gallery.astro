@@ -10,10 +10,9 @@ const photos = gallery.filter((g) => g.kind === 'photo').length;
   <div class="wrap">
     <header class="intro">
       <p class="eyebrow"><b>{numberOf('gallery')}</b> Photo gallery</p>
-      <h2 class="t-h2" id="gallery-heading" data-reveal>Photo gallery</h2>
+      <h2 class="t-h2" id="gallery-heading" data-reveal>From the factory to the site.</h2>
       <p class="t-lead" data-reveal style="--i:1">
-        The real-world sequence: modules in transit, crane installations and completed handovers.
-        {photos === 0 && ' Site photography will be added here. Visualisations are marked as such.'}
+        {photos === 0 ? 'Photography from the factory and the site will appear here. Visualisations are marked.' : 'Modules in transit, crane installations and completed handovers.'}
       </p>
     </header>
 

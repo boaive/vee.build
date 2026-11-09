@@ -32,7 +32,7 @@ function Scene(props: SceneProps) {
 /* The call-outs in the picture: what each thing is, where it is. */
 const labels: FilmLabel[] = [
   { id: 'frame', text: 'Structural frame' },
-  { id: 'hook', text: 'Lifting hook, one a corner' },
+  { id: 'hook', text: 'Lifting hook at each corner' },
   { id: 'panels', text: 'Insulation panels' },
   { id: 'formwork', text: 'Formwork' },
   { id: 'pour', text: 'Concrete, cast as walls' },

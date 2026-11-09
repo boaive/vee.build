@@ -1,22 +1,36 @@
 ---
+/*
+ * The enquiry form: the last section of the home page and of the MOD page
+ * (since 2026-11-07, when the story moved there). `index`: the chapter's
+ * number where the page is numbered (MOD); `preset`: the line the form
+ * starts on.
+ */
 import EnquiryForm from '../forms/EnquiryForm.tsx';
-import { numberOf, shown } from '../../data/site';
+import type { ProjectCategory } from '../../data/site';
+import { shown, site } from '../../data/site';
+
+interface Props {
+  index?: string;
+  preset?: ProjectCategory;
+  lead?: string;
+}
+const { index, preset, lead = 'Tell us what you would like to build, and where.' } = Astro.props;
 ---
 
 <section class="section contact theme-dark" id="contact" data-theme="dark" data-chapter="contact" aria-labelledby="contact-heading">
   <div class="wrap contact__grid">
     <div>
-      <p class="eyebrow" style="margin-bottom:1.75rem"><b>{numberOf('contact')}</b> Contact</p>
+      <p class="eyebrow" style="margin-bottom:1.75rem">{index && <b>{index}</b>} Enquire</p>
       <h2 class="contact__title" id="contact-heading" data-reveal>
         <span>Build smarter<em>.</em></span>
-        <span>Build with Vee<em>.</em></span>
+        <span>Build with {site.short}<em>.</em></span>
       </h2>
       <p class="t-lead contact__lead mute" data-reveal style="--i:1">
-        Tell us what you want to build and where the site is.{shown.catalogue && ' Mention a catalogue model if one fits.'}
+        {lead}{shown.catalogue && ' Mention a catalogue model if one fits.'}
       </p>
     </div>
     <div data-reveal style="--i:2">
-      <EnquiryForm client:visible={{ rootMargin: '300px' }} variant="contact" />
+      <EnquiryForm client:visible={{ rootMargin: '300px' }} variant="contact" preset={preset} />
     </div>
   </div>
 </section>

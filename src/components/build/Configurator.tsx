@@ -24,6 +24,7 @@ import { estimate, formatPrice, quantities } from '../../build/price';
 import { loadRates, ratesVersion, useRates } from '../../build/rates';
 import { build, encode, presetLayout, useBuild } from '../../build/store';
 import { pricingNote } from '../../data/pricing';
+import { story } from '../../data/site';
 import { COMPACT_QUERY } from '../../film/device';
 import { createProgress, type PlaceLabel } from '../../film/progress';
 import type { AddOnHover, Hover, Orbit, Tool } from '../../three/scenes/BuildScene';
@@ -313,7 +314,7 @@ export default function Configurator() {
     const deck = deckFinishes.find((f) => f.id === s.deck)?.name;
     const trim = trimFinishes.find((f) => f.id === s.trim)?.name;
     const foundation = `${FOUNDATION_HEIGHTS[s.foundation.h]} mm above ground, ${foundationTypes.find((f) => f.id === s.foundation.type)?.name.toLowerCase()}`;
-    const link = `${window.location.origin}/?build=${encode(s)}#configure`;
+    const link = `${window.location.origin}${story}?build=${encode(s)}#configure`;
     // The counts go with the enquiry, so the admin panel can price a quote from exactly this build.
     const counted = quantities({ units: s.units, addOns: s.addOns, deckSide: s.deckSide, manual: s.addOnMode === 'manual' ? s.manual : null, foundation: s.foundation, plot: s.plot });
     requestEnquiry({
@@ -326,7 +327,7 @@ export default function Configurator() {
   };
 
   const copyLink = async () => {
-    const url = `${window.location.origin}/?build=${encode(build.get())}#configure`;
+    const url = `${window.location.origin}${story}?build=${encode(build.get())}#configure`;
     try {
       await navigator.clipboard.writeText(url);
       say('Link copied. Anyone with it opens this exact build.');
@@ -853,7 +854,7 @@ export default function Configurator() {
                 </button>
               </div>
             </div>
-            <p className="cfg__note">Or use the + handles on each edge of the plot to extend it that way.</p>
+            <p className="cfg__note">Or use the + handles on any edge to extend the plot.</p>
           </>,
         )}
 
@@ -881,7 +882,7 @@ export default function Configurator() {
                 </button>
               ))}
             </div>
-            <p className="cfg__note">Precast footings at every corner, height above ground set per site. Where shells meet they share one footing and one plinth.</p>
+            <p className="cfg__note">Precast footings at every corner, set to suit the site. Joined shells share footings and plinths.</p>
           </>,
         )}
 
@@ -927,7 +928,7 @@ export default function Configurator() {
               </>
             ) : (
               <>
-                <p className="cfg__note">Pick an add-on, then click where it goes on the house. To take one away, choose Select, click it and press Remove.</p>
+                <p className="cfg__note">Pick an add-on and click where it goes. To remove one, choose Select, click it and press Remove.</p>
                 <ul className="palette">
                   {manualKinds.map((k) => (
                     <li key={k.id}>
@@ -998,7 +999,7 @@ export default function Configurator() {
           <>
             {compact && floorTabs}
             <BuildPlan units={units} addOns={addOns} deckSide={state.deckSide} manual={manualMode ? state.manual : null} plot={state.plot} floor={floor} selected={selected} onSelect={select} />
-            <p className="cfg__note">Each shell has one door, marked on the plan. It moves to a free wall when another shell stands against it.</p>
+            <p className="cfg__note">Each shell has one door, shown on the plan. It moves to a free wall when shells are joined.</p>
             <p className="cfg__note">
               Areas are the brief&rsquo;s nominal figures: Shell A 200 sq.ft., Shell B 100 sq.ft. Up to {MAX_FLOORS} floors.
             </p>

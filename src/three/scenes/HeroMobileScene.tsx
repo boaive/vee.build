@@ -1,14 +1,17 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import { Color, ShadowMaterial, Vector3, type Group, type Mesh, type PerspectiveCamera } from 'three';
-import { podLengths } from '../../data/narrative';
+import { podLengths } from '../../data/pod';
 import { heroChoice } from '../../film/heroChoice';
-import { HERO_CUTS } from '../../film/heroTimeline';
+import { podChoice } from '../../film/podChoice';
+import { HERO_CUTS, HERO_STRETCH } from '../../film/heroTimeline';
 import type { SceneProps } from '../../film/progress';
 import { clamp01, ease, lerp } from '../../film/timeline';
 import Stage, { aim, useLabel, useWarmAll, type Rig } from '../Stage';
-import { Capsule, InstitutionalBlock, WORK_BAYS, WorkforceBlock } from '../kit/buildings';
-import { POD_HOME } from '../kit/capsule';
+import { PrefabBuilding } from '../kit/prefab';
+import { PREFAB_ROW_BAYS } from '../kit/prefabPlan';
+import { Pod } from '../kit/pod';
+import { POD as POD_PLAN, podBox } from '../kit/podPlan';
 import { INST_BOX, LENS, blend, cornersOf, dirOf, newPose, placeOf, poseAt, poseInRect, posesAlong, turned, type Pose, type Shot } from '../kit/frame';
 import { LOOKS } from '../kit/looks';
 import { useMirror } from '../kit/mirror';
@@ -42,18 +45,20 @@ import { HouseAlone } from '../kit/sets';
  * "the drowning and spanning animation is good in the page one system many
  * building. no changes in that".
  *
- * After that the four steps are scrolled through, as on desktop ("vertical
+ * After that the steps are scrolled through, as on desktop ("vertical
  * to move hero sections"), and since 2026-10-15 nothing goes down into the
  * floor or comes up out of it between them ("for the next 4 hero slides, we
  * don't keep drowning and spanning, we will have a proper professional
  * animation"). The buildings stand in a row across one showroom floor, far
  * enough apart that none is in another's picture: the house, the capsule
- * in its three lengths, 10′, 16′ and 20′, the block, the institutional
- * building. At each cut the camera glides from one to the next, drawing
+ * in its three lengths, 8, 10 and 12 m (since 2026-11-09; one pod in the
+ * picture at a time), the institutional building (the
+ * block between them went with the workforce banner on 2026-11-07; it is
+ * still one of the card's three). At each cut the camera glides from one to the next, drawing
  * back as it goes so that what it leaves and what it comes to are both in
  * the picture on the way, and comes in to the next as the caption changes:
  * a dolly through the showroom. Choosing the capsule's length glides along
- * its three the same way; passing the smaller ones on the way to the 20′,
+ * its three the same way; passing the smaller ones on the way to the 12 m,
  * the eye has the three side by side (2026-10-15: "the user should
  * understand the size by looking at it"). Only what the camera is on, or
  * between, is drawn. The capsule is shown at dusk, and the floor and the
@@ -72,12 +77,12 @@ import { HouseAlone } from '../kit/sets';
 const CUTS = HERO_CUTS;
 /** How far under the floor each kind starts on the card: house, capsule, block. */
 const UNDER = [4.6, 3.6, 7.4] as const;
-/** The block's and the institutional building's own ground line is their set's pad: on the floor they stand this much lower. */
-const PAD_Y = -0.06;
+/** The prefab building stands on its own ground line: on the floor, at 0. */
+const PAD_Y = 0;
 /** The card's scroll (0–1): up to here the kind on show goes and the house comes, and the camera goes to it. */
 const LINEUP = 0.34;
 /** Around each cut, in film progress: the camera glides from one building to the next, this much before the cut and this much after it. */
-const GLIDE = [0.045, 0.055] as const;
+const GLIDE = [0.045 * HERO_STRETCH, 0.055 * HERO_STRETCH] as const;
 /** In the middle of a glide the camera stands back far enough to have both buildings in the picture, and a little higher. */
 const DOLLY = { rise: 0.06, margin: 2.5 };
 /**
@@ -91,16 +96,25 @@ const CLOCK = { DOWN_S: 0.55, UP_S: 1.05, FIRST_S: 1.6, WAIT_S: 0.35, LIT_S: 0.8
 const GLOSS = 0.72;
 const FLOOR_SHADOW = LOOKS.card.shadow.opacity;
 const SHADOW_Y = PLAZA_Y + 0.01;
-const FT = 0.3048;
-/** The capsule's box, on its home-like section (capsule.ts, POD_HOME): steps in front, legs and hull up. */
-const capsuleBox = (feet: number): Box => [-(feet * FT) / 2 - 0.03, (feet * FT) / 2 + 0.03, -POD_HOME.D / 2 - 0.05, POD_HOME.D / 2 + 0.7, POD_HOME.legs + POD_HOME.H + 0.05];
-/** The prefab block here is the workforce set's whole block (developer: "same for prefabs"), not the opening card's shorter one of the desktop. */
-const BAYS = WORK_BAYS;
+/** The pod's box at a length (podPlan.ts): its steps in front, its roof's eyes on top. */
+const capsuleBox = (m: number): Box => {
+  const [x0, x1, z0, z1, h] = podBox(m);
+  return [x0 - 0.03, x1 + 0.03, z0 - 0.05, z1, h + 0.1];
+};
+/** The prefab building on the card: as long as the desktop's (prefabPlan.ts). */
+const BAYS = PREFAB_ROW_BAYS;
 const PODS = podLengths;
 
 /**
+ * The block's framing: on the card only since 2026-11-07, when the workforce
+ * banner was deleted (the steps go from the capsule to the institutional
+ * building). Seen from the left: its staircase stands against that flank.
+ */
+const BLOCK_SHOT: Shot = { box: blockBox(BAYS), base: PAD_Y, turn: [-0.66, -0.42], el: 0.15, fill: [0.9, 0.76] };
+
+/**
  * The steps' framings (in the band), in the showroom's order: the house,
- * the capsule in each length, the block, the institutional building. Each
+ * the capsule in each length, the institutional building. Each
  * fills its picture; the capsule most of all, whatever its length
  * (2026-10-15: "in the screen it should cover the major areas, should not
  * leave empty spaces"), its size told by its door, its steps and the
@@ -109,15 +123,12 @@ const PODS = podLengths;
 const SHOTS: Shot[] = [
   { box: HOUSE_BOX, base: 0, turn: [0.78, 0.46], el: 0.13, fill: [0.9, 0.78] },
   ...PODS.map((f): Shot => ({ box: capsuleBox(f), base: 0, turn: [0.62, 0.34], el: 0.12, fill: [0.96, 0.84], lift: 0.1 })),
-  // From the left: its staircase stands against that flank (the developer's prefab screen).
-  { box: blockBox(BAYS), base: PAD_Y, turn: [-0.66, -0.42], el: 0.15, fill: [0.9, 0.76] },
   // Its left end kept whole with room beside it, on every screen; the near end runs off the right (2026-10-15: "make sure there is always space in left side for that slide").
   { box: INST_BOX, base: PAD_Y, turn: [1.06, 0.86], el: 0.1, fill: [1.45, 0.74], anchor: { side: -1, at: 0.8 } },
 ];
 const HOUSE = 0;
 const POD = (j: number) => 1 + j;
-const BLOCK = 1 + PODS.length;
-const INST = BLOCK + 1;
+const INST = 1 + PODS.length;
 
 /** The card's framings (in its room): the house, the capsule in each length, the block, each seen on the diagonal. */
 const CARD: Shot[] = [
@@ -138,11 +149,11 @@ const ROW_AT = [new Vector3(0, 0, 0), new Vector3(...ROW.capsule.at), new Vector
 const ROW_SHOT: Shot = { box: HOUSE_BOX, base: 0, turn: [0.6, 0.6], el: 0.11, fill: [0.94, 0.86] };
 const rowCorners = () => {
   const lift = (s: Shot, at: Vector3) => cornersOf(s).map((q) => q.add(at));
-  return [...lift(SHOTS[HOUSE], ROW_AT[0]), ...lift(SHOTS[POD(PODS.length - 1)], ROW_AT[1]), ...lift(SHOTS[BLOCK], ROW_AT[2])];
+  return [...lift(SHOTS[HOUSE], ROW_AT[0]), ...lift(SHOTS[POD(PODS.length - 1)], ROW_AT[1]), ...lift(BLOCK_SHOT, ROW_AT[2])];
 };
 
 /** How far in front of each kind's middle its name hangs on the card: its box's front, on its own plan. */
-const NAME_Z = [HOUSE_BOX[3] + 1.3, POD_HOME.D / 2 + 1.4, blockBox(BAYS)[3] + 0.7];
+const NAME_Z = [HOUSE_BOX[3] + 1.3, POD_PLAN.W / 2 + 1.75, blockBox(BAYS)[3] + 0.7];
 const KIND_IDS = ['mod', 'pod', 'fab'] as const;
 
 const span = (t: number, [a, b]: readonly [number, number]) => clamp01((t - a) / (b - a));
@@ -152,7 +163,7 @@ const setAt = (p: number) => {
   return i;
 };
 /** Where each step's own stretch begins and ends, its glides excluded. */
-const STRETCH: [number, number][] = [0, 1, 2, 3].map((k) => [k === 0 ? 0 : CUTS[k - 1] + GLIDE[1], k === 3 ? 1 : CUTS[k] - GLIDE[0]]);
+const STRETCH: [number, number][] = [0, 1, 2].map((k) => [k === 0 ? 0 : CUTS[k - 1] + GLIDE[1], k === CUTS.length ? 1 : CUTS[k] - GLIDE[0]]);
 
 const _look = [0, 0, 0];
 const _pos = [0, 0, 0];
@@ -306,8 +317,10 @@ function Showroom({ progress, place, reduced, compact, rig }: SceneProps & { rig
   // A choice made on the card or under the capsule: draw.
   useEffect(() => {
     heroChoice.listeners.add(invalidate);
+    podChoice.listeners.add(invalidate);
     return () => {
       heroChoice.listeners.delete(invalidate);
+      podChoice.listeners.delete(invalidate);
     };
   }, [invalidate]);
 
@@ -334,7 +347,9 @@ function Showroom({ progress, place, reduced, compact, rig }: SceneProps & { rig
     const v = camera.view;
     // The card's cards come after the scene can draw: the room is measured again when they are there.
     const pick = gl.domElement.closest('.film__sticky')?.querySelector('.prelude__pick') ? 1 : 0;
-    const key = `${size.width}x${size.height}-${fonts.current}-${camera.fov.toFixed(3)}-${v ? v.offsetY.toFixed(1) : 0}-${pick}-${wide}`;
+    // Dev only: `window.__veeCardFill = <0-1>` frames each kind that much smaller in the card's room, for the range's pictures (scripts/range.mjs).
+    const shrink = import.meta.env.DEV ? (window as unknown as { __veeCardFill?: number }).__veeCardFill : undefined;
+    const key = `${size.width}x${size.height}-${fonts.current}-${camera.fov.toFixed(3)}-${v ? v.offsetY.toFixed(1) : 0}-${pick}-${wide}-${shrink ?? 1}`;
     if (cardPoses.current.key === key) return cardPoses.current.list;
     const sideways = size.width > size.height * 1.2;
     const at = cardRoom(gl.domElement, sideways) ?? [12, size.height * 0.3, size.width - 12, size.height * 0.78];
@@ -347,7 +362,7 @@ function Showroom({ progress, place, reduced, compact, rig }: SceneProps & { rig
     if (wide) {
       const row = poseInRect(probe, ROW_SHOT, lineup, ROW_SHOT.turn[0], at, size.width, size.height);
       list = CARD.map(() => row);
-    } else list = CARD.map((s, k) => poseInRect(probe, s, cardCorners[k], s.turn[0], at, size.width, size.height));
+    } else list = CARD.map((s, k) => poseInRect(probe, shrink ? { ...s, fill: [s.fill[0] * shrink, s.fill[1] * shrink] } : s, cardCorners[k], s.turn[0], at, size.width, size.height));
     cardPoses.current = { key, list };
     return list;
   };
@@ -368,14 +383,14 @@ function Showroom({ progress, place, reduced, compact, rig }: SceneProps & { rig
    * The visitor's choices, on a clock: the card's three (house, capsule,
    * block) and the capsule's three lengths. The card's: how far up (0–1),
    * its lights (0–1), the card's camera, eased to the chosen one. The
-   * capsule's: where along its three the camera is (0 the 10′, 2 the 20′).
+   * capsule's: where along its three the camera is (0 the 8 m, 2 the 12 m).
    */
   const clock = useMemo(
     () => ({
       started: 0,
       first: !reduced,
       card: { rise: [0, 0, 0], lit: [0, 0, 0], cam: newPose(), placed: false },
-      pod: { at: Math.max(0, PODS.indexOf(heroChoice.feet as (typeof PODS)[number])) },
+      pod: { at: Math.max(0, PODS.indexOf(podChoice.length)) },
     }),
     [reduced],
   );
@@ -396,23 +411,10 @@ function Showroom({ progress, place, reduced, compact, rig }: SceneProps & { rig
         return j === shown && now.capsule >= 0.999 ? clock.card.lit[1] : 0;
       }),
       block: () => (!now.onCard ? 1 : now.block < 0.999 ? 0 : clock.card.lit[2]),
-      // The institutional building is whole when the camera comes to it, but for its last wall panels, which come in with the scroll.
-      campusA: () => 0.7 + 0.3 * span(now.p, [CUTS[2] + GLIDE[1] * 0.5, 0.95]),
-      campusShow: () => (setAt(now.p) === 3 ? 1 : 0),
+      // The prefab building stands but for its top floor's front, its galleries' finish and its doors and windows, which go in with the scroll.
+      campusA: () => 0.7 + 0.3 * span(now.p, [CUTS[1] + GLIDE[1] * 0.5, 0.95]),
     };
   }, [now, clock, wide]);
-
-  /** The institutional building's labels are placed on its own plan: put into the showroom as it stands. */
-  const campusLabel = useMemo(
-    () => (id: string, x: number, y: number, z: number, o: number) => {
-      const g = campusPlan.current;
-      if (!g) return;
-      g.updateMatrixWorld();
-      _v.set(x, y, z).applyMatrix4(g.matrixWorld);
-      label(id, _v.x, _v.y, _v.z, o);
-    },
-    [label],
-  );
 
   useFrame((_, dt) => {
     const step = reduced ? 100 : Math.min(dt, 0.05);
@@ -420,7 +422,7 @@ function Showroom({ progress, place, reduced, compact, rig }: SceneProps & { rig
 
     /* The visitor's choices, on the clock (only once the loading screen has lifted, and the first picture has stood a moment). */
     const c = wide ? 0 : heroChoice.kind;
-    const fj = Math.max(0, PODS.indexOf(heroChoice.feet as (typeof PODS)[number]));
+    const fj = Math.max(0, PODS.indexOf(podChoice.length));
     if (!booting.current) {
       clock.started ||= performance.now();
       if (reduced || performance.now() - clock.started > CLOCK.WAIT_S * 1000) {
@@ -445,7 +447,7 @@ function Showroom({ progress, place, reduced, compact, rig }: SceneProps & { rig
       } else moving = true;
     }
 
-    /* The scroll: the card, then the four steps. */
+    /* The scroll: the card, then the three steps. */
     const p = progress.value;
     const i = setAt(p);
     const pre = i === 0 ? progress.pre : 1;
@@ -467,9 +469,9 @@ function Showroom({ progress, place, reduced, compact, rig }: SceneProps & { rig
     const show = showroomFor(aspect, compact ? aspect : (1.4 * size.width) / size.height);
     const { list, spots } = show;
 
-    /** Building k's framing in the steps (k: 0 house, 1 capsule, 2 block, 3 institutional), `u` along its turn. */
+    /** Building k's framing in the steps (k: 0 house, 1 capsule, 2 institutional), `u` along its turn. */
     const stepPose = (k: number, u: number, out: Pose) => {
-      if (k !== 1) return poseAt(list[k === 0 ? HOUSE : k === 2 ? BLOCK : INST], u, out);
+      if (k !== 1) return poseAt(list[k === 0 ? HOUSE : INST], u, out);
       // The capsule, between the framings of the lengths it is going between: a glide along them.
       const a = Math.min(PODS.length - 2, Math.floor(clock.pod.at));
       poseAt(list[POD(a)], u, _R);
@@ -477,7 +479,7 @@ function Showroom({ progress, place, reduced, compact, rig }: SceneProps & { rig
       return glide(_R, _S, clock.pod.at - a, out, aspect);
     };
     /** Where along the showroom's row the steps' camera is, as a range of buildings (what is drawn): one, or the ones a glide is between. */
-    const indexOf = (k: number) => (k === 0 ? HOUSE : k === 1 ? POD(clock.pod.at) : k === 2 ? BLOCK : INST);
+    const indexOf = (k: number) => (k === 0 ? HOUSE : k === 1 ? POD(clock.pod.at) : INST);
     let lo = 0;
     let hi = 0;
     const pose = _P;
@@ -528,8 +530,8 @@ function Showroom({ progress, place, reduced, compact, rig }: SceneProps & { rig
       if (onCard) put(ref.current, card(1), 0, j === shownPod ? now.capsule : 0, UNDER[1], true);
       else put(ref.current, spots[POD(j)], 0, 1, 0, drawn(POD(j)));
     });
-    if (onCard) put(block.current, card(2), PAD_Y, now.block, UNDER[2], true);
-    else put(block.current, spots[BLOCK], PAD_Y, 1, 0, drawn(BLOCK));
+    // The block is the card's only: not in the steps' row.
+    put(block.current, card(2), PAD_Y, now.block, UNDER[2], onCard);
     put(campus.current, spots[INST], PAD_Y, 1, 0, drawn(INST));
 
     /* The floor: an island round what is looked at, larger with the distance; at dusk for the capsule's step. */
@@ -549,7 +551,7 @@ function Showroom({ progress, place, reduced, compact, rig }: SceneProps & { rig
     });
     const podShown = !onCard && i === 1 && !gliding ? 1 : 0;
     PODS.forEach((f, j) => {
-      const [x, z] = turned(0, POD_HOME.D / 2 + 1.6);
+      const [x, z] = turned(0, POD_PLAN.W / 2 + 1.55);
       const settled = 1 - clamp01(Math.abs(clock.pod.at - j) * 4);
       label(`pod-${f}`, spots[POD(j)].x + x, 0.02, spots[POD(j)].z + z, podShown * settled);
     });
@@ -565,19 +567,19 @@ function Showroom({ progress, place, reduced, compact, rig }: SceneProps & { rig
         {PODS.map((f, j) => (
           <group key={f} ref={(g) => void (pods[j].current = g)}>
             <group rotation-y={FARM_YAW}>
-              <Capsule feet={f} getT={() => 1} getLit={lights.pod[j]} look={LOOKS.card} section={POD_HOME} />
+              <Pod length={f} getLit={lights.pod[j]} look={LOOKS.card} />
             </group>
           </group>
         ))}
         <group ref={block}>
           <group rotation-y={FARM_YAW}>
-            <WorkforceBlock getA={() => 1} getLit={lights.block} look={LOOKS.card} crane={false} bays={BAYS} />
+            <PrefabBuilding getA={() => 1} getLit={lights.block} look={LOOKS.card} bays={BAYS} />
           </group>
         </group>
       </Refined>
       <group ref={campus}>
         <group ref={campusPlan} rotation-y={FARM_YAW}>
-          <InstitutionalBlock getA={lights.campusA} label={campusLabel} getShow={lights.campusShow} look={LOOKS.card} />
+          <PrefabBuilding getA={lights.campusA} look={LOOKS.card} bays={3} />
         </group>
       </group>
       <group ref={mirror} />

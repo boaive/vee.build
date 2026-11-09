@@ -3,71 +3,70 @@ import Base from '../layouts/Base.astro';
 import Showcase from '../components/sections/Showcase.tsx';
 import Onward from '../components/sections/Onward.astro';
 import EnquiryForm from '../components/forms/EnquiryForm.tsx';
-import { factoryTitle, kinds } from '../data/narrative';
+import { kinds } from '../data/narrative';
+import { site } from '../data/site';
 
+/*
+ * FAB (developer, 2026-11-07): the prefab building is a G+2 block of
+ * factory-made precast wall panels, set on site, for schools, health
+ * centres and institutions; the G+1 workforce block is gone. Coming soon.
+ * The picture is the building, whole and clear: no crane, no build here
+ * (the home page's third banner shows it going up). The panels' length is
+ * not stated (the developer's instruction).
+ */
 const fab = kinds.find((k) => k.id === 'fab')!;
-// The second button opens the factory tour on the home page, in the words of its own title screen (as on MOD).
-const toFactory = factoryTitle.line.join(' ').replace(/\.$/, '');
+
+const uses = [
+  { n: '01', name: 'Schools', note: 'Classrooms on three floors, reached by open galleries and one outer staircase.' },
+  { n: '02', name: 'Health centres', note: 'Rooms with their own doors and windows, opening onto a deck at the front.' },
+  { n: '03', name: 'Institutions', note: 'Buildings for public services, assembled from the same factory-made panels.' },
+];
 ---
 
 <Base
   title="Prefab building — coming soon"
-  description="VEE.BUILD prefab buildings: insulated G+1 workforce housing and G+2 institutional buildings with 36′ precast wall panels. Coming soon."
+  description={`${site.short} prefab buildings: three-storey precast panel buildings for schools, health centres and institutions. Coming soon.`}
 >
   <section class="page-hero theme-light" data-theme="light">
     <div class="wrap">
       <p class="page-hero__meta"><span class="badge">Coming soon</span><span class="t-label">Prefab</span></p>
       <h1 class="t-display">Prefab building</h1>
       <p class="t-lead page-hero__lead">
-        {fab.line} {fab.punch} Insulated living for your workforce, and institutional buildings in 36′ precast wall panels.
+        {fab.line} {fab.punch} Factory-made precast wall panels, with their doors and windows, set on site.
       </p>
       <div class="page-hero__actions">
         <a class="btn btn--down" href="#register">Discuss a project</a>
-        <a class="btn btn--ghost btn--plain" href="/#factory">{toFactory}</a>
       </div>
     </div>
   </section>
 
   <Showcase
     client:load
-    kind="workforce"
-    description="A ground plus one workforce accommodation block built from stacked modules, with an access gallery and stair. A crane lowers the final module into place."
-    note="Workforce housing · G+1 · real-time model"
+    kind="prefab"
+    description="A three-storey precast concrete building: storey-high wall panels with doors and windows, open galleries along the front, an outer staircase at one end, and a deck with steps at the ground floor."
+    note="Prefab building · G+2 · real-time model"
   />
 
   <section class="section theme-light" data-theme="light">
     <div class="wrap">
       <header class="section-head">
-        <p class="t-label section-head__index">Building types</p>
-        <h2 class="t-h2" data-reveal>Two scales of prefab.</h2>
-        <p class="t-lead section-head__lead" data-reveal style="--i:1">
-          Details, layouts and availability will be published on this page at launch.
-        </p>
+        <p class="t-label section-head__index">Where it is used</p>
+        <h2 class="t-h2" data-reveal>Three floors, set on site.</h2>
+        <p class="t-lead section-head__lead" data-reveal style="--i:1">Specifications, layouts and availability will be published here at launch.</p>
       </header>
       <ul class="facts">
-        <li data-reveal>
-          <span class="t-label">01</span>
-          <h3>Workforce housing · G+1</h3>
-          <p>Insulated accommodation for labour and site teams, lifted into place module by module.</p>
-        </li>
-        <li data-reveal style="--i:1">
-          <span class="t-label">02</span>
-          <h3>Institutional · G+2</h3>
-          <p>
-            Schools and similar facilities assembled from 36′ long prefab / precast wall panels. Lean, clean, resilient,
-            environmentally friendly buildings for future generations.
-          </p>
-        </li>
+        {
+          uses.map((u, i) => (
+            <li data-reveal style={`--i:${i}`}>
+              <span class="t-label">{u.n}</span>
+              <h3>{u.name}</h3>
+              <p>{u.note}</p>
+            </li>
+          ))
+        }
       </ul>
     </div>
   </section>
-
-  <Showcase
-    client:visible
-    kind="institutional"
-    description="A ground plus two institutional building. Two 36 foot precast wall panels glide into position on its facade."
-    note="Institutional · G+2 · 36′ wall panels · real-time model"
-  />
 
   <Onward line="fab" />
 
@@ -75,9 +74,7 @@ const toFactory = factoryTitle.line.join(' ').replace(/\.$/, '');
     <div class="wrap contact__grid">
       <div>
         <h2 class="t-h2" id="register-heading" data-reveal>Discuss a prefab project.</h2>
-        <p class="t-lead contact__lead mute" data-reveal style="--i:1">
-          Tell us the headcount or floor area you need, and where the site is.
-        </p>
+        <p class="t-lead contact__lead mute" data-reveal style="--i:1">Tell us what the building is for, the floor area you need and where the site is.</p>
       </div>
       <EnquiryForm client:visible variant="contact" preset="Prefab Services" />
     </div>

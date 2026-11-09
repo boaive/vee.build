@@ -3,13 +3,16 @@ import { primaryNav, sections } from '../../data/site';
 import Brand from './Brand.astro';
 
 interface Props {
-  home?: boolean;
+  /** The page that tells the story (MOD since 2026-11-07): its chapters in the rail and in the mobile menu. */
+  chapters?: boolean;
 }
-const { home = false } = Astro.props;
+const { chapters = false } = Astro.props;
 const path = Astro.url.pathname;
 const isCurrent = (href: string) => !href.includes('#') && (href === '/' ? path === '/' : path.startsWith(href));
 const lines = primaryNav.filter((n) => n.label !== 'Contact');
 const contact = primaryNav.find((n) => n.label === 'Contact');
+/* The page that tells the story has an enquiry form of its own, set to its line: Contact opens that one. */
+const hrefOf = (item: { label: string; href: string }) => (chapters && item.label === 'Contact' ? '#contact' : item.href);
 ---
 
 <header class="hdr" data-hdr>
@@ -32,7 +35,7 @@ const contact = primaryNav.find((n) => n.label === 'Contact');
     </span>
     {
       contact && (
-        <a class="hdr__link hdr__link--cta" href={contact.href}>
+        <a class="hdr__link hdr__link--cta" href={hrefOf(contact)}>
           {contact.label}
         </a>
       )
@@ -49,7 +52,7 @@ const contact = primaryNav.find((n) => n.label === 'Contact');
   <nav class="menu__primary" aria-label="Primary">
     {
       primaryNav.map((item) => (
-        <a href={item.href} aria-current={isCurrent(item.href) ? 'page' : undefined}>
+        <a href={hrefOf(item)} aria-current={isCurrent(item.href) ? 'page' : undefined}>
           {item.label}
           <span>{item.note}</span>
         </a>
@@ -57,7 +60,7 @@ const contact = primaryNav.find((n) => n.label === 'Contact');
     }
   </nav>
   {
-    home && (
+    chapters && (
       <nav class="menu__sections" aria-label="On this page">
         {sections.map((s) => (
           <a href={`#${s.id}`}>
@@ -71,7 +74,7 @@ const contact = primaryNav.find((n) => n.label === 'Contact');
 </div>
 
 {
-  home && (
+  chapters && (
     <nav class="rail" aria-label="On this page" data-rail>
       {sections.map((s) => (
         <a href={`#${s.id}`} aria-label={`${s.n} ${s.label}`}>

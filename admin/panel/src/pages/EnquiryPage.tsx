@@ -51,8 +51,8 @@ function Detail({ d }: { d: EnquiryDetail }) {
     toast('Did you reply?', { action: { label: 'Mark contacted', onClick: () => setStatus('contacted') }, duration: 10_000 });
   };
 
-  const subject = encodeURIComponent('Your enquiry to VEE.BUILD');
-  const body = encodeURIComponent(`Dear ${e.name},\n\nThank you for your enquiry about ${e.category === 'Not chosen' ? 'building with VEE.BUILD' : e.category}.\n\n`);
+  const subject = encodeURIComponent('Your enquiry to Vee');
+  const body = encodeURIComponent(`Dear ${e.name},\n\nThank you for your enquiry about ${e.category === 'Not chosen' ? 'building with Vee' : e.category}.\n\n`);
 
   return (
     <div className="mx-auto max-w-6xl">

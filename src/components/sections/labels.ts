@@ -1,8 +1,9 @@
+import { podLengthName, podLengths } from '../../data/pod';
 import type { FilmLabel } from '../../film/Film';
 
-/** Capsule pod lengths from the brief. Shared by the hero and the Capsule page. */
-export const POD_FEET_LABELS: FilmLabel[] = [10, 16, 20].map((ft) => ({
-  id: `pod-${ft}`,
-  text: `${ft}′ long`,
+/** The pod's lengths (data/pod.ts), each named under the pod in the hero's second banner when it is the one standing there. */
+export const POD_LENGTH_LABELS: FilmLabel[] = podLengths.map((m) => ({
+  id: `pod-${m}`,
+  text: `${podLengthName(m)} long`,
   kind: 'dim',
 }));

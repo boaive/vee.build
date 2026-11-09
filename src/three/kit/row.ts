@@ -24,6 +24,9 @@
  * (notes O).
  */
 
+import { POD_DEFAULT, podBox } from './podPlan';
+import { PREFAB_ROW_BAYS, prefabBox } from './prefabPlan';
+
 export type P3 = [number, number, number];
 
 /**
@@ -44,7 +47,7 @@ export const FARM_YAW = -0.24;
 export const ROW_AZ = 0.17;
 
 export interface Row {
-  capsule: { at: P3; turn: number; feet: number };
+  capsule: { at: P3; turn: number; length: number };
   prefab: { at: P3; turn: number; bays: number };
   /** Each one's place on the floor and how far its shadow is kept (x, z, from, to), for the bare floor of the opening. */
   spots: [number, number, number, number][];
@@ -56,8 +59,8 @@ export interface Row {
   view: { az: number; el: number };
 }
 
-/** The card's block: two floors of four bays, the brief's G+1 at a length that sits in a row with the other two. */
-export const ROW_BAYS = 4;
+/** The card's prefab building: two panels long, at a length that sits in a row with the other two (prefabPlan.ts). */
+export const ROW_BAYS = PREFAB_ROW_BAYS;
 
 export type Box = [number, number, number, number, number];
 
@@ -81,10 +84,10 @@ function hullOf(at: P3, turn: number, [x0, x1, z0, z1, h]: Box): P3[] {
 
 /** The house's box on its own plan: roof overhang, landing and steps included, up to the ridge. */
 export const HOUSE_BOX: Box = [-3.2, 3.25, -1.7, 3.25, 4.2];
-/** The 20′ capsule's, steps included. */
-export const CAPSULE_BOX: Box = [-3.08, 3.08, -1.55, 2.2, 3.2];
-/** The block's: its staircase stands against its left flank, its gallery along the front. */
-export const blockBox = (bays: number): Box => [-bays * 1.5 - 2.15, bays * 1.5 + 0.1, -3.05, 4.65, 6.2];
+/** The pod's on the card (podPlan.ts): its first length, its steps included. */
+export const CAPSULE_BOX: Box = podBox(POD_DEFAULT);
+/** The prefab building's: its staircase stands against its left flank, its galleries and steps along the front. */
+export const blockBox = (bays: number): Box => prefabBox(bays);
 
 const mix = (p: number, q: number, t: number) => p + (q - p) * t;
 /** To the floor's joints: the slabs are 3 m, laid from the house's own walls. */
@@ -94,7 +97,7 @@ export function rowOf(capsule: P3, prefab: P3, view: Row['view']): Row {
   const bays = ROW_BAYS;
   const block = blockBox(bays);
   return {
-    capsule: { at: capsule, turn: FARM_YAW, feet: 20 },
+    capsule: { at: capsule, turn: FARM_YAW, length: POD_DEFAULT },
     prefab: { at: prefab, turn: FARM_YAW, bays },
     /*
      * The card's light is low: a shadow is kept for about its building's own
@@ -126,6 +129,7 @@ export function rowOf(capsule: P3, prefab: P3, view: Row['view']): Row {
  */
 export function rowFor(s: number, wide = 0): Row {
   const capsule = onPlan(snap(mix(3, 5, s), 1.5) + (wide > 1 ? 1.5 : 0), -9);
-  const prefab = onPlan(snap(mix(6, -3, s), 1.5) + wide * 1.5, -34.5);
+  // The prefab building is a G+2 block (2026-11-07): it stands farther back than the old G+1 one, so the house stays the largest.
+  const prefab = onPlan(snap(mix(6, -3, s), 1.5) + wide * 1.5, -45);
   return rowOf(capsule, prefab, { az: ROW_AZ, el: mix(0.012, 0.45, s) });
 }

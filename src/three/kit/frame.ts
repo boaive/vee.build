@@ -13,12 +13,13 @@
 import { Vector3, type PerspectiveCamera } from 'three';
 import { clamp01, ease, lerp } from '../../film/timeline';
 import { FARM_YAW, type Box } from './row';
+import { prefabBox } from './prefabPlan';
 
 /** The stage's lens (Stage, BASE_FOV). */
 export const LENS = 28;
 
-/** The institutional building's box on its own plan (kit/buildings.tsx, InstitutionalBlock), its porch canopy included. */
-export const INST_BOX: Box = [-16.7, 16.7, -5.75, 7.0, 11.0];
+/** The prefab building's box on its own plan, three panels long (kit/prefabPlan.ts): the building of the hero's third banner. */
+export const INST_BOX: Box = prefabBox(3);
 
 export interface Shot {
   box: Box;
