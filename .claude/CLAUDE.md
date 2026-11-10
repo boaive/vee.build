@@ -205,7 +205,9 @@ source. Never resolve a conflict by inventing a third value.
   runs on the backs of the panels and over the ceiling to the plan's
   points, a light a room, a switch by each way in, sockets under the
   windows, the board in the entry (`wiringPlan`, `podPanels`); the
-  ceiling is at the plan's 2.9 m, the frame's ring and the roof's bows
+  ceiling is at the plan's 2.9 m (the roof's bows and purlins over it keep
+  out of the occlusion pass, which laid grit on it: "what is this on the
+  top"), the frame's ring and the roof's bows
   over it under the band. Then the rockwool unrolled from rolls along the
   walls and over the ceiling ("it comes rolled in market"; a clipping plane
   follows each roll, the plain material once it has run; the rolls cast no
@@ -578,19 +580,23 @@ security in `admin/README.md`):
   second brief of 2026-10-11 (with two reference pictures; notes O) they
   stand parallel, one behind another on a diagonal, and are seen on the
   diagonal, each showing its front and one end (`rowFor` in
-  `kit/row.ts`), the house in front, the pod 18 m behind it and the block
-  70 m back (developer, 2026-11-09: "the modular house ... can come little
-  to the front, followed by pod, and followed by precast. just like as in
-  previous version": with the 10 m pod and the G+2 block nearer, those two
-  outweighed the house); on a polished floor of 3 m slabs that mirrors them
+  `kit/row.ts`), the house in front, the pod 15 m behind it and the block
+  87 m back, both more nearly behind the house than to its right, so that
+  the camera can come near (developer, 2026-11-09: "the modular house ...
+  can come little to the front, followed by pod, and followed by precast";
+  2026-11-10, with a picture of the card as it was in October: "the hero
+  page should be from this angle and modular should be a priority"; notes
+  Y13): the house is the largest of the three on every desktop screen; on a polished floor of 3 m slabs that mirrors them
   (`kit/plaza.tsx`, `kit/mirror.tsx`); in warm light (look `card`); on a
   warm shade, which is CSS behind the canvas (`.film__backdrop--studio`;
   the canvas is clear wherever the scene has drawn nothing). Not the
   white studio, and not the references' own buildings. The camera is
   fitted to the screen (`fitRow` in `kit/rowfit.ts`): as near as the
   card's words, margins and names allow, under the headline or beside it,
-  from eye level where the screen allows it and from higher up where that
-  gives the three real size; it is moved sideways and tilted to place
+  from eye level (since 2026-11-10 every desktop screen tried, 4:3
+  included: `NEAR_BEST`; a raised view had the house in a corner, leaning
+  at the viewer), and from higher up only where eye level would leave the
+  three small; it is moved sideways and tilted to place
   the picture, never raised or lowered. Do not place the three, the
   camera or the names by hand for a screen size: change the fit. A
   change to the card is looked at in a low window too (1267 × 303 and
@@ -611,7 +617,11 @@ security in `admin/README.md`):
   the floor's depth is drawn before the buildings, the reflection keeps
   only what stands over the floor, and the reflection's copies are kept
   out of the occlusion pass (`userData.unoccluded`, `kit/mirror.tsx`),
-  where a building still under the floor stood over it as stains.
+  where a building still under the floor stood over it as stains. So is
+  the floor itself (`PlazaFloor`, 2026-11-10): seen from eye level, its
+  occlusion round a building's foot came out as a grainy fringe, the
+  pod's like grass at its feet ("the grass is not properly hidden"); the
+  sun's shadow sets them on it.
 - After the card the hero has three banners since 2026-11-07 (developer:
   the workforce housing banner deleted): the modular house, the capsule
   home (one pod, its lengths to choose), the prefab building, each numbered over its caption, 01, 02, 03

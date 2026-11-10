@@ -416,7 +416,7 @@ function Hero({ progress, place, reduced, compact, rig, solo = false, bare = fal
     const back = aspect < COMPOSED ? 1 + (COMPOSED / aspect - 1) * PULL : 1;
     const pos = fit.look.map((q, k) => q + (fit.pos[k] - q) / back);
     rowView.current = { key, fit, pos, look: fit.look, near: null, ends: [80, 200] };
-    if (import.meta.env.DEV) (rig as unknown as { row?: unknown }).row = rowView.current;
+    if (import.meta.env.DEV) (rig as unknown as { row?: unknown }).row = { ...rowView.current, band, lens: { fov: probe.fov, aspect: probe.aspect, view: probe.view } };
     // The two behind the house, where this arrangement has them (how high: `raise`, every frame).
     const { row } = fit;
     capsule.current?.position.set(...row.capsule.at);

@@ -127,11 +127,20 @@ export function rowOf(capsule: P3, prefab: P3, view: Row['view']): Row {
  * width to spare (a low window, where the height is what limits them):
  * they then stand clear of each other instead of one before the other.
  */
+/** At eye level, on the house's own plan: the capsule (x, z) and the block (x, z), on the floor's joints. Found by trying every joint for the largest house that stays the largest (notes Y13). */
+const EYE_LEVEL = [0, -15, -12, -87] as const;
+
 export function rowFor(s: number, wide = 0): Row {
   // The house in front, the pod behind it, the precast block well back (developer, 2026-11-09: "the modular house ... can come
   // little to the front, followed by pod, and followed by precast. just like as in previous version"): with the 10 m pod and
   // the G+2 block, nearer places made the block and the pod outweigh the house.
-  const capsule = onPlan(snap(mix(3, 6, s), 1.5) + (wide > 1 ? 1.5 : 0), -18);
-  const prefab = onPlan(snap(mix(4.5, -3, s), 1.5) + wide * 1.5, -70);
+  // Seen from eye level (developer, 2026-11-10, with a picture of the card as it was in October: "the hero page should be
+  // from this angle and modular should be a priority"): the pod and the block stand more nearly behind the house, the
+  // block well back, so that the camera can come near and the house is the largest of the three on every desktop screen
+  // (notes Y13). From s 0.5 up, the places of the raised views as they were.
+  const [cx0, cz0, bx0, bz0] = EYE_LEVEL;
+  const k = Math.min(1, s / 0.5);
+  const capsule = onPlan(snap(mix(cx0, mix(3, 6, s), k), 1.5) + (wide > 1 ? 1.5 : 0), snap(mix(cz0, -18, k), 1.5));
+  const prefab = onPlan(snap(mix(bx0, mix(4.5, -3, s), k), 1.5) + wide * 1.5, snap(mix(bz0, -70, k), 1.5));
   return rowOf(capsule, prefab, { az: ROW_AZ, el: mix(0.012, 0.45, s) });
 }

@@ -172,6 +172,7 @@ function Layers({ progress, place, rig }: SceneProps & { rig: Rig }) {
   const rolls = { a: useRef<Mesh>(null), b: useRef<Mesh>(null), roof: useRef<Mesh>(null) };
   const panelMeshes = { walls: useRef<Mesh>(null), wallWiring: useRef<Mesh>(null), ceiling: useRef<Mesh>(null), ceilingWiring: useRef<Mesh>(null) };
   const sparks = useRef<InstancedMesh>(null);
+  const roofMesh = useRef<Mesh>(null);
   const wool = { walls: useRef<Mesh>(null), roof: useRef<Mesh>(null) };
   // The sparks' colours exist from the start, so the program warmed is the one drawn.
   useLayoutEffect(() => {
@@ -241,6 +242,9 @@ function Layers({ progress, place, rig }: SceneProps & { rig: Rig }) {
     set(g.posts, bFrame, FRAME.posts, 3);
     set(g.rails, bFrame, FRAME.rails, 3);
     set(g.roof, bFrame, FRAME.roof, 3);
+    // Once the ceiling is under them, the roof's bows and purlins keep out of the occlusion pass: 8 cm over a flat
+    // ceiling, what the pass made of them lay on it as grit (developer, 2026-11-10: "what is this on the top").
+    if (roofMesh.current) roofMesh.current.userData.unoccluded = !burst && p >= SERVICES.ceiling[0];
     // The plumbing comes up from under the ground, to where it is fixed under the floor.
     set(g.plumbing, bFrame, SERVICES.plumbing, -1.2);
     // The rockwool: in place in the opening; in its chapter unrolled, the walls' and then the roof's, from the head end.
@@ -436,7 +440,7 @@ function Layers({ progress, place, rig }: SceneProps & { rig: Rig }) {
           <mesh geometry={frame.rails} material={m.frame} {...sh} />
         </group>
         <group ref={g.roof}>
-          <mesh geometry={frame.roof} material={m.frame} {...sh} />
+          <mesh ref={roofMesh} geometry={frame.roof} material={m.frame} {...sh} />
         </group>
         <group ref={g.plumbing}>
           <mesh geometry={services.plumbing} material={m.colours} {...sh} />
