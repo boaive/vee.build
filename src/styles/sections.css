@@ -1517,16 +1517,20 @@
 }
 
 /*
- * Home, after the banners (Lines.astro; developer, 2026-11-07: "make it as
- * cards. make it little popped"): the three lines as cards on a deeper
- * paper. Each card is one link on the page's lightest surface, with a
- * hairline edge and a soft shadow warmed towards the concrete; it rises a
- * little under the pointer, its picture leans in and its arrow fills. The
- * menu's code and the status sit on the picture as small labels, not over
- * the name. One under another on a phone.
+ * Home, after the banners (Lines.astro): the three lines as cards. Since
+ * 2026-11-09 (developer: "the background and 3d object background are not
+ * in sync ... redesign in there. make it visually attractive and clean"):
+ * the section is the opening card's warm studio light, and each picture
+ * fades into its card at its edges, so the three stand in one light rather
+ * than in boxes of their own. Each card is one link on a quiet glass
+ * surface: the code on the picture, the name, one line, where it leads; it
+ * rises a little under the pointer and its arrow fills. One under another
+ * on a phone.
  */
 .lines {
-  background: var(--bg-2);
+  background:
+    radial-gradient(ellipse 72% 50% at 50% 42%, rgb(255 220 178 / 0.42) 0%, rgb(255 220 178 / 0) 72%),
+    linear-gradient(180deg, #f7ede0 0%, #f2e4d2 58%, #ecdbc6 100%);
 }
 /* The heading and its line, one over the other at the cards' left edge: a section heading, not a poster. */
 .lines__head {
@@ -1558,24 +1562,24 @@
   flex-direction: column;
   width: 100%;
   overflow: hidden;
-  border: 1px solid rgb(17 18 20 / 0.08);
-  border-radius: 1.1rem;
-  background: var(--surface);
+  border: 1px solid rgb(255 255 255 / 0.62);
+  border-radius: 1.25rem;
+  background: rgb(255 251 246 / 0.4);
   box-shadow:
-    0 1px 2px rgb(52 40 28 / 0.06),
-    0 14px 34px -20px rgb(52 40 28 / 0.32);
+    inset 0 1px 0 rgb(255 255 255 / 0.7),
+    0 18px 40px -30px rgb(84 58 32 / 0.5);
   transform: translateY(var(--lift));
   transition:
     transform 0.5s var(--ease-out),
     box-shadow 0.5s var(--ease-out),
-    border-color 0.3s var(--ease);
+    background-color 0.4s var(--ease);
 }
 .lines__card:hover {
   --lift: -6px;
-  border-color: rgb(17 18 20 / 0.14);
+  background: rgb(255 251 246 / 0.58);
   box-shadow:
-    0 2px 4px rgb(52 40 28 / 0.06),
-    0 30px 56px -26px rgb(52 40 28 / 0.42);
+    inset 0 1px 0 rgb(255 255 255 / 0.8),
+    0 30px 56px -30px rgb(84 58 32 / 0.55);
 }
 .lines__card:active {
   --lift: -2px;
@@ -1589,12 +1593,14 @@
   display: block;
   aspect-ratio: 8 / 5;
   overflow: hidden;
-  background: linear-gradient(180deg, #f7f0e4 0%, #f8e7cf 50%, #f0e0cb 100%);
 }
+/* The picture's own studio fades into the card, all round: no edge where the two meet. */
 .lines__pic img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  -webkit-mask-image: radial-gradient(ellipse 64% 72% at 50% 46%, #000 52%, transparent 100%);
+  mask-image: radial-gradient(ellipse 64% 72% at 50% 46%, #000 52%, transparent 100%);
   transition: transform 0.9s var(--ease-out);
 }
 .lines__card:hover .lines__pic img {
@@ -1626,9 +1632,9 @@
   line-height: 1;
 }
 .lines__code {
-  background: rgb(251 250 247 / 0.92);
+  background: rgb(255 252 248 / 0.9);
   color: var(--text);
-  box-shadow: 0 1px 2px rgb(52 40 28 / 0.12);
+  box-shadow: 0 1px 2px rgb(84 58 32 / 0.12);
 }
 /* On ink, the accent is the green (tokens.css). */
 .lines__soon {
@@ -1645,7 +1651,7 @@
 .lines__body {
   display: grid;
   gap: 0.55rem;
-  padding: 1.35rem 1.4rem 1.25rem;
+  padding: 0.35rem 1.4rem 1.25rem;
 }
 .lines__name {
   font-size: clamp(1.35rem, 1.1rem + 0.75vw, 1.8rem);
@@ -1668,7 +1674,7 @@
   gap: 1rem;
   margin: auto 1.4rem 0;
   padding: 0.95rem 0 1.15rem;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid rgb(84 58 32 / 0.12);
   font-size: 0.95rem;
   font-weight: 560;
   color: var(--text);
@@ -1678,7 +1684,7 @@
   flex: none;
   width: 2.3rem;
   height: 2.3rem;
-  border: 1px solid var(--line-strong);
+  border: 1px solid rgb(84 58 32 / 0.26);
   border-radius: 50%;
   transition:
     background-color 0.3s var(--ease),
@@ -1712,7 +1718,7 @@
     gap: 1.1rem;
   }
   .lines__body {
-    padding: 1.15rem 1.15rem 1rem;
+    padding: 0.25rem 1.15rem 1rem;
   }
   .lines__foot {
     margin-inline: 1.15rem;
@@ -1728,5 +1734,538 @@
   }
   .lines__card:hover .lines__pic img {
     transform: none;
+  }
+}
+
+
+/* ------------------------------------------------------------------ */
+/* POD: plans (PodPlans; developer, 2026-11-09; redesigned 2026-11-10)  */
+/* ------------------------------------------------------------------ */
+
+/*
+ * In the Home range's warm studio light (.lines), the pod's own opening
+ * light: the 3D stands on it with nothing round it, its plan under it;
+ * the choices on a glass card beside them, as the range's cards are.
+ */
+.plans {
+  background:
+    radial-gradient(ellipse 62% 44% at 30% 52%, rgb(255 214 168 / 0.46) 0%, rgb(255 214 168 / 0) 72%),
+    linear-gradient(180deg, #f7ede0 0%, #f2e4d2 58%, #ecdbc6 100%);
+}
+
+.plans__head {
+  display: grid;
+  gap: 0.85rem;
+  max-width: 44rem;
+  margin-bottom: clamp(1.5rem, 3.5vw, 2.75rem);
+}
+
+.plans__title {
+  font-size: clamp(2.1rem, 1.35rem + 2.6vw, 3.75rem);
+  font-weight: 630;
+  font-stretch: 104%;
+  line-height: 1;
+  letter-spacing: -0.034em;
+  text-wrap: balance;
+}
+
+.plans__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(20rem, 1fr);
+  gap: clamp(1.5rem, 3.5vw, 3.5rem);
+  align-items: start;
+}
+
+.plans__view {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+/* The 3D: the canvas is clear where the pod is not, so the section's light is its ground. */
+.plans__stage {
+  position: relative;
+  aspect-ratio: 16 / 9;
+}
+
+.plans__stage canvas {
+  opacity: 0;
+  transition: opacity 0.5s var(--ease);
+}
+
+.plans__stage.is-ready canvas {
+  opacity: 1;
+}
+
+.plans__drawing {
+  margin: 0;
+  padding-inline: clamp(0.5rem, 4%, 2.75rem);
+}
+
+.plans__svg svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* The pod's length under its plan, as a dimension: a line with its ends ticked, the figure under it. */
+.plans__dim {
+  position: relative;
+  margin: 0.55rem var(--inset, 2.5%) 0;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--accent-line);
+  color: var(--title);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.plans__dim::before,
+.plans__dim::after {
+  content: '';
+  position: absolute;
+  top: -0.35rem;
+  width: 1px;
+  height: 0.7rem;
+  background: var(--accent-line);
+}
+
+.plans__dim::before {
+  left: 0;
+}
+
+.plans__dim::after {
+  right: 0;
+}
+
+/* The glass card: the choices, then the chosen pod's size and what to do next. */
+.plans__panel {
+  display: grid;
+  gap: 1.5rem;
+  padding: clamp(1.15rem, 2vw, 1.6rem);
+  border: 1px solid rgb(255 255 255 / 0.62);
+  border-radius: 1.25rem;
+  background: rgb(255 251 246 / 0.45);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.7),
+    0 18px 40px -30px rgb(84 58 32 / 0.5);
+}
+
+.plans__pick,
+.plans__info {
+  display: grid;
+  gap: 1.35rem;
+}
+
+.plans__group {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.plans__label {
+  margin-bottom: 0.3rem;
+  color: var(--mute);
+}
+
+/* A length: its figure, its panels to one scale (the ends, the door bay, the middle bays), its area. */
+.plans__len {
+  display: grid;
+  grid-template-columns: 3.9rem minmax(0, 1fr) 4.4rem;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  min-height: 3.05rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.8rem;
+  color: var(--mute);
+  text-align: left;
+  transition:
+    background-color 0.25s var(--ease),
+    box-shadow 0.25s var(--ease),
+    color 0.25s var(--ease);
+}
+
+.plans__len:hover {
+  background: rgb(255 252 247 / 0.5);
+  color: var(--text-2);
+}
+
+.plans__len:focus-visible,
+.plans__layout:focus-visible {
+  outline: 2px solid var(--accent-line);
+  outline-offset: 2px;
+}
+
+.plans__len[aria-pressed='true'] {
+  background: rgb(255 252 247 / 0.9);
+  color: var(--text);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    0 8px 20px -14px rgb(84 58 32 / 0.5);
+}
+
+.plans__len-m {
+  font-size: 1.5rem;
+  font-weight: 620;
+  font-stretch: 104%;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.plans__len-m small {
+  font-size: 0.58em;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.plans__mods {
+  display: flex;
+  gap: 2px;
+  width: calc(var(--k, 1) * 100%);
+  height: 0.62rem;
+}
+
+.plans__mods i {
+  display: block;
+  min-width: 0;
+  height: 100%;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0.3;
+  transition:
+    opacity 0.25s var(--ease),
+    background-color 0.25s var(--ease);
+}
+
+.plans__mods i:first-child {
+  border-radius: 0.31rem 1px 1px 0.31rem;
+}
+
+.plans__mods i:last-child {
+  border-radius: 1px 0.31rem 0.31rem 1px;
+}
+
+.plans__len:hover .plans__mods i {
+  opacity: 0.5;
+}
+
+.plans__len[aria-pressed='true'] .plans__mods i {
+  background: var(--text);
+  opacity: 1;
+}
+
+.plans__len-area {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* A layout: as the enquiry form's options are, ink when chosen, its dot in the accent. */
+.plans__layouts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.plans__layout {
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  min-height: 4.5rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 0.9rem;
+  color: var(--text);
+  text-align: left;
+  transition:
+    border-color 0.2s var(--ease),
+    background-color 0.2s var(--ease),
+    color 0.2s var(--ease);
+}
+
+.plans__layout:hover {
+  border-color: var(--mute);
+}
+
+.plans__layout-name {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.97rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.plans__layout-name::before {
+  content: '';
+  flex: none;
+  width: 0.6rem;
+  height: 0.6rem;
+  border: 1px solid var(--mute);
+  border-radius: 50%;
+  transform: translateY(0.02em);
+  transition:
+    background-color 0.2s var(--ease),
+    border-color 0.2s var(--ease);
+}
+
+.plans__layout-name b {
+  font: 500 0.7rem/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  color: var(--mute);
+}
+
+.plans__layout-rooms {
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--mute);
+}
+
+.plans__layout[aria-pressed='true'] {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--bg);
+}
+
+.plans__layout[aria-pressed='true'] .plans__layout-name::before {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.plans__layout[aria-pressed='true'] .plans__layout-name b,
+.plans__layout[aria-pressed='true'] .plans__layout-rooms {
+  color: rgb(242 240 235 / 0.66);
+}
+
+.plans__facts {
+  display: grid;
+  margin: 0;
+  border-top: 1px solid rgb(84 58 32 / 0.14);
+}
+
+.plans__facts div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid rgb(84 58 32 / 0.14);
+}
+
+.plans__facts dt {
+  color: var(--mute);
+}
+
+.plans__facts dd {
+  margin: 0;
+  font-weight: 560;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.plans__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 0.65rem;
+}
+
+.plans__enquire {
+  margin-left: auto;
+}
+
+/* The card stays beside the pod as its plan is read, where the window is tall enough to hold it. */
+@media (min-width: 861px) and (min-height: 760px) {
+  .plans__panel {
+    position: sticky;
+    top: calc(var(--hdr) + 1.25rem);
+  }
+}
+
+/* The drawing: walls in ink, the floor in paper, glass and fittings in lines. */
+.plan .pw {
+  fill: var(--text);
+}
+
+.plan .pr {
+  fill: var(--surface);
+}
+
+.plan .pg,
+.plan .pb {
+  fill: none;
+  stroke: var(--text-2);
+  stroke-width: 0.035;
+}
+
+.plan .pb {
+  stroke-dasharray: 0.08 0.06;
+}
+
+.plan .pg2 {
+  fill: var(--surface);
+  stroke: var(--text-2);
+  stroke-width: 0.02;
+}
+
+.plan .pf {
+  fill: var(--bg-2);
+}
+
+.plan .pd {
+  fill: none;
+  stroke: var(--mute);
+  stroke-width: 0.015;
+}
+
+.plan .ps {
+  fill: var(--bg-2);
+  stroke: var(--line-strong);
+  stroke-width: 0.012;
+}
+
+.plan .pu {
+  fill: var(--bg-2);
+  stroke: var(--text-2);
+  stroke-width: 0.012;
+}
+
+.plan .pl {
+  fill: var(--surface);
+  stroke: var(--text-2);
+  stroke-width: 0.012;
+}
+
+.plan .pm {
+  fill: none;
+  stroke: var(--mute);
+  stroke-width: 0.012;
+}
+
+.plan .pt {
+  fill: var(--text-2);
+  font: 500 0.15px var(--font-mono);
+  letter-spacing: 0.01px;
+  text-anchor: middle;
+  text-transform: uppercase;
+}
+
+.plan .pt--dim {
+  fill: var(--mute);
+}
+
+/* On the section's light: the floor a warm white, the fittings a shade of the light. */
+.plans__drawing .plan .pr,
+.plans__drawing .plan .pg2,
+.plans__drawing .plan .pl {
+  fill: #fffaf3;
+}
+
+.plans__drawing .plan .pu,
+.plans__drawing .plan .ps,
+.plans__drawing .plan .pf {
+  fill: #efe3d3;
+}
+
+.plans__dialog {
+  width: min(72rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  padding: clamp(1rem, 2.5vw, 2rem);
+  border: 0;
+  border-radius: 1.25rem;
+  background: #f7efe4;
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.plans__dialog::backdrop {
+  background: rgb(10 11 13 / 0.55);
+}
+
+.plans__dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.plans__close {
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font: 600 0.9rem/1 var(--font-sans);
+}
+
+.plans__close:focus-visible {
+  outline: 2px solid var(--accent-line);
+  outline-offset: 2px;
+}
+
+.plans__svg--large {
+  padding: clamp(0.75rem, 2vw, 1.5rem);
+  border-radius: 0.9rem;
+  background: #fffaf3;
+}
+
+.plans__dialog-foot {
+  margin-top: 1rem;
+  color: var(--mute);
+}
+
+/* Phones and tablets held upright: the choices first, then the pod and its plan, then the rest. */
+@media (max-width: 860px), (max-width: 1100px) and (orientation: portrait) and (hover: none) and (pointer: coarse) {
+  .plans__body {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .plans__panel {
+    display: contents;
+  }
+
+  .plans__pick {
+    order: 1;
+  }
+
+  .plans__view {
+    order: 2;
+  }
+
+  .plans__info {
+    order: 3;
+  }
+
+  .plans__stage {
+    aspect-ratio: 4 / 3;
+  }
+
+  .plans__len {
+    grid-template-columns: 3.3rem minmax(0, 1fr) 4.1rem;
+    gap: 0.7rem;
+    padding-inline: 0.6rem;
+  }
+
+  .plans__len-m {
+    font-size: 1.3rem;
+  }
+
+  .plans__layout {
+    padding: 0.7rem 0.75rem;
+  }
+
+  .plans__layout-rooms {
+    padding-left: 0;
+  }
+
+  .plans__enquire {
+    margin-left: 0;
   }
 }

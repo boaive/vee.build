@@ -20,7 +20,7 @@ Product lines, and the top menu since 2026-10-14: **Home** (since
 2026-11-07 only the hero's three banners, the three lines and the enquiry
 form; until then the whole story), **MOD** (modular house, live, a page
 of its own at `/modular/`, which tells the whole story since 2026-11-07), **POD** (capsule
-home, coming soon), **FAB** (prefab building: workforce and institutional,
+home; "Coming soon" taken off on 2026-11-09), **FAB** (prefab building: workforce and institutional,
 coming soon), and **Contact**. The FAB page ends, before its enquiry
 form, with links into the MOD page's chapters (02 How it works, 05 Build
 your own, 06 3D tour).

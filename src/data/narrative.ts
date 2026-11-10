@@ -38,8 +38,9 @@ export interface FilmStep {
  * one of each, and each has a statement for a heading and a line of text.
  * `code` is the top menu's name for the line. Wording is the client's,
  * set right for print on 2026-11-07 (hyphens, no exclamation marks; notes V). `soon`: not on sale yet, and tagged so
- * wherever it is shown (the capsule since 2026-10-09, the prefab building
- * since 2026-10-10).
+ * wherever it is shown (the prefab building since 2026-10-10; the capsule
+ * from 2026-10-09 until the developer took it off on 2026-11-09: "remove the
+ * coming soon from the pod, have similar actions as like in mod").
  */
 const SOON = 'Coming soon';
 export const kinds = [
@@ -64,7 +65,7 @@ export const kinds = [
     // CONFIRM: the capsule's shell is concrete (notes B8).
     punch: 'Enveloped in concrete.',
     href: '/capsule/',
-    soon: true,
+    soon: false,
   },
   {
     id: 'fab',
@@ -114,7 +115,6 @@ export const heroSteps: FilmStep[] = [
     index: '02',
     theme: 'dark',
     kicker: POD.code,
-    badge: SOON,
     title: `${POD.name}.`,
     body: POD.line,
     note: POD.punch,

@@ -139,8 +139,95 @@ export interface PodInterior {
 }
 type V3 = [number, number, number];
 
-/** `plan`: the length whose layout is shown; `end`: where its far end stands as drawn (the two differ while it changes). */
-export function podInterior(plan: number, end: number): PodInterior {
+type P2 = [number, number];
+
+/**
+ * A plan line with its inner corners rounded to `r` (less where a side is
+ * too short for it), in `segs` facets a corner, shaded smooth by `sweep`.
+ * The line's ends stay where they are. `mids` collects each corner's arc
+ * middle and its inward direction, for what stands at a corner (a mullion).
+ */
+export function fillet(pts: P2[], r: number, segs = 4, mids?: [P2, P2][]): P2[] {
+  const n = pts.length;
+  const out: P2[] = [pts[0]];
+  const push = (p: P2) => {
+    const q = out[out.length - 1];
+    if (Math.hypot(p[0] - q[0], p[1] - q[1]) > 1e-5) out.push(p);
+  };
+  for (let i = 1; i < n - 1; i++) {
+    const [px, pz] = pts[i];
+    const a = pts[i - 1];
+    const b = pts[i + 1];
+    const l0 = Math.hypot(px - a[0], pz - a[1]);
+    const l1 = Math.hypot(b[0] - px, b[1] - pz);
+    const d0: P2 = [(px - a[0]) / l0, (pz - a[1]) / l0];
+    const d1: P2 = [(b[0] - px) / l1, (b[1] - pz) / l1];
+    const turn = Math.acos(Math.max(-1, Math.min(1, d0[0] * d1[0] + d0[1] * d1[1])));
+    if (turn < 1e-3 || r <= 0) {
+      push(pts[i]);
+      continue;
+    }
+    const t = Math.min(r * Math.tan(turn / 2), l0 * (i === 1 ? 1 : 0.5), l1 * (i === n - 2 ? 1 : 0.5));
+    const rr = t / Math.tan(turn / 2);
+    const sign = d0[0] * d1[1] - d0[1] * d1[0] > 0 ? 1 : -1;
+    const s0: P2 = [px - d0[0] * t, pz - d0[1] * t];
+    const c: P2 = [s0[0] - d0[1] * sign * rr, s0[1] + d0[0] * sign * rr];
+    const a0 = Math.atan2(s0[1] - c[1], s0[0] - c[0]);
+    for (let k = 0; k <= segs; k++) {
+      const ang = a0 + (sign * turn * k) / segs;
+      push([c[0] + rr * Math.cos(ang), c[1] + rr * Math.sin(ang)]);
+    }
+    if (mids) {
+      const ang = a0 + (sign * turn) / 2;
+      const m: P2 = [c[0] + rr * Math.cos(ang), c[1] + rr * Math.sin(ang)];
+      mids.push([m, [c[0] - m[0], c[1] - m[1]].map((v) => v / rr) as P2]);
+    }
+  }
+  push(pts[n - 1]);
+  return out;
+}
+
+/**
+ * The pod's plan outline, `d` in from its face, its cut corners rounded as
+ * the skin is (kit/pod.tsx, ROUND): the head end, the back, the far end,
+ * the front; x from the head end, z to the front.
+ */
+export const POD_ROUND = 0.45;
+export function podOutline(L: number, d = 0): P2[] {
+  const { end: E, chamfer: C } = POD;
+  const hw = POD.W / 2;
+  const k = d * (Math.SQRT2 - 1);
+  const head = fillet(
+    [
+      [E, hw - d],
+      [C + k, hw - d],
+      [d, hw - C - k],
+      [d, -(hw - C - k)],
+      [C + k, -(hw - d)],
+      [E, -(hw - d)],
+    ],
+    Math.max(0.05, POD_ROUND - d),
+  );
+  const tail = head.map(([x, z]): P2 => [L - x, z]).reverse();
+  return [...head, ...tail];
+}
+
+/** A length's two layouts, as the draft has them (section 3): A and B. */
+export type PodLayout = 'A' | 'B';
+/** What stands in the head end's zone and in the far room, for a length and a layout (draft section 3). */
+export type HeadZone = 'bed' | 'office' | 'kitchen';
+export type FarZone = 'lounge' | 'kitchen' | 'bedLounge';
+export function podZones(plan: number, layout: PodLayout): [HeadZone, FarZone] {
+  if (plan < 9) return [layout === 'A' ? 'bed' : 'office', 'lounge'];
+  if (plan < 11) return ['bed', layout === 'A' ? 'kitchen' : 'bedLounge'];
+  return [layout === 'A' ? 'kitchen' : 'bed', 'bedLounge'];
+}
+
+/**
+ * `plan`: the length whose layout is shown; `end`: where its far end stands
+ * as drawn (the two differ while it changes); `layout`: A or B.
+ */
+export function podInterior(plan: number, end: number, layout: PodLayout = 'A'): PodInterior {
   const F = POD.floor;
   const zb = -(POD.W / 2 - 0.12);
   const top = 2.9;
@@ -174,34 +261,67 @@ export function podInterior(plan: number, end: number): PodInterior {
     add(x0 + 1.74, 0.42, zb + 0.2, x0 + 1.9, 0.62, zb + 0.8, fabric, room);
   };
   const table = (x0: number, room: 0 | 1) => add(x0, 0, zb + 1.05, x0 + 0.9, 0.42, zb + 1.5, dark, room);
+  /** A kitchen run against the back wall, x0 to x1: base units, worktop, wall cupboards. */
+  const counter = (x0: number, x1: number, room: 0 | 1) => {
+    add(x0, 0, zb, x1, 0.86, zb + 0.6, dark, room);
+    add(x0 - 0.02, 0.86, zb, x1 + 0.02, 0.9, zb + 0.62, stone, room);
+    add(x0, 1.5, zb, x1, 2.2, zb + 0.35, white, room);
+  };
+  /** A bar out from the back wall at x0, and the pendant over it: where its light is. */
+  const bar = (x0: number, room: 0 | 1): V3 => {
+    add(x0, 0, zb + 0.9, x0 + 0.45, 0.98, zb + 2.25, wood, room);
+    add(x0 - 0.02, 0.98, zb + 0.88, x0 + 0.47, 1.02, zb + 2.27, stone, room);
+    add(x0 + 0.1, 1.75, zb + 1.45, x0 + 0.35, 1.95, zb + 1.7, glow, room);
+    add(x0 + 0.22, 1.95, zb + 1.57, x0 + 0.23, 2.4, zb + 1.58, black, room);
+    return [x0 + 0.225, F + 1.7, zb + 1.575];
+  };
+  /** A floor lamp against the back wall at x: where its light is. */
+  const floorLamp = (x: number, room: 0 | 1): V3 => {
+    add(x - 0.015, 0, zb + 0.15, x + 0.015, 1.35, zb + 0.18, black, room);
+    add(x - 0.145, 1.3, zb + 0.02, x + 0.145, 1.6, zb + 0.31, glow, room);
+    return [x, F + 1.45, zb + 0.17];
+  };
 
-  // The bedroom behind the head end.
-  bed(0.45, 1);
-  picture(0.85, 1.65, 1);
-  const bedLamp = nightstand(0.12, 1);
-  add(2.35, 0, zb, 2.88, 2.2, zb + 1.3, white, 1);
+  const [head, far] = podZones(plan, layout);
+
+  // The head end's zone: the end module, to the core's wall.
+  let bedLamp: V3;
+  if (head === 'bed') {
+    bed(0.45, 1);
+    picture(0.85, 1.65, 1);
+    bedLamp = nightstand(0.12, 1);
+    add(2.35, 0, zb, 2.88, 2.2, zb + 1.3, white, 1);
+  } else if (head === 'office') {
+    // A desk out from the back wall, its chair, storage against the back wall, a lamp on the desk.
+    add(0.65, 0.72, zb + 0.45, 1.35, 0.76, zb + 2.05, wood, 1);
+    add(0.65, 0, zb + 0.45, 0.69, 0.72, zb + 2.05, dark, 1);
+    add(1.31, 0, zb + 0.45, 1.35, 0.72, zb + 2.05, dark, 1);
+    add(1.5, 0, zb + 1.0, 1.95, 0.46, zb + 1.45, fabric, 1);
+    add(1.88, 0.46, zb + 1.0, 1.95, 0.9, zb + 1.45, fabric, 1);
+    add(1.8, 0, zb, 2.8, 0.9, zb + 0.45, white, 1);
+    picture(1.95, 2.65, 1);
+    add(0.78, 0.95, zb + 0.6, 0.98, 1.1, zb + 0.8, glow, 1);
+    add(0.87, 0.76, zb + 0.69, 0.89, 0.95, zb + 0.71, black, 1);
+    bedLamp = [0.88, F + 1.0, zb + 0.7];
+  } else {
+    // Kitchen and dining at the head (the 12 m's layout A): the run against the back wall, the bar by the end glass.
+    counter(0.75, 2.75, 1);
+    bedLamp = bar(0.7, 1);
+  }
 
   // The far room, from the core's wall to the far end (or the balcony's glazed wall).
   const a = POD.end + POD_CORE;
   const balcony = podBalcony(plan);
   const b = balcony ? end - POD.balcony : end;
   let liveLamp: V3;
-  if (plan < 9) {
+  if (far === 'lounge') {
     sofa(a + 0.25, 0);
     table(a + 0.7, 0);
     picture(a + 0.75, a + 1.65, 0);
-    add(a + 2.3, 0, zb + 0.15, a + 2.33, 1.35, zb + 0.18, black, 0);
-    add(a + 2.17, 1.3, zb + 0.02, a + 2.46, 1.6, zb + 0.31, glow, 0);
-    liveLamp = [a + 2.31, F + 1.45, zb + 0.17];
-  } else if (plan < 11) {
-    add(a + 0.2, 0, zb, a + 2.2, 0.86, zb + 0.6, dark, 0);
-    add(a + 0.18, 0.86, zb, a + 2.22, 0.9, zb + 0.62, stone, 0);
-    add(a + 0.2, 1.5, zb, a + 2.2, 2.2, zb + 0.35, white, 0);
-    add(a + 2.3, 0, zb + 0.9, a + 2.75, 0.98, zb + 2.25, wood, 0);
-    add(a + 2.28, 0.98, zb + 0.88, a + 2.77, 1.02, zb + 2.27, stone, 0);
-    add(a + 2.4, 1.75, zb + 1.45, a + 2.65, 1.95, zb + 1.7, glow, 0);
-    add(a + 2.52, 1.95, zb + 1.57, a + 2.53, 2.4, zb + 1.58, black, 0);
-    liveLamp = [a + 2.525, F + 1.7, zb + 1.575];
+    liveLamp = floorLamp(a + 2.31, 0);
+  } else if (far === 'kitchen') {
+    counter(a + 0.2, a + 2.2, 0);
+    liveLamp = bar(a + 2.3, 0);
     sofa(b - 2.05, 0);
     table(b - 1.6, 0);
     picture(b - 1.5, b - 0.6, 0);

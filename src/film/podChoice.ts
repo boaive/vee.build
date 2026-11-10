@@ -5,13 +5,24 @@
  * Set by the length buttons (the hero's capsule step, the POD page's
  * opening), read by the scenes that draw the pod (kit/pod.tsx, `follow`;
  * the phone's hero), which are told when it changes. One choice a page.
+ * With it the layout, A or B (the POD page's plans; developer, 2026-11-09:
+ * both layouts of each length, the 3D following the one chosen).
  */
 import { podDefault, type PodLengthM } from '../data/pod';
 
+export type PodLayoutChoice = 'A' | 'B';
+
 export const podChoice = {
   length: podDefault as PodLengthM,
+  layout: 'A' as PodLayoutChoice,
   listeners: new Set<() => void>(),
 };
+
+export function chooseLayout(layout: PodLayoutChoice) {
+  if (podChoice.layout === layout) return;
+  podChoice.layout = layout;
+  podChoice.listeners.forEach((fn) => fn());
+}
 
 export function choosePod(length: PodLengthM) {
   if (podChoice.length === length) return;

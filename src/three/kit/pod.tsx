@@ -37,6 +37,7 @@ import {
   ExtrudeGeometry,
   Float32BufferAttribute,
   Matrix4,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   Path,
   Shape,
@@ -54,7 +55,7 @@ import { ease, win } from '../../film/timeline';
 import { box, memo, merge, setInst, withRoom } from './geometry';
 import type { Look } from './looks';
 import { instanced, litGlass, precastMat, roomPlanUniforms, tintedGlass, trimMat, type RoomPlan } from './materials';
-import { POD, POD_DEFAULT, POD_LENGTHS, POD_PIECES, bayAt, isWindowBay, podBalcony, podBays, podInterior } from './podPlan';
+import { POD, POD_DEFAULT, POD_LENGTHS, POD_PIECES, bayAt, fillet, isWindowBay, podBalcony, podBays, podInterior, type PodLayout } from './podPlan';
 import { useRefined } from './refined';
 import { boxUV } from './textures';
 
@@ -64,14 +65,19 @@ import { boxUV } from './textures';
  * and the eyes charcoal, the glass tinted, the feet and the steps precast.
  * CONFIRM (notes W): ours, after the references' light panels and dark glass.
  */
-const FINISH = { trc: '#c9c6bf', dark: '#202225', frame: '#2c2f33', glass: '#3a4650', concrete: '#a6a29a', guard: '#cdd5d9' } as const;
+const FINISH = { trc: '#c9c6bf', dark: '#202225', frame: '#2c2f33', glass: '#3a4650', concrete: '#a6a29a', guard: '#cdd5d9', door: '#5b4a3b' } as const;
 
-/** Material slots, in the order every part's geometry groups them. */
-const S = { trc: 0, dark: 1, frame: 2, glass: 3, concrete: 4, frost: 5, led: 6, guard: 7 } as const;
+/**
+ * Material slots, in the order every part's geometry groups them. The last
+ * three are what the pod's layers film tells apart (the top's cladding from
+ * the walls', the chassis and the plumbing under the floor): drawn whole,
+ * each joins the slot whose material it has, and the pod costs no more.
+ */
+const S = { trc: 0, dark: 1, frame: 2, glass: 3, concrete: 4, frost: 5, led: 6, guard: 7, door: 8, top: 9, chassis: 10, pipe: 11, topDark: 12 } as const;
 type Lists = BufferGeometry[][];
-const lists = (): Lists => [[], [], [], [], [], [], [], []];
+const lists = (): Lists => Array.from({ length: 13 }, () => []);
 
-const { W, chamfer: C, end: E, door: D, bay: B, feet: FEET, kick: KICK, floor: FLOOR, wallTop: WT, bandFace: BF, top: TOP, bandCut: BC, skirtCut: SC, kickBack: KB, sill: SILL, head: HEAD, cut: CUT, jamb: JAMB, skin: T, joint: J, balcony: BAL } = POD;
+const { W, chamfer: C, end: E, door: D, bay: B, feet: FEET, kick: KICK, floor: FLOOR, wallTop: WT, bandFace: BF, top: TOP, bandCut: BC, skirtCut: SC, sill: SILL, head: HEAD, cut: CUT, jamb: JAMB, skin: T, joint: J, balcony: BAL } = POD;
 const HW = W / 2;
 /** The roof band's depth in from the face: the void over the ceiling is behind it. */
 const BAND_D = 0.32;
@@ -108,7 +114,10 @@ const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
  * round the glazed end. `prof` is a closed outline, anticlockwise in (u, y),
  * u outward from the path; `inside` is a plan point on the pod's side of
  * the path, which says which way is out. Mitred at the path's corners, with
- * its ends closed. Flat-shaded, UVs in metres.
+ * its ends closed. UVs in metres. Shaded smooth where it bends gently (a
+ * rounded corner of the plan, a rounded edge of the profile: under 50°
+ * between neighbours), sharp elsewhere, as the MOD house's rounded edges
+ * are (developer, 2026-11-09: "the pod edges ... make it look smooth").
  */
 function sweep(path: P2[], inside: P2, prof: P2[], caps = true): BufferGeometry {
   const n = path.length;
@@ -130,6 +139,16 @@ function sweep(path: P2[], inside: P2, prof: P2[], caps = true): BufferGeometry 
     const k = 1 + a[0] * b[0] + a[1] * b[1];
     return [(a[0] + b[0]) / k, (a[1] + b[1]) / k];
   });
+  /** The plan normal each path point is shaded with: its segment's at a sharp corner, the two segments' between them at a gentle one. */
+  const SMOOTH = Math.cos((50 * Math.PI) / 180);
+  const shade = (i: number, s: number): P2 => {
+    if (i === 0 || i === n - 1) return segs[s].n;
+    const a = segs[i - 1].n;
+    const b = segs[i].n;
+    if (a[0] * b[0] + a[1] * b[1] < SMOOTH) return segs[s].n;
+    const l = Math.hypot(a[0] + b[0], a[1] + b[1]);
+    return [(a[0] + b[0]) / l, (a[1] + b[1]) / l];
+  };
   const off = (i: number, u: number): P2 => [path[i][0] + miter[i][0] * u, path[i][1] + miter[i][1] * u];
   const pos: number[] = [];
   const nor: number[] = [];
@@ -141,26 +160,47 @@ function sweep(path: P2[], inside: P2, prof: P2[], caps = true): BufferGeometry 
     const [u1, y1] = prof[(j + 1) % m];
     pv.push(pv[j] + Math.hypot(u1 - u0, y1 - y0));
   }
-  const tri = (q: V3[], t: P2[], N: V3, order: number[]) => {
-    const flip = dot(cross(sub(q[order[1]], q[order[0]]), sub(q[order[2]], q[order[0]])), N) < 0;
+  // Each profile edge's normal (out, up), and at each profile point the normal it is shaded with (the same rule).
+  const pe: P2[] = prof.map(([u0, y0], j) => {
+    const [u1, y1] = prof[(j + 1) % m];
+    const el = Math.hypot(u1 - u0, y1 - y0) || 1;
+    return [(y1 - y0) / el, -(u1 - u0) / el];
+  });
+  const pAt = (j: number, edge: number): P2 => {
+    const a = pe[(j - 1 + m) % m];
+    const b = pe[j % m];
+    if (a[0] * b[0] + a[1] * b[1] < SMOOTH) return pe[edge];
+    const l = Math.hypot(a[0] + b[0], a[1] + b[1]);
+    return [(a[0] + b[0]) / l, (a[1] + b[1]) / l];
+  };
+  const tri = (q: V3[], t: P2[], N: V3[], order: number[]) => {
+    const f = N[order[0]];
+    const flip = dot(cross(sub(q[order[1]], q[order[0]]), sub(q[order[2]], q[order[0]])), f) < 0;
     const o = flip ? [order[0], order[2], order[1]] : order;
     for (const k of o) {
       pos.push(...q[k]);
-      nor.push(...N);
+      nor.push(...N[k]);
       uv.push(...t[k]);
     }
   };
+  const nrm = (p: P2, e: P2): V3 => {
+    const v: V3 = [p[0] * e[0], e[1], p[1] * e[0]];
+    const l = Math.hypot(v[0], v[1], v[2]) || 1;
+    return [v[0] / l, v[1] / l, v[2] / l];
+  };
   let dist = 0;
   for (let s = 0; s < n - 1; s++) {
-    const { n: sn, len } = segs[s];
+    const { len } = segs[s];
+    const sa = shade(s, s);
+    const sb = shade(s + 1, s);
     for (let j = 0; j < m; j++) {
       const [u0, y0] = prof[j];
       const [u1, y1] = prof[(j + 1) % m];
       const el = Math.hypot(u1 - u0, y1 - y0);
       if (el < 1e-6) continue;
-      const nu = (y1 - y0) / el;
-      const ny = -(u1 - u0) / el;
-      const N: V3 = [sn[0] * nu, ny, sn[1] * nu];
+      const e0 = pAt(j, j);
+      const e1 = pAt((j + 1) % m, j);
+      const N: V3[] = [nrm(sa, e0), nrm(sb, e0), nrm(sb, e1), nrm(sa, e1)];
       const A = off(s, u0);
       const Bq = off(s + 1, u0);
       const Cq = off(s + 1, u1);
@@ -198,7 +238,7 @@ function sweep(path: P2[], inside: P2, prof: P2[], caps = true): BufferGeometry 
           return [o[0], prof[k][1], o[1]];
         });
         const t = f.map((k): P2 => [prof[k][0], prof[k][1]]);
-        tri(q, t, N, [0, 1, 2]);
+        tri(q, t, [N, N, N], [0, 1, 2]);
       }
     }
   }
@@ -240,21 +280,54 @@ function roundRect<T extends Path>(p: T, x0: number, y0: number, x1: number, y1:
   return p;
 }
 
-/** The plan outline of an end module (x from its end, 0, to its joint, E), pushed in by `d` all round but at the joint. */
-function endOutline(d: number): P2[] {
+/** The radius the end modules' cut corners are rounded to, in plan (developer, 2026-11-09: "make it look smooth"). */
+const ROUND = 0.45;
+/** How far along the side the first corner's rounding begins, past the cut corner's point. */
+const ROUND_T = ROUND * Math.tan(Math.PI / 8);
+
+
+/** A quarter round in a profile, from `a` turning to `b` about the corner `c` (the profile's points between them). */
+function quarter(c: P2, a: P2, b: P2, segs = 5): P2[] {
+  const out: P2[] = [];
+  const a0 = Math.atan2(a[1] - c[1], a[0] - c[0]);
+  let a1 = Math.atan2(b[1] - c[1], b[0] - c[0]);
+  if (a1 - a0 > Math.PI) a1 -= 2 * Math.PI;
+  if (a0 - a1 > Math.PI) a1 += 2 * Math.PI;
+  const r = Math.hypot(a[0] - c[0], a[1] - c[1]);
+  for (let k = 0; k <= segs; k++) {
+    const ang = a0 + ((a1 - a0) * k) / segs;
+    out.push([c[0] + r * Math.cos(ang), c[1] + r * Math.sin(ang)]);
+  }
+  return out;
+}
+
+/** The plan outline of an end module (x from its end, 0, to its joint, `to`), pushed in by `d` all round but at the joint, its cut corners rounded. */
+function endOutline(d: number, to: number = E): P2[] {
   const k = d * (Math.SQRT2 - 1);
-  return [
-    [E, HW - d],
+  const raw: P2[] = [
+    [to, HW - d],
     [C + k, HW - d],
     [d, HW - C - k],
     [d, -(HW - C - k)],
     [C + k, -(HW - d)],
-    [E, -(HW - d)],
+    [to, -(HW - d)],
   ];
+  return fillet(raw, Math.max(0.05, ROUND - d));
 }
 
 /** The parts' merged geometry: each list of slot `s` becomes a group drawn with material `s`. The glass's lit room is `room` (lo, hi), the plan's `kind` of room (0 living, 1 bedroom). */
-function finish(l: Lists, room?: [V3, V3], kind: 0 | 1 = 0): BufferGeometry {
+function finish(l: Lists, room?: [V3, V3], kind: 0 | 1 = 0, layered = false): BufferGeometry {
+  if (!layered) {
+    for (const [from, to] of [
+      [S.top, S.trc],
+      [S.chassis, S.frame],
+      [S.pipe, S.guard],
+      [S.topDark, S.dark],
+    ] as const) {
+      l[to].push(...l[from]);
+      l[from] = [];
+    }
+  }
   const used: [BufferGeometry, number][] = [];
   l.forEach((parts, slot) => {
     if (!parts.length) return;
@@ -282,33 +355,24 @@ const rectProf = (u0: number, u1: number, y0: number, y1: number): P2[] => [
   [u1, y1],
   [u0, y1],
 ];
-/** The roof band: its face, its cut edge up to the roof, back over the void; and the dark inside it that shows at its joints. */
-const BAND: P2[] = [
-  [-BAND_D, WT],
-  [0, WT],
-  [0, BF],
-  [-BC, TOP],
-  [-BAND_D, TOP],
-];
+/**
+ * The roof band: its face, its edge rounded up onto the roof (a quarter
+ * round where the draft had a cut; developer, 2026-11-09: "make it look
+ * smooth"), back over the void; and the dark inside it that shows at its
+ * joints.
+ */
+const BAND: P2[] = [[-BAND_D, WT], [0, WT], ...quarter([-BC, BF], [0, BF], [-BC, TOP]), [-BAND_D, TOP]];
 const BAND_DARK: P2[] = [
   [-BAND_D + 0.01, WT + 0.01],
   [-0.012, WT + 0.01],
-  [-0.012, BF - 0.005],
-  [-BC - 0.012, TOP - 0.012],
+  ...quarter([-BC, BF], [-0.012, BF], [-BC, TOP - 0.012]),
   [-BAND_D + 0.01, TOP - 0.012],
 ];
-/** An end module's skirt: from the kicker's line down to the feet, its foot cut in. */
-const SKIRT: P2[] = [
-  [-0.25, FEET],
-  [-SC, FEET],
-  [0, FEET + SC],
-  [0, KICK],
-  [-0.25, KICK],
-];
+/** An end module's skirt: from the kicker's line down to the feet, its foot rounded in. */
+const SKIRT: P2[] = [[-0.25, FEET], ...quarter([-SC, FEET + SC], [-SC, FEET], [0, FEET + SC]), [0, KICK], [-0.25, KICK]];
 const SKIRT_DARK: P2[] = [
   [-0.24, FEET + 0.01],
-  [-SC - 0.012, FEET + 0.01],
-  [-0.012, FEET + SC],
+  ...quarter([-SC, FEET + SC], [-SC, FEET + 0.012], [-0.012, FEET + SC]),
   [-0.012, KICK - 0.005],
   [-0.24, KICK - 0.005],
 ];
@@ -339,13 +403,15 @@ function sideRun(x0: number, x1: number, side: 1 | -1, prof: P2[], trim = J / 2)
  * and the panels are the same either way: the pod stays the same at both
  * ends (developer, 2026-11-08: "mirror able").
  */
-function endModuleGeometry(room: 0 | 1, balcony = false) {
-  return memo(`pod-end-v3-${room}-${balcony ? 'balcony' : 'glazed'}`, () => {
+function endModuleGeometry(room: 0 | 1, balcony = false, layered = false) {
+  return memo(`pod-end-v7-${room}-${balcony ? 'balcony' : 'glazed'}${layered ? '-layered' : ''}`, () => {
     const l = lists();
     const inside: P2 = [1.5, 0];
     const wrapIn = 0.06;
-    /** Where each side's window begins: at the cut corner, or past the balcony. */
-    const w0 = balcony ? BAL + 0.15 : C;
+    /** Where each side's flat begins: past the rounding of the cut corner. */
+    const xs = C + ROUND_T;
+    /** Where each side's window begins: at the rounded corner, or past the balcony. */
+    const w0 = balcony ? BAL + 0.15 : xs;
     const sideWindow = () => {
       const p = new Path();
       p.moveTo(w0, SILL);
@@ -357,8 +423,8 @@ function endModuleGeometry(room: 0 | 1, balcony = false) {
       p.closePath();
       return p;
     };
-    // The plan path round the end: side, cut corner, end, cut corner, side.
-    const round = (x: number): P2[] => [
+    // The plan path round the end: side, cut corner, end, cut corner, side; its corners rounded.
+    const corners = (x: number): P2[] => [
       [x, HW],
       [C, HW],
       [0, HW - C],
@@ -366,35 +432,36 @@ function endModuleGeometry(room: 0 | 1, balcony = false) {
       [C, -HW],
       [x, -HW],
     ];
+    const round = (x: number, mids?: [P2, P2][]) => fillet(corners(x), ROUND, 4, mids);
 
     for (const side of [1, -1] as const) {
       const z0 = side > 0 ? HW - T : -HW;
       const z1 = side > 0 ? HW : -HW + T;
-      // The side panel round the panoramic window: one piece from the cut corner to the joint, open where the glass wraps on
-      // (or, at a balcony, open over its guard, the window a hole in it).
+      // The side panel round the panoramic window: one piece from the rounded corner to the joint, open where the glass
+      // wraps on (or, at a balcony, open over its guard, the window a hole in it).
       const outline = (j: number): P2[] =>
         balcony
           ? [
-              [C + j, KICK + j],
+              [xs + j, KICK + j],
               [E - j, KICK + j],
               [E - j, WT - j],
-              [C + j, WT - j],
-              [C + j, HEAD],
+              [xs + j, WT - j],
+              [xs + j, HEAD],
               [BAL, HEAD],
               [BAL, SILL],
-              [C + j, SILL],
+              [xs + j, SILL],
             ]
           : [
-              [C + j, KICK + j],
+              [xs + j, KICK + j],
               [E - j, KICK + j],
               [E - j, WT - j],
-              [C + j, WT - j],
-              [C + j, HEAD],
+              [xs + j, WT - j],
+              [xs + j, HEAD],
               [E - JAMB - CUT, HEAD],
               [E - JAMB, HEAD - CUT],
               [E - JAMB, SILL + CUT],
               [E - JAMB - CUT, SILL],
-              [C + j, SILL],
+              [xs + j, SILL],
             ];
       l[S.trc].push(panel(outline(J / 2), z0, z1, balcony ? [sideWindow()] : []));
       const bz0 = side > 0 ? HW - T - 0.012 : -HW + T + 0.004;
@@ -427,39 +494,36 @@ function endModuleGeometry(room: 0 | 1, balcony = false) {
     }
 
     // Round the end, between the two side panels: the strip under the glass (or the guard) and the strip over it, each one piece.
-    const wrap = round(C).slice(1, 5);
+    const mids: [P2, P2][] = [];
+    const wrap = round(xs, mids);
     l[S.trc].push(sweep(wrap, inside, rectProf(-T, 0, KICK + J / 2, SILL)));
     l[S.trc].push(sweep(wrap, inside, rectProf(-T, 0, HEAD, WT - J / 2)));
     l[S.dark].push(sweep(wrap, inside, rectProf(-T - 0.012, -T - 0.004, KICK, SILL + 0.02)));
     l[S.dark].push(sweep(wrap, inside, rectProf(-T - 0.012, -T - 0.004, HEAD - 0.02, WT)));
     if (balcony) balconyParts(l, wrap, inside);
-    else glazedEnd(l, wrap, inside, wrapIn);
+    else glazedEnd(l, wrap, inside, wrapIn, mids);
 
     // The top band: a run along each side to the joint over the window, and one piece round the end.
-    for (const side of [1, -1] as const) l[S.trc].push(sideRun(SPLIT, E, side, BAND));
-    l[S.trc].push(sweep([[SPLIT - J / 2, HW], ...wrap, [SPLIT - J / 2, -HW]], inside, BAND));
-    l[S.dark].push(sweep(round(E), inside, BAND_DARK, false));
-    // The skirt, under the joint at the kicker's line: the same three pieces.
-    for (const side of [1, -1] as const) l[S.trc].push(sideRun(SPLIT, E, side, SKIRT));
-    l[S.trc].push(sweep([[SPLIT - J / 2, HW], ...wrap, [SPLIT - J / 2, -HW]], inside, SKIRT));
-    l[S.dark].push(sweep(round(E), inside, SKIRT_DARK, false));
+    for (const side of [1, -1] as const) l[S.top].push(sideRun(SPLIT, E, side, BAND));
+    l[S.top].push(sweep(round(SPLIT - J / 2), inside, BAND));
+    l[S.topDark].push(sweep(round(E), inside, BAND_DARK, false));
+    // The skirt: round the end only, to the joint under the window. From there to the door bay (or the middle) the side
+    // is open, as under the middle (developer, 2026-11-09: the marked part is kicker too): the skirt's box is closed there.
+    l[S.trc].push(sweep(round(SPLIT - J / 2), inside, SKIRT));
+    l[S.dark].push(sweep(round(SPLIT), inside, SKIRT_DARK, false));
+    l[S.trc].push(slab(SPLIT - J / 2 - T, SPLIT - J / 2, FEET, KICK, -(HW - 0.02), HW - 0.02));
+    openBase(l, SPLIT - J / 2, E);
 
-    // The roof over the band, the dark under its joints; the underside; the floor inside (and the balcony's).
-    l[S.trc].push(plate(endOutline(BAND_D + 0.01).map(([x, z]): P2 => [x === E ? E - J / 2 : x, z]), TOP - 0.045, TOP - 0.005));
-    l[S.dark].push(plate(endOutline(BAND_D - 0.05), TOP - 0.07, TOP - 0.05));
-    l[S.dark].push(plate(endOutline(0.24), FEET, FEET + 0.02));
+    // The roof over the band, the dark under its joints; the underside of the closed end; the floor inside (and the balcony's).
+    l[S.top].push(plate(endOutline(BAND_D + 0.01, E - J / 2), TOP - 0.045, TOP - 0.005));
+    l[S.topDark].push(plate(endOutline(BAND_D - 0.05), TOP - 0.07, TOP - 0.05));
+    l[S.dark].push(plate(endOutline(0.24, SPLIT - J / 2 - T), FEET, FEET + 0.02));
     l[S.concrete].push(plate(endOutline(0.2), FLOOR - 0.04, FLOOR));
     // Two lifting eyes on the frame's corners at this end, through the roof.
     for (const z of [HW - 0.55, -(HW - 0.55)]) {
       l[S.frame].push(box(0.022, 0.09, 0.022, E - 0.66, TOP + 0.04, z));
       l[S.frame].push(box(0.022, 0.09, 0.022, E - 0.54, TOP + 0.04, z));
       l[S.frame].push(box(0.142, 0.022, 0.022, E - 0.6, TOP + 0.085, z));
-    }
-    // The feet: two under each end module.
-    for (const z of [HW - POD.feetAt.z, -(HW - POD.feetAt.z)]) {
-      const f = new CylinderGeometry(0.15, 0.1, FEET, 18);
-      f.translate(POD.feetAt.x, FEET / 2, z);
-      l[S.concrete].push(f);
     }
     // The room the glass looks into: the end module's (past the balcony's glazed wall, at a balcony).
     const inner = HW - 0.12;
@@ -470,31 +534,45 @@ function endModuleGeometry(room: 0 | 1, balcony = false) {
         [E, 2.9, inner],
       ],
       room,
+      layered,
     );
   });
 }
 
-/** A glazed end: the glass round the end, the surround at its head and sill, a mullion at each corner, the light line. */
-function glazedEnd(l: Lists, wrap: P2[], inside: P2, wrapIn: number) {
+/** A glazed end: the glass round the end, the surround at its head and sill, a mullion at the middle of each rounded corner, the light line. */
+function glazedEnd(l: Lists, wrap: P2[], inside: P2, wrapIn: number, mids: [P2, P2][]) {
     const ring: P2[] = [[E - JAMB - CUT, HW], ...wrap, [E - JAMB - CUT, -HW]];
     l[S.glass].push(sweep(wrap, inside, rectProf(-wrapIn - 0.012, -wrapIn, SILL, HEAD), false));
     l[S.frame].push(sweep(ring, inside, rectProf(-0.075, -0.005, HEAD - 0.045, HEAD)));
     l[S.frame].push(sweep(ring, inside, rectProf(-0.075, -0.005, SILL, SILL + 0.045)));
     l[S.led].push(sweep(ring, inside, rectProf(-0.07, -0.045, HEAD - 0.07, HEAD - 0.05)));
-    // Each corner's mullion stands in the opening, on the line that halves the corner.
-    const R2 = Math.SQRT1_2;
-    const corners: [P2, P2, P2][] = [
-      [wrap[0], [0, 1], [-R2, R2]],
-      [wrap[1], [-R2, R2], [-1, 0]],
-      [wrap[2], [-1, 0], [-R2, -R2]],
-      [wrap[3], [-R2, -R2], [0, -1]],
-    ];
-    for (const [[px, pz], a, b] of corners) {
-      const k = 1 + a[0] * b[0] + a[1] * b[1];
-      const mx = (a[0] + b[0]) / k;
-      const mz = (a[1] + b[1]) / k;
-      l[S.frame].push(box(0.05, HEAD - SILL, 0.05, px - mx * 0.04, (SILL + HEAD) / 2, pz - mz * 0.04));
-    }
+    // Each corner's mullion stands in the opening, at the middle of its rounding, just in from the face.
+    for (const [[px, pz], [ix, iz]] of mids) l[S.frame].push(box(0.045, HEAD - SILL, 0.045, px + ix * 0.04, (SILL + HEAD) / 2, pz + iz * 0.04));
+}
+
+/**
+ * The open base between the closed ends, x0 to x1 (developer, 2026-11-09:
+ * "it does not have to be black. it is just the place has nothing there.
+ * that gives workers to repair things"): the side kicker is empty, the
+ * land seen through it. What is there is the pod's own: the chassis's edge
+ * rail under each wall, a cross member at each end, and the plumbing fixed
+ * under the floor, a drain and a supply, for plumbers to reach from the side.
+ */
+function openBase(l: Lists, x0: number, x1: number) {
+  for (const side of [1, -1] as const) {
+    const za = side * (HW - 0.13);
+    const zb = side * (HW - 0.025);
+    l[S.chassis].push(slab(x0, x1, KICK - 0.15, KICK, Math.min(za, zb), Math.max(za, zb)));
+  }
+  l[S.chassis].push(slab(x0, x0 + 0.06, KICK - 0.15, KICK - 0.02, -(HW - 0.13), HW - 0.13));
+  const pipe = (r: number, y: number, z: number) => {
+    const g = new CylinderGeometry(r, r, x1 - x0, 10, 1, true);
+    g.rotateZ(Math.PI / 2);
+    g.translate((x0 + x1) / 2, y, z);
+    l[S.pipe].push(g);
+  };
+  pipe(0.055, KICK - 0.11, -0.55);
+  pipe(0.018, KICK - 0.07, -0.9);
 }
 
 /**
@@ -519,34 +597,33 @@ function balconyParts(l: Lists, wrap: P2[], inside: P2) {
   const k = 0.1 * (Math.SQRT2 - 1);
   l[S.trc].push(
     plate(
-      [
-        [BAL, HW - 0.1],
-        [C + k, HW - 0.1],
-        [0.1, HW - C - k],
-        [0.1, -(HW - C - k)],
-        [C + k, -(HW - 0.1)],
-        [BAL, -(HW - 0.1)],
-      ],
+      fillet(
+        [
+          [BAL, HW - 0.1],
+          [C + k, HW - 0.1],
+          [0.1, HW - C - k],
+          [0.1, -(HW - C - k)],
+          [C + k, -(HW - 0.1)],
+          [BAL, -(HW - 0.1)],
+        ],
+        ROUND - 0.1,
+      ),
       2.8,
       2.82,
     ),
   );
 }
 
-/** The parts every bay has, x from 0 to `w`: the top band each side, the roof, the kicker each side, the floor. */
+/** The parts every bay has, x from 0 to `w`: the top band each side, the roof, the floor, and under it the open base (the kicker). */
 function bayCommon(l: Lists, w: number) {
   for (const side of [1, -1] as const) {
-    l[S.trc].push(sideRun(0, w, side, BAND));
-    l[S.dark].push(sideRun(0, w, side, BAND_DARK, 0));
-    // The kicker: set back from the face, dark, over the plumbing; the soffit over it, under the wall panel.
-    const kz = side * (HW - KB);
-    l[S.dark].push(slab(0, w, FEET, KICK, Math.min(kz, kz - side * 0.02), Math.max(kz, kz - side * 0.02)));
-    l[S.dark].push(slab(0, w, KICK - 0.02, KICK, Math.min(side * HW, kz), Math.max(side * HW, kz)));
+    l[S.top].push(sideRun(0, w, side, BAND));
+    l[S.topDark].push(sideRun(0, w, side, BAND_DARK, 0));
   }
-  l[S.trc].push(slab(J / 2, w - J / 2, TOP - 0.045, TOP - 0.005, -(HW - BAND_D - 0.01), HW - BAND_D - 0.01));
-  l[S.dark].push(slab(0, w, TOP - 0.07, TOP - 0.05, -(HW - BAND_D + 0.05), HW - BAND_D + 0.05));
-  l[S.dark].push(slab(0, w, FEET, FEET + 0.02, -(HW - KB), HW - KB));
-  l[S.concrete].push(slab(0, w, FLOOR - 0.04, FLOOR, -(HW - 0.2), HW - 0.2));
+  l[S.top].push(slab(J / 2, w - J / 2, TOP - 0.045, TOP - 0.005, -(HW - BAND_D - 0.01), HW - BAND_D - 0.01));
+  l[S.topDark].push(slab(0, w, TOP - 0.07, TOP - 0.05, -(HW - BAND_D + 0.05), HW - BAND_D + 0.05));
+  l[S.concrete].push(slab(0, w, FLOOR - 0.04, FLOOR, -(HW - 0.13), HW - 0.13));
+  openBase(l, 0, w);
 }
 
 /** A plain wall panel, the full height of the wall band, on one side of a bay x0..x1; and the dark behind its joints. */
@@ -571,8 +648,8 @@ function wallPanel(l: Lists, x0: number, x1: number, side: 1 | -1, holes: Path[]
 }
 
 /** A middle bay: a plain panel each side, or a panel each side with a window. */
-function bayGeometry(kind: 'panel' | 'window') {
-  return memo(`pod-bay-${kind}-v1`, () => {
+function bayGeometry(kind: 'panel' | 'window', layered = false) {
+  return memo(`pod-bay-${kind}-v5${layered ? '-layered' : ''}`, () => {
     const l = lists();
     bayCommon(l, B);
     const { w, sill, head, r } = POD.win;
@@ -600,31 +677,57 @@ function bayGeometry(kind: 'panel' | 'window') {
         [2.5, 2.9, HW - 0.12],
       ],
       0,
+      layered,
     );
   });
 }
 
 /** The door bay, as the head has it (x from E to E + D): the door and its steps in front, the bathroom's frosted window behind. */
-function doorBayGeometry() {
-  return memo('pod-door-v1', () => {
+function doorBayGeometry(layered = false) {
+  return memo(`pod-door-v5${layered ? '-layered' : ''}`, () => {
     const l = lists();
     bayCommon(l, D);
-    const { w: dw, h: dh } = POD.doorLeaf;
-    const fw = (D - dw) / 2;
+    const { h: dh } = POD.doorLeaf;
     const top = FLOOR + dh;
-    // The front: the frame, the leaf set back in it, its pull, the strip of panel over it.
-    l[S.frame].push(slab(0, fw, KICK, top + 0.05, HW - 0.08, HW));
-    l[S.frame].push(slab(D - fw, D, KICK, top + 0.05, HW - 0.08, HW));
-    l[S.frame].push(slab(0, D, top, top + 0.05, HW - 0.08, HW));
-    l[S.frame].push(slab(fw, D - fw, FLOOR, top, HW - 0.07, HW - 0.035));
-    l[S.frame].push(slab(D - fw - 0.135, D - fw - 0.11, FLOOR + 0.42, FLOOR + 1.12, HW - 0.035, HW - 0.005));
-    for (const y of [FLOOR + 0.48, FLOOR + 1.06]) l[S.frame].push(slab(D - fw - 0.13, D - fw - 0.115, y, y + 0.02, HW - 0.04, HW - 0.03));
-    l[S.trc].push(slab(J / 2, D - J / 2, top + 0.05 + J / 2, WT - J / 2, HW - T, HW));
-    l[S.dark].push(slab(0, D, top + 0.05, WT, HW - T - 0.012, HW - T - 0.004));
+    /** The frame's width; the leaf's face, set back from the panels' (a reveal that reads as a door's). */
+    const fw = 0.055;
+    const face = HW - 0.035;
+    // The frame (developer, 2026-11-09: "the door currently does not look like a door ... make it look like a door"):
+    // jambs and head standing just proud of the panels, the leaf set back in it.
+    l[S.frame].push(slab(0, fw, KICK, top + fw, HW - 0.09, HW + 0.008));
+    l[S.frame].push(slab(D - fw, D, KICK, top + fw, HW - 0.09, HW + 0.008));
+    l[S.frame].push(slab(0, D, top, top + fw, HW - 0.09, HW + 0.008));
+    // The leaf, in a quiet bronze: a frosted vision strip by the hinge (lit with the rooms), a kick plate, a long pull.
+    const x0 = fw + 0.004;
+    const x1 = D - fw - 0.004;
+    const vx0 = x0 + 0.08;
+    const vx1 = vx0 + 0.13;
+    const vy0 = FLOOR + 0.34;
+    const vy1 = FLOOR + 1.92;
+    l[S.door].push(slab(x0, vx0, FLOOR + 0.01, top - 0.004, face - 0.04, face));
+    l[S.door].push(slab(vx1, x1, FLOOR + 0.01, top - 0.004, face - 0.04, face));
+    l[S.door].push(slab(vx0, vx1, FLOOR + 0.01, vy0, face - 0.04, face));
+    l[S.door].push(slab(vx0, vx1, vy1, top - 0.004, face - 0.04, face));
+    l[S.frost].push(slab(vx0, vx1, vy0, vy1, face - 0.025, face - 0.015));
+    for (const [a, b, c, d] of [
+      [vx0, vx0 + 0.014, vy0, vy1],
+      [vx1 - 0.014, vx1, vy0, vy1],
+      [vx0, vx1, vy0, vy0 + 0.014],
+      [vx0, vx1, vy1 - 0.014, vy1],
+    ])
+      l[S.frame].push(slab(a, b, c, d, face - 0.02, face + 0.006));
+    l[S.guard].push(slab(x0 + 0.03, x1 - 0.03, FLOOR + 0.03, FLOOR + 0.2, face, face + 0.004));
+    const px = x1 - 0.1;
+    l[S.guard].push(slab(px - 0.0125, px + 0.0125, FLOOR + 0.5, FLOOR + 1.75, face + 0.045, face + 0.07));
+    for (const y of [FLOOR + 0.58, FLOOR + 1.67]) l[S.guard].push(slab(px - 0.008, px + 0.008, y - 0.008, y + 0.008, face, face + 0.045));
+    // The sill: an aluminium threshold on the precast landing's edge.
+    l[S.guard].push(slab(fw * 0.5, D - fw * 0.5, FLOOR - 0.006, FLOOR + 0.012, HW - 0.09, HW + 0.025));
+    l[S.trc].push(slab(J / 2, D - J / 2, top + fw + J / 2, WT - J / 2, HW - T, HW));
+    l[S.dark].push(slab(0, D, top + fw, WT, HW - T - 0.012, HW - T - 0.004));
     // The light over the door, on the strip over it: its wiring comes down from the roof band.
-    l[S.frame].push(slab(D / 2 - 0.13, D / 2 + 0.13, top + 0.055, top + 0.105, HW, HW + 0.07));
-    l[S.led].push(slab(D / 2 - 0.11, D / 2 + 0.11, top + 0.05, top + 0.056, HW + 0.01, HW + 0.06));
-    l[S.concrete].push(slab(fw, D - fw, KICK, FLOOR, HW - 0.12, HW));
+    l[S.frame].push(slab(D / 2 - 0.13, D / 2 + 0.13, top + fw + 0.004, top + fw + 0.054, HW, HW + 0.07));
+    l[S.led].push(slab(D / 2 - 0.11, D / 2 + 0.11, top + fw - 0.001, top + fw + 0.005, HW + 0.01, HW + 0.06));
+    l[S.concrete].push(slab(fw * 0.5, D - fw * 0.5, KICK, FLOOR - 0.006, HW - 0.12, HW));
     // The steps: precast, a landing at the floor and two steps down, wider than the door.
     const { rise, going, w: sw } = POD.steps;
     const sx0 = D / 2 - sw / 2;
@@ -650,7 +753,7 @@ function doorBayGeometry() {
       [qx0, qx0 + qw, qh - 0.04, qh],
     ])
       l[S.frame].push(slab(a, b2, c, d, -HW + 0.005, -HW + 0.06));
-    const g = finish(l);
+    const g = finish(l, undefined, 0, layered);
     g.translate(E, 0, 0);
     return g;
   });
@@ -664,6 +767,19 @@ function doorBayGeometry() {
 const BAYS_MAX = podBays(POD_LENGTHS[POD_LENGTHS.length - 1]);
 const PANEL_BAYS = Array.from({ length: BAYS_MAX }, (_, k) => k).filter((k) => !isWindowBay(k));
 const WINDOW_BAYS = Array.from({ length: BAYS_MAX }, (_, k) => k).filter(isWindowBay);
+
+/** The middle bays that stand on a pair of feet of their own, as the ends and the door bay do: the chassis's spans stay short. */
+const FOOT_BAYS = [1, 4];
+const FEET_N = 2 * (3 + FOOT_BAYS.length);
+/** A foot: a precast cone from the ground up under the chassis (in a closed end, its head hidden in the skirt's box). */
+function footGeometry() {
+  return memo('pod-foot-v1', () => {
+    const h = KICK - 0.15;
+    const g = new CylinderGeometry(0.15, 0.1, h, 18);
+    g.translate(0, h / 2, 0);
+    return g;
+  });
+}
 
 /** Going from one length to another, in seconds: growing (the far end out, the bays down into the gap) and shrinking (the bays up, the far end in). */
 const MORPH = { grow: 1.35, shrink: 1.15, drop: 9, lift: 9 } as const;
@@ -696,13 +812,31 @@ export interface PodProps {
    * only where the set has no other.
    */
   lamp?: number;
+  /**
+   * What of it is drawn: all of it (everywhere the pod stands), or for the
+   * layers film (PodLayersScene) its TRC skin's walls (with the glazing, the
+   * door and the steps) or its top cladding alone. Its frame, services,
+   * insulation and lining are that film's own (kit/podLayers.ts).
+   */
+  part?: PodPart;
+  /**
+   * The layers film's cladding, hung a unit at a time (developer, 2026-11-09:
+   * "cladding by cladding that is getting attached/locked"): how far above
+   * its place unit `i` of `n` stands this frame (0 in place; over 40 not
+   * there yet). Units in order along the pod: the head end, the door bay,
+   * each middle bay, the far end.
+   */
+  unitOffset?: (i: number, n: number) => number;
 }
+
+export type PodPart = 'whole' | 'walls' | 'top';
 
 /**
  * One pod, centred on its length and its width, its front (the door) to
  * +z, standing on the ground at y = 0.
  */
-export function Pod({ length = POD_DEFAULT, follow = false, getLit, look, getDrop, track, lamp = 0 }: PodProps) {
+export function Pod({ length = POD_DEFAULT, follow = false, getLit, look, getDrop, track, lamp = 0, part = 'whole', unitOffset }: PodProps) {
+  const layered = part !== 'whole';
   const light = useRef<PointLight>(null);
   const fine = useRefined();
   const invalidate = useThree((s) => s.invalidate);
@@ -734,10 +868,19 @@ export function Pod({ length = POD_DEFAULT, follow = false, getLit, look, getDro
       frost,
       led,
       guard,
+      trimMat(FINISH.door, fine),
     ],
     [fine, glow, look, frost, led, guard],
   );
-  const imats = useMemo(() => instanced(mats), [mats]);
+  /** A part of the skin alone (the layers film): the slots not in it drawn by nothing. */
+  const hidden = useMemo(() => new MeshBasicMaterial({ visible: false }), []);
+  useEffect(() => () => hidden.dispose(), [hidden]);
+  const shown = useMemo<Material[]>(() => {
+    if (part === 'whole') return mats;
+    if (part === 'walls') return [...mats, hidden, hidden, hidden, hidden];
+    return [...mats.map(() => hidden), mats[S.trc], hidden, hidden, mats[S.dark]];
+  }, [part, mats, hidden]);
+  const imats = useMemo(() => instanced(shown), [shown]);
 
   const root = useRef<Group>(null);
   const tail = useRef<Group>(null);
@@ -746,6 +889,9 @@ export function Pod({ length = POD_DEFAULT, follow = false, getLit, look, getDro
   const balconyTail = useRef<Mesh>(null);
   const panels = useRef<InstancedMesh>(null);
   const windows = useRef<InstancedMesh>(null);
+  const feet = useRef<InstancedMesh>(null);
+  const headUnit = useRef<Mesh>(null);
+  const doorUnit = useRef<Mesh>(null);
 
   /** The change of length under way: from and to (bays), and how far (0–1); `next`, a choice made while one was under way. */
   const morph = useMemo(() => {
@@ -760,6 +906,8 @@ export function Pod({ length = POD_DEFAULT, follow = false, getLit, look, getDro
       const m = podBays(podChoice.length);
       if (morph.t < 1) morph.next = m;
       else if (m !== morph.to) Object.assign(morph, { from: morph.to, to: m, t: 0 });
+      // A layout chosen: the same length, its rooms laid out again.
+      morph.drawn = -1;
       invalidate();
     };
     podChoice.listeners.add(go);
@@ -777,6 +925,7 @@ export function Pod({ length = POD_DEFAULT, follow = false, getLit, look, getDro
   }, [follow, length, morph, invalidate]);
 
   const lastLit = useRef(-1);
+  const interiorFor = useRef({ shown: -1, L: -1, layout: '' as string });
   // Ahead of the rest of the frame: a camera that keeps the pod whole reads its length (`track`, podReach).
   useFrame((_, dt) => {
     // The lights: the rooms, the frosted window and the light lines together.
@@ -812,7 +961,7 @@ export function Pod({ length = POD_DEFAULT, follow = false, getLit, look, getDro
       track.settled = 2 * E + D + to * B;
     }
     const key = t >= 1 ? to : -2 - t;
-    if (key === morph.drawn && !getDrop) return;
+    if (key === morph.drawn && !getDrop && !unitOffset) return;
     morph.drawn = key;
 
     const g = root.current;
@@ -821,62 +970,90 @@ export function Pod({ length = POD_DEFAULT, follow = false, getLit, look, getDro
       const d = getDrop ? getDrop() : 1;
       g.position.y = (1 - ease.outQuart(d)) * DROP_H;
     }
-    if (tail.current) tail.current.position.x = L;
+    // The cladding's units, each where the film has it (the layers film), else in place.
+    const units = 3 + to;
+    const unitY = (i: number) => (unitOffset ? unitOffset(i, units) : 0);
+    const place1 = (o: { position: { y: number }; visible: boolean } | null, y: number) => {
+      if (!o) return;
+      o.position.y = y > 40 ? 0 : y;
+      o.visible = y <= 40;
+    };
+    place1(headUnit.current, unitY(0));
+    place1(doorUnit.current, unitY(1));
+    if (tail.current) {
+      tail.current.position.x = L;
+      place1(tail.current, unitY(units - 1));
+    }
     // The far end takes the form of the length it is going to as soon as it moves (the 12 m's balcony, or the glazed end).
     const shown = 2 * E + D + (slide > 0 ? to : from) * B;
     const bal = podBalcony(shown);
     if (glazedTail.current) glazedTail.current.visible = !bal;
     if (balconyTail.current) balconyTail.current.visible = bal;
-    // The rooms behind the glass: the layout of the length it is going to, its far end where the end stands.
-    if (glow) setInterior(plan, shown, L);
+    // The rooms behind the glass: the layout of the length it is going to, its far end where the end stands. Laid out
+    // again only when one of those changes: a film that hangs the cladding redraws the pod every frame.
+    const layout = follow ? podChoice.layout : 'A';
+    const room = interiorFor.current;
+    if (glow && (room.shown !== shown || room.L !== L || room.layout !== layout)) {
+      setInterior(plan, shown, L, layout);
+      Object.assign(room, { shown, L, layout });
+    }
     // The bays: the ones both lengths have stand; the others come down into the gap, or go up out of it, a little after one another.
+    const bayState = (k: number): [number, boolean] => {
+      if (k < lo) return [0, true];
+      if (k >= hi) return [0, false];
+      const n = k - lo;
+      if (grow) return [(1 - win(t, 0.3 + 0.1 * n, 0.82 + 0.1 * n, ease.outQuart)) * MORPH.drop, t > 0.3 + 0.1 * n];
+      const back = hi - 1 - k;
+      return [win(t, 0.04 * back, 0.42 + 0.04 * back, ease.in) * MORPH.lift, t < 0.42 + 0.04 * back];
+    };
     const place = (mesh: InstancedMesh | null, list: number[]) => {
       if (!mesh) return;
       list.forEach((k, i) => {
-        let y = 0;
-        let on = k < lo;
-        if (k >= lo && k < hi) {
-          on = true;
-          const n = k - lo;
-          if (grow) {
-            const e = win(t, 0.3 + 0.1 * n, 0.82 + 0.1 * n, ease.outQuart);
-            y = (1 - e) * MORPH.drop;
-            on = t > 0.3 + 0.1 * n;
-          } else {
-            const back = hi - 1 - k;
-            const e = win(t, 0.04 * back, 0.42 + 0.04 * back, ease.in);
-            y = e * MORPH.lift;
-            on = t < 0.42 + 0.04 * back;
-          }
-        }
-        setInst(mesh, i, bayAt(k), on ? y : -40, 0, 0, on ? 1 : 0.0001);
+        const [y, on] = bayState(k);
+        const u = unitY(2 + k);
+        const shown = on && u <= 40;
+        setInst(mesh, i, bayAt(k), shown ? y + u : -40, 0, 0, shown ? 1 : 0.0001);
       });
       mesh.instanceMatrix.needsUpdate = true;
     };
     place(panels.current, PANEL_BAYS);
     place(windows.current, WINDOW_BAYS);
+    // The feet: a pair under each end, under the door bay and under the middle bays that carry them, each with its bay.
+    const f = feet.current;
+    if (f) {
+      let i = 0;
+      const pair = (x: number, y: number, on: boolean) => {
+        for (const z of [HW - POD.feetAt.z, -(HW - POD.feetAt.z)]) setInst(f, i++, x, on ? y : -40, z, 0, on ? 1 : 0.0001);
+      };
+      pair(POD.feetAt.x, 0, true);
+      pair(E + 0.05, 0, true);
+      for (const k of FOOT_BAYS) pair(bayAt(k) + 0.05, ...bayState(k));
+      pair(L - POD.feetAt.x, 0, true);
+      f.instanceMatrix.needsUpdate = true;
+    }
   }, -1);
 
   return (
     <group ref={root}>
       {/* The head end: the plan's bedroom behind its glass. */}
-      <mesh geometry={endModuleGeometry(1)} material={mats} castShadow receiveShadow />
-      <mesh geometry={doorBayGeometry()} material={mats} castShadow receiveShadow />
-      <instancedMesh ref={panels} args={[bayGeometry('panel'), imats, PANEL_BAYS.length]} castShadow receiveShadow frustumCulled={false} />
-      <instancedMesh ref={windows} args={[bayGeometry('window'), imats, WINDOW_BAYS.length]} castShadow receiveShadow frustumCulled={false} />
+      <mesh ref={headUnit} geometry={endModuleGeometry(1, false, layered)} material={shown} castShadow receiveShadow />
+      <mesh ref={doorUnit} geometry={doorBayGeometry(layered)} material={shown} castShadow receiveShadow />
+      <instancedMesh ref={panels} args={[bayGeometry('panel', layered), imats, PANEL_BAYS.length]} castShadow receiveShadow frustumCulled={false} />
+      <instancedMesh ref={windows} args={[bayGeometry('window', layered), imats, WINDOW_BAYS.length]} castShadow receiveShadow frustumCulled={false} />
+      {!layered && <instancedMesh ref={feet} args={[footGeometry(), imats[S.concrete], FEET_N]} castShadow receiveShadow frustumCulled={false} />}
       <group ref={tail}>
         {/* The far end: the living room behind its glass; on the 12 m, its balcony. */}
-        <mesh ref={glazedTail} geometry={endModuleGeometry(0)} material={mats} scale-x={-1} castShadow receiveShadow />
-        <mesh ref={balconyTail} geometry={endModuleGeometry(0, true)} material={mats} scale-x={-1} castShadow receiveShadow visible={false} />
+        <mesh ref={glazedTail} geometry={endModuleGeometry(0, false, layered)} material={shown} scale-x={-1} castShadow receiveShadow />
+        <mesh ref={balconyTail} geometry={endModuleGeometry(0, true, layered)} material={shown} scale-x={-1} castShadow receiveShadow visible={false} />
       </group>
-      {lamp > 0 && <pointLight ref={light} position={[E + D / 2, POD.floor + POD.doorLeaf.h - 0.05, HW + 0.55]} intensity={0} color="#ffc98a" distance={8} decay={2} />}
+      {lamp > 0 && !layered && <pointLight ref={light} position={[E + D / 2, POD.floor + POD.doorLeaf.h - 0.05, HW + 0.55]} intensity={0} color="#ffc98a" distance={8} decay={2} />}
     </group>
   );
 }
 
 /** Writes the plan's interior for a length into the glass's room (kit/materials.ts, roomPlan). */
-function setInterior(u: RoomPlan, shown: number, L: number) {
-  const it = podInterior(shown, L);
+function setInterior(u: RoomPlan, shown: number, L: number, layout: PodLayout) {
+  const it = podInterior(shown, L, layout);
   u.uPodLength.value = L;
   u.uBedLo.value.set(...it.bed.lo);
   u.uBedHi.value.set(...it.bed.hi);
@@ -897,4 +1074,9 @@ function setInterior(u: RoomPlan, shown: number, L: number) {
 export const podLabelId = (length: number) => `pod-${Math.round(length)}`;
 
 /** Geometry the pod needs, for a scene to build in idle time before it mounts (film/prefetch.ts). */
-export const preparePod = [() => endModuleGeometry(1), () => endModuleGeometry(0), () => endModuleGeometry(0, true), doorBayGeometry, () => bayGeometry('panel'), () => bayGeometry('window')];
+export const preparePod = [() => endModuleGeometry(1), () => endModuleGeometry(0), () => endModuleGeometry(0, true), () => doorBayGeometry(), () => bayGeometry('panel'), () => bayGeometry('window'), footGeometry];
+/** The skin's walls and top apart, for the layers film. */
+export const preparePodLayered = [() => endModuleGeometry(1, false, true), () => endModuleGeometry(0, false, true), () => endModuleGeometry(0, true, true), () => doorBayGeometry(true), () => bayGeometry('panel', true), () => bayGeometry('window', true)];
+
+/** The skin's own shapes, for the layers film's frame, insulation and lining (kit/podLayers.ts), which follow the same plan. */
+export { endOutline, fillet, panel, plate, rectProf, roundRect, slab, sweep, ROUND, ROUND_T, SPLIT };

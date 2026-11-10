@@ -1,6 +1,8 @@
 ---
 import Base from '../layouts/Base.astro';
 import PodHero from '../components/sections/PodHero.tsx';
+import PodLayers from '../components/sections/PodLayers.tsx';
+import PodPlans from '../components/sections/PodPlans.tsx';
 import EnquiryForm from '../components/forms/EnquiryForm.tsx';
 import { podLengthName, podLengths } from '../data/pod';
 import { site } from '../data/site';
@@ -8,52 +10,26 @@ import { site } from '../data/site';
 /*
  * POD (developer, 2026-11-09): the pod alone on the studio floor, then its
  * land, its length chosen all the while (PodHero, as the MOD page opens);
- * its three lengths; the form last. What comes between them next is the pod
- * taken apart, layer by layer (notes W).
+ * the pod taken apart and built again, layer by layer (PodLayers); its
+ * plans, length by length (PodPlans); the form last.
  */
 const names = podLengths.map(podLengthName);
-const lengths = podLengths.map((m, i) => ({
-  n: String(i + 1).padStart(2, '0'),
-  name: `${podLengthName(m)} long`,
-  note: ['The shortest.', 'The one shown first.', 'The longest.'][i],
-}));
 ---
 
 <Base
-  title="Capsule home — coming soon"
-  description={`${site.short} capsule homes in three lengths: ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}. Coming soon: register your interest.`}
+  title="Capsule home"
+  description={`${site.short} capsule homes: a galvanised steel frame clad in TRC concrete panels, ${names.slice(0, -1).join(', ')} or ${names[names.length - 1]} long.`}
 >
   <PodHero client:load />
-
-  <section class="section theme-light" data-theme="light">
-    <div class="wrap">
-      <header class="section-head">
-        <p class="t-label section-head__index">Range</p>
-        <h2 class="t-h2" data-reveal>Three lengths.</h2>
-        <p class="t-lead section-head__lead" data-reveal style="--i:1">
-          Plans, specifications and availability will be published on this page at launch.
-        </p>
-      </header>
-      <ul class="facts">
-        {
-          lengths.map((p, i) => (
-            <li data-reveal style={`--i:${i}`}>
-              <span class="t-label">{p.n}</span>
-              <h3>{p.name}</h3>
-              <p>{p.note}</p>
-            </li>
-          ))
-        }
-      </ul>
-    </div>
-  </section>
+  <PodLayers client:idle />
+  <PodPlans client:visible />
 
   <section class="section theme-dark" data-theme="dark" id="register" aria-labelledby="register-heading">
     <div class="wrap contact__grid">
       <div>
-        <h2 class="t-h2" id="register-heading" data-reveal>Register your interest in a capsule home.</h2>
+        <h2 class="t-h2" id="register-heading" data-reveal>Enquire about a capsule home.</h2>
         <p class="t-lead contact__lead mute" data-reveal style="--i:1">
-          Tell us which length you are considering and where it would go.
+          Tell us which length and layout you are considering, and where it would go.
         </p>
       </div>
       <EnquiryForm client:visible variant="contact" preset="Capsule Pod" />

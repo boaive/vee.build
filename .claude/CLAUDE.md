@@ -57,7 +57,10 @@ source. Never resolve a conflict by inventing a third value.
   to 03), "What Vee builds." (MOD, POD, FAB as three cards that lift a
   little under the pointer: the picture with the code and "Coming soon" on
   it, the name, one line, one link; no eyebrow, no numbers; `Lines.astro`,
-  `src/data/lines.ts`, pictures in `public/images/range` at 960 × 600)
+  `src/data/lines.ts`, pictures in `public/images/range` at 960 × 600; since
+  2026-11-09 the section is the opening card's warm studio light and each
+  picture fades into its card, a quiet glass surface, the three seen at one
+  angle: "the background and 3d object background are not in sync")
   and the enquiry form, nothing else;
   **MOD** (`/modular/`) tells the whole story: its own opening (the
   modular house alone, then its land, with Build your own and Enquire
@@ -82,9 +85,11 @@ source. Never resolve a conflict by inventing a third value.
 - The three kinds of building are **Modular house**, **Capsule home** and
   **Prefab building**, with the client's line for each (`kinds` in
   `src/data/narrative.ts`). The two shells belong to the modular line
-  only: they are not shown or named on the opening card. The capsule and
-  the prefab building are not on sale yet and carry a **Coming soon** tag
-  wherever they are shown (`soon` in `kinds`; client, 2026-10-10).
+  only: they are not shown or named on the opening card. The prefab
+  building is not on sale yet and carries a **Coming soon** tag wherever
+  it is shown (`soon` in `kinds`; client, 2026-10-10). The capsule carried
+  one too until the developer took it off (2026-11-09: "remove the coming
+  soon from the pod, have similar actions as like in mod").
 - Where the company is the subject it is named: **Vee** (the wordmark
   is veedo.space), not "we" ("How is Vee different?", "See how Vee builds
   it."; client, 2026-10-10; developer, 2026-11-07: "you can use vee in the
@@ -118,23 +123,43 @@ source. Never resolve a conflict by inventing a third value.
   elevation, 2026-11-09). Two end modules of 3 m, the same mirrored (the
   far one glazed, or on the 12 m its balcony), a door bay of 1 m with
   precast steps, and 1 m bays between: a length grows or shrinks by bays
-  in the middle only. Plumbing runs in the kicker at the base (set back,
-  dark), the electrics in the band at the top; neither is drawn beyond
-  that. Behind its glass is one interior after the draft's plans, in the
+  in the middle only. The electrics run in the band at the top. The
+  kicker at the base is open, not a dark face (developer, 2026-11-09: "it
+  does not have to be black. it is just the place has nothing there. that
+  gives workers to repair things ... so we can show the land in there"):
+  the land is seen under the pod, past its chassis rail, cross members and
+  the plumbing fixed under the floor (`openBase`). It runs under the end
+  modules too, from the joint under each window to the middle; the ends
+  close down to the feet only round the end (the skirt, with its return).
+  The pod stands on precast feet, a pair under each end, the door bay and
+  the middle bays 1 and 4 (`FOOT_BAYS`, one instanced mesh). Its edges
+  are rounded as the MOD house's are (developer, the same day: "the pod
+  edges is also not good. make it look smooth ... does not cost any more
+  extra gpu"): the cut corners in plan to `ROUND` (0.45 m), the roof band's
+  top edge and the skirt's foot to a quarter round, shaded smooth (`sweep`,
+  `fillet`); the 45° cut stays. The door reads as a door ("make it look like
+  a door"): a frame standing proud, the leaf set back in a quiet bronze, a
+  frosted vision strip that lights with the rooms, a long steel pull, a
+  kick plate, an aluminium sill. Behind its glass is one interior after the draft's plans, in the
   pod's own space, the same room through every window, the end glazing
   included (`podInterior` in `kit/podPlan.ts`, `roomPlan` in
   `kit/materials.ts`, the pod's glass made with `VEE_PLAN`): the bedroom
   behind the head end, the far room by length (8 m lounge; 10 m kitchen
   and lounge; 12 m second bed and lounge before the balcony), the bathroom
-  behind the frosted window. Nothing in it is picked at random or by where
+  behind the frosted window; each length has the draft's two layouts, A and
+  B (`podZones`; 8 m A one bed, B work; 10 m A one bed and kitchen, B two
+  beds; 12 m A kitchen at the head, one bed, balcony, B two beds and
+  balcony), the one shown is the page's choice (`podChoice.layout`, A first). Nothing in it is picked at random or by where
   the pod stands (developer, 2026-11-09: rooms that changed as the pod
   moved, and side windows that disagreed, were reported as bugs: "why it
   is different when interior just follows the floor plan"). `kit/pod.tsx` (parts, `FINISH`, CONFIRM), `kit/podPlan.ts`
   (sizes), `src/data/pod.ts` (lengths, words). No mark, name, figure or
   text of the reference pages; the GLB was a mood reference only. Its
-  parts stay separate meshes by material, ready for the construction film
-  that comes next (the frame, the studs and the rockwool are not modelled
-  yet). `kit/capsule.ts`, `POD_HOME` and 10′, 16′ and 20′ are gone.
+  geometry keeps the top's cladding, the chassis and the plumbing in slots
+  of their own (`S.top`, `S.topDark`, `S.chassis`, `S.pipe`), merged into
+  their materials' slots when the pod is drawn whole, so the layers film can
+  draw its walls and its top apart (`part`) at no cost to the pod
+  elsewhere. `kit/capsule.ts`, `POD_HOME` and 10′, 16′ and 20′ are gone.
 - One pod stands; the other two lengths are a click away (developer,
   2026-11-09: "we only have one pod in there, other 2 will be options to
   live, on clicking that the pod changes. by default it will be in 10m"):
@@ -156,9 +181,64 @@ source. Never resolve a conflict by inventing a third value.
   changing with it. The lengths can be chosen all the while: on a phone
   the buttons are docked at the foot over the opening too (Film `dock`,
   outside the HUD the opening keeps back) and take the steps' dark ground
-  at `DOCK_TURN`, as the land comes under them. Then the three lengths as
-  facts and the register form. The construction ("burst") film is the
-  next section, not built.
+  at `DOCK_TURN`, as the land comes under them. Its actions are the MOD
+  page's kind: Enquire now and See the plans. The land's step says what it
+  is made of, short (developer: "grow by the panel, that is not
+  professional ... a high professional and economical tone, and also
+  smaller"): "Steel frame. Concrete skin." Then, in this order:
+  **02 Built in layers** (`PodLayers.tsx`, `PodLayersScene.tsx`,
+  `film/podLayersTimeline.ts`, `kit/podLayers.ts`; developer, 2026-11-09:
+  "burst first, like MOD"): on the dark studio, the finished pod comes
+  apart upwards into its layers, each whole and named as it is shown, each
+  call-out on a part the camera sees (the TRC skin; rockwool and fire
+  barrier; the galvanised frame with the plumbing under its floor; the
+  interior panels with their wiring), the heading's words arriving with
+  them; then it is built again in the order it is made (since 2026-11-10,
+  notes Y): the frame, each group lowered on and then welded, a few sparks
+  at each joint in turn ("not the welding process itself, but a minute
+  spark"; `WELD`, `podWelds`; the one exception to "No particles"); the
+  services: the plumbing up under the floor, seen between the joists, the
+  floor's boards, then the interior panels with their wiring, the walls
+  rising from the floor and the ceiling laid along. The wiring is never in
+  the air ("we dont need to show wires hanging, no one does like that";
+  "the wiring follows only the interior panels, not on random places"): it
+  runs on the backs of the panels and over the ceiling to the plan's
+  points, a light a room, a switch by each way in, sockets under the
+  windows, the board in the entry (`wiringPlan`, `podPanels`); the
+  ceiling is at the plan's 2.9 m, the frame's ring and the roof's bows
+  over it under the band. Then the rockwool unrolled from rolls along the
+  walls and over the ceiling ("it comes rolled in market"; a clipping plane
+  follows each roll, the plain material once it has run; the rolls cast no
+  shadow, as a moving caster has the shadow map drawn again every frame,
+  and the rockwool stays in the occlusion pass, out of which the ceiling's
+  occlusion lay on it as blotches; notes Y11: "fps is dropping in here"),
+  the fire barrier; the TRC cladding hung a unit at a
+  time and locked, the walls' then the top's ("cladding by cladding that
+  is getting attached/locked"; `unitOffset`, `hung`); and the fit-out: the
+  lights come on, and the rooms are there behind the glass as the plan
+  has them ("you don't have to show adding bed and other things from the
+  top, just skip that. once the light turns on it comes there
+  automatically"): no roof is lifted, no furniture lowered; the layers film
+  has no furniture of its own. Things come in by being lowered, coming up
+  or being put up or unrolled in place, and leave by being lifted. The
+  camera keeps the pod clear of the caption's column ("the text is
+  overlapping"). **03 Plans** (`PodPlans.tsx`, `PodPlanScene.tsx`,
+  `build/podPlanSvg.ts`; redesigned 2026-11-10: "too much out of phase
+  with the website. make it little modern"): in the Home range's warm
+  studio light with a glass card, as the range is; the chapter line "03 —
+  Plans"; the three lengths drawn as their panels to one scale (end
+  modules, door bay, middle bays) with their areas; its size stated 3 × 3 m
+  (developer, 2026-11-10: "just change the numbers in 03"; `podSection`;
+  the model stays 3.05 × 3.2, notes Y12); the two layouts as the
+  enquiry form's options; the pod in 3D on the section's light (the canvas
+  clear, `ground="shadow"`) with its top off and its rooms furnished
+  (`podFurniture`), its floor plan from the same plan under it with its
+  length dimensioned in the accent; size and area; View plan opens it
+  large, dimensioned and named; Download brochure (`public/downloads`,
+  `scripts/pod-brochure.mjs`); Enquire. On a phone the choices come first.
+  Then the form, last. The opening, the layers and the plans share one
+  choice of length and layout. The three lengths' section of 2026-11-09
+  morning is gone ("remove the 3 length page").
 - No invented projects, customers, testimonials, certifications, prices,
   timelines or engineering specifications. Missing facts get a neutral
   presentation plus an entry in `vee-build-notes.md`.
@@ -498,7 +578,11 @@ security in `admin/README.md`):
   second brief of 2026-10-11 (with two reference pictures; notes O) they
   stand parallel, one behind another on a diagonal, and are seen on the
   diagonal, each showing its front and one end (`rowFor` in
-  `kit/row.ts`); on a polished floor of 3 m slabs that mirrors them
+  `kit/row.ts`), the house in front, the pod 18 m behind it and the block
+  70 m back (developer, 2026-11-09: "the modular house ... can come little
+  to the front, followed by pod, and followed by precast. just like as in
+  previous version": with the 10 m pod and the G+2 block nearer, those two
+  outweighed the house); on a polished floor of 3 m slabs that mirrors them
   (`kit/plaza.tsx`, `kit/mirror.tsx`); in warm light (look `card`); on a
   warm shade, which is CSS behind the canvas (`.film__backdrop--studio`;
   the canvas is clear wherever the scene has drawn nothing). Not the
@@ -672,7 +756,9 @@ security in `admin/README.md`):
 - 3D look, as built: every stage goes through one photographic finish (sun
   shadows, ambient occlusion, bloom on the sun and lit glass, filmic tone
   mapping, a light grade). Studio stages stand on the page colour with a
-  soft shadow; outdoor stages have a procedural sky and haze. No particles.
+  soft shadow; outdoor stages have a procedural sky and haze. No particles,
+  but for the weld sparks of the POD's layers film (developer, 2026-11-10;
+  a pure function of the scroll, one instanced mesh, notes Y).
   CONFIRM: this replaced the original rule ("maquette look: matte monochrome
   blocks, no bloom, no glow"); no decision between the two is on record in
   these files.
@@ -768,6 +854,10 @@ security in `admin/README.md`):
   app's browser pane does not draw frames while hidden). Details in
   `vee-build-progress.md`, QA aids.
 - `node scripts/og-image.mjs` regenerates `public/og.png`.
+- `node scripts/pod-brochure.mjs` makes the capsule's brochures again (one
+  PDF a length, both layouts, into `public/downloads`) from the same plan
+  drawing as the POD page's plans (headless Edge, the repo's esbuild): run
+  it whenever a plan, a size or those words change.
 - `node scripts/cards.mjs [base] [film]` captures the compact cards'
   pictures from the running dev server's own scenes into
   `public/images/cards` (the hero's three, the factory's stations, On

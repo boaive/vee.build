@@ -119,8 +119,8 @@ export function rowOf(capsule: P3, prefab: P3, view: Row['view']): Row {
  * The three for a picture of a given shape: `s` 0 where it is wide and
  * low, 1 where it is taller than wide, up to 1.5 on a phone. Places are on
  * the house's own plan and on the floor's joints (walls on a joint, as the
- * house's are): the capsule 9 m behind the house and a slab to its right,
- * the block 34.5 m behind it and two slabs to the right; as `s` grows the
+ * house's are): the capsule 18 m behind the house and two slabs to its
+ * right, the block 70 m behind it and three slabs to the right (2026-11-09); as `s` grows the
  * block moves across behind the house to its left, and the camera rises
  * from eye level to look down on them. `wide`, 0 to 3: the two behind
  * stand that many half slabs farther to the right, for a picture that has
@@ -128,8 +128,10 @@ export function rowOf(capsule: P3, prefab: P3, view: Row['view']): Row {
  * they then stand clear of each other instead of one before the other.
  */
 export function rowFor(s: number, wide = 0): Row {
-  const capsule = onPlan(snap(mix(3, 5, s), 1.5) + (wide > 1 ? 1.5 : 0), -9);
-  // The prefab building is a G+2 block (2026-11-07): it stands farther back than the old G+1 one, so the house stays the largest.
-  const prefab = onPlan(snap(mix(6, -3, s), 1.5) + wide * 1.5, -45);
+  // The house in front, the pod behind it, the precast block well back (developer, 2026-11-09: "the modular house ... can come
+  // little to the front, followed by pod, and followed by precast. just like as in previous version"): with the 10 m pod and
+  // the G+2 block, nearer places made the block and the pod outweigh the house.
+  const capsule = onPlan(snap(mix(3, 6, s), 1.5) + (wide > 1 ? 1.5 : 0), -18);
+  const prefab = onPlan(snap(mix(4.5, -3, s), 1.5) + wide * 1.5, -70);
   return rowOf(capsule, prefab, { az: ROW_AZ, el: mix(0.012, 0.45, s) });
 }

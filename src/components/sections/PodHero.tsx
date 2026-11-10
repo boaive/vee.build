@@ -30,16 +30,24 @@ function Scene(props: SceneProps) {
   return <Pod3D {...props} solo subject="pod" bare={isLite()} />;
 }
 
-const steps = podSteps.map((s): FilmStep => ({ ...s, badge: podOpening.badge, theme: 'dark' }));
+const steps = podSteps.map((s): FilmStep => ({ ...s, theme: 'dark' }));
 
-/** In the land's step: the lengths, and the way on to the form. */
+/**
+ * In the land's step: the lengths, and where the visitor goes from here, as
+ * on the MOD page (developer, 2026-11-09: "have similar actions as like in
+ * mod"): the plans, and the enquiry form, both on this page.
+ */
 const actions = {
   [steps[0].id]: (
     <>
       <PodPick />
       <div className="hero__actions">
+        <a className="btn" href="#plans">
+          See the plans
+        </a>
+        {/* Solid, in paper: it stands over the land, where a ghost button's outline was lost in the trees. */}
         <a className="btn btn--light btn--down" href="#register">
-          Register interest
+          Enquire now
         </a>
       </div>
     </>
@@ -53,10 +61,7 @@ const opening: Prelude = {
   content: (
     <div className="prelude">
       <div className="prelude__top">
-        <p className="t-label prelude__kicker">
-          {podOpening.kicker}
-          <span className="film__badge">{podOpening.badge}</span>
-        </p>
+        <p className="t-label prelude__kicker">{podOpening.kicker}</p>
         <p className="prelude__line">
           <span className="prelude__ln">
             <span>{podOpening.line[0]}</span>
@@ -73,7 +78,10 @@ const opening: Prelude = {
         <PodPick />
         <div className="hero__actions prelude__actions">
           <a className="btn btn--down" href="#register">
-            Register interest
+            Enquire now
+          </a>
+          <a className="btn btn--ghost" href="#plans">
+            See the plans
           </a>
         </div>
       </div>

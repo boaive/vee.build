@@ -717,7 +717,10 @@ export default function Film({
     if (compactRef.current && (el.classList.contains('lbl--box') || (edgeDims.current && el.classList.contains('lbl--dim')))) {
       const w = labelsW.current || window.innerWidth;
       const g = Math.min(48, Math.max(10, 0.03 * w));
-      const left = x < w / 2;
+      // Its side is kept until its point is well past the middle: a point on the middle went from edge to edge with
+      // every step of the scroll (developer, 2026-11-10: the pod's "Top cladding", "continously flickering").
+      const was = el.classList.contains('is-left') ? 1 : el.classList.contains('is-right') ? -1 : 0;
+      const left = x < w / 2 + was * 0.04 * w;
       if (el.classList.contains('is-left') !== left || !el.classList.contains(left ? 'is-left' : 'is-right')) {
         el.classList.toggle('is-left', left);
         el.classList.toggle('is-right', !left);

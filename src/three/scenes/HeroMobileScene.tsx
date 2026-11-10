@@ -134,7 +134,8 @@ const INST = 1 + PODS.length;
 const CARD: Shot[] = [
   { box: HOUSE_BOX, base: 0, turn: [0.64, 0.64], el: 0.15, fill: [0.9, 0.84] },
   ...PODS.map((f): Shot => ({ box: capsuleBox(f), base: 0, turn: [0.56, 0.56], el: 0.13, fill: [0.92, 0.72] })),
-  { box: blockBox(BAYS), base: PAD_Y, turn: [-0.6, -0.6], el: 0.16, fill: [0.95, 0.84] },
+  // Seen as the other two are, towards its right end (developer, 2026-11-09: "make the precast have the same angle as other two").
+  { box: blockBox(BAYS), base: PAD_Y, turn: [0.6, 0.6], el: 0.16, fill: [0.95, 0.84] },
 ];
 /** Card shot for kind k (0 house, 1 capsule, 2 block) with the capsule at length j. */
 const cardShot = (k: number, j: number) => (k === 0 ? 0 : k === 1 ? 1 + j : 1 + PODS.length);
