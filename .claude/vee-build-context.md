@@ -1,4 +1,6 @@
-# VEE.BUILD — business context
+# veedo.space (formerly VEE.BUILD) — business context
+
+The name is **veedo.space** since 2026-11-07, "Vee" in a sentence in place of "we" (notes V); everything below that says VEE.BUILD means it. Since the same day the prefab building (FAB) is a G+2 precast-panel building for schools, health centres and institutions; the G+1 workforce housing is no longer offered (notes V10).
 
 ## What the business is
 
@@ -14,14 +16,14 @@ footprints and stack vertically into different building types.
 | Shell A | 6 m × 3 m × 3 m | 200 sq.ft. (18 m²) |
 | Shell B | 3 m × 3 m × 3 m | 100 sq.ft. (9 m²) |
 
-Product lines, and the top menu since 2026-10-14: **Home** (the main page,
-the whole story: everything that was under MOD until then), **MOD**
-(modular house, live, a page of its own at `/modular/`), **POD** (capsule
-home, coming soon), **FAB** (prefab building: workforce and institutional,
-coming soon), and **Contact**. The MOD and FAB pages end, before their
-enquiry form, with links into the home page's chapters that show that
-line (MOD: 03 Componentized building, 06 3D tour; FAB: 02 How it works,
-05 Build your own, 06 3D tour).
+Product lines, and the top menu since 2026-10-14: **Home** (since
+2026-11-07 only the hero's three banners, the three lines and the enquiry
+form; until then the whole story), **MOD** (modular house, live, a page
+of its own at `/modular/`, which tells the whole story since 2026-11-07), **POD** (capsule
+home; "Coming soon" taken off on 2026-11-09), **FAB** (prefab building: workforce and institutional,
+coming soon), and **Contact**. The FAB page ends, before its enquiry
+form, with links into the MOD page's chapters (02 How it works, 05 Build
+your own, 06 3D tour).
 **Partnership** (micro manufacturers, farmhouse promoters, local
 contractors), **Investors** and **Technology** are in a band at the foot of
 every page; only Partnership has a page. The site is "powered by
@@ -129,10 +131,10 @@ the lights come on last.
   "assembly bays" are no longer shown.)
 - Installation: "Placed on the foundation" (not "lifted onto the piers").
 - Add-ons are optional: the deck, the steps and the roof are tagged so.
-- Capsule home (the brief's "capsule pods"): 10′, 16′ and 20′ long.
+- Capsule home (the brief's "capsule pods"): 8, 10 and 12 m long (developer, 2026-11-08; the brief's 10′, 16′ and 20′ until then). 3.05 m wide; a galvanised steel frame skinned in 20 mm TRC panels made with RTARIUM, fixed as stud-frame cladding; plumbing in the kicker at the base, electrics in the roof band; the length grown by panels in the middle (notes W).
 - Spelling: -ize ("standardized", "componentized"), as the client writes.
-- Institutional: 36′ long prefab / precast wall panels, G+2.
-- Workforce housing: G+1.
+- Prefab building (FAB): G+2, storey-high precast wall panels with door and window openings, on a precast frame; schools, health centres, institutions. The panels are 36′ to 40′ long, a fact for us only: never stated on the site (developer, 2026-11-07).
+- Workforce housing (G+1): no longer offered (developer, 2026-11-07).
 
 ## Facts known from supplied material
 
@@ -159,7 +161,7 @@ the lights come on last.
 
 Logo, contact details, a Cloudflare account and the domain on it (the admin panel and its backend are built, not deployed: `admin/README.md`), real photography, capsule renders
 of VEE.BUILD's own (three reference renders of another maker's capsule
-came on 2026-10-09 and set its form), labour-camp renders, engineering
+came on 2026-10-09 and set its form until 2026-11-09; it now follows the developer's reference pages of 2026-11-08, notes W), labour-camp renders, engineering
 drawings for Hook & Cleat and foundations, floor plans for the 500 and 600
 models, pricing for VEE.BUILD, pages or content for Investors and
 Technology, the drone video the client would like behind Delivery, the

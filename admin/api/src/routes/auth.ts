@@ -112,7 +112,7 @@ auth.post('/login', async (c) => {
     c.executionCtx.waitUntil(
       notifyOwner(
         c.env,
-        'New sign-in to the VEE.BUILD panel',
+        'New sign-in to the veedo.space panel',
         `Someone signed in to the admin panel.\n\nWhen: ${new Date(t).toUTCString()}\nAddress: ${ip}${where.country ? ` (${where.country})` : ''}\nBrowser: ${ua || 'unknown'}\n\nIf this was not you, change the password at once (Settings, Security) and sign out every other device.\n`,
       ),
     );
@@ -149,7 +149,7 @@ auth.post('/password', requireSession, async (c) => {
     c.env.DB.prepare('DELETE FROM sessions WHERE id != ?1').bind(s.id),
   ]);
   await logActivity(c.env, 'Password changed', 'Other devices signed out', { ip: clientIp(c), country: clientCountry(c) });
-  c.executionCtx.waitUntil(notifyOwner(c.env, 'Your VEE.BUILD panel password was changed', `The admin panel's password was changed on ${new Date().toUTCString()} from ${clientIp(c)}.\n\nIf this was not you, contact your developer at once.\n`));
+  c.executionCtx.waitUntil(notifyOwner(c.env, 'Your veedo.space panel password was changed', `The admin panel's password was changed on ${new Date().toUTCString()} from ${clientIp(c)}.\n\nIf this was not you, contact your developer at once.\n`));
   return c.json({ ok: true });
 });
 

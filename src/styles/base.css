@@ -396,52 +396,63 @@ button {
 }
 
 /*
- * The mark and the wordmark on one line and, under the two of them, who the
- * site is powered by, with the Hemisphere One logo (client, 2026-10-10 and
- * 2026-10-11: "beneath the VEE.BUILD logo throughout the website", "must
- * include the Hemisphere logo"). The second line is about the width of the
- * first, so that it belongs to the name without competing with it. The logo
- * as supplied on every ground, never recoloured (Brand.astro).
+ * The veedo.space logo (developer, 2026-11-07): the concrete mark and the
+ * wordmark on one line, and under them, no wider, who the site is powered
+ * by, with the Hemisphere One logo (client, 2026-10-11: "beneath the logo
+ * throughout the website"). One logo on every ground, nothing behind it
+ * (the developer: "do not add white background to it"): the mark is the
+ * supplied concrete, the wordmark is set in a concrete grey with its
+ * orange dot (src/assets/brand), and both read on the paper and on the ink
+ * as they are. The Hemisphere One logo is larger than the words before it
+ * ("the powered by is bigger then hemisphere one. fix that"); it is a dark
+ * drawing on clear, so on ink it alone stands on a small pill of the paper
+ * (developer, 2026-10-14), whose room is kept on paper too so that nothing
+ * moves when the header changes ground.
  */
 .brand {
-  --by-h: 1.08rem;
+  --mark-h: 1.3rem;
+  --word-h: 0.8rem;
+  --by-h: 1.2rem;
+  --by-text: 0.54rem;
   display: inline-grid;
   grid-template-columns: auto auto;
-  align-items: center;
-  align-content: center;
+  align-items: end;
   justify-content: start;
-  gap: 0.42rem 0.65rem;
-  min-height: 2.75rem;
+  gap: 0.28rem 0.36rem;
+}
+.brand__mark {
+  display: block;
+  width: auto;
+  height: var(--mark-h);
+}
+/* The wordmark's baseline on the mark's foot: its image runs on below it by the descender of the p (0.186 of its height). */
+.brand__word {
+  display: block;
+  width: auto;
+  height: var(--word-h);
+  margin-bottom: calc(var(--word-h) * -0.186);
 }
 .brand__by {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  gap: 0.28rem;
-  padding-left: 0.08rem;
+  gap: 0.3rem;
   white-space: nowrap;
+  color: #7a7873;
 }
 .brand__by-word {
-  font-size: 0.66rem;
+  font-size: var(--by-text);
   font-weight: 500;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
   line-height: 1;
-  opacity: 0.72;
 }
-/*
- * The logo keeps its own colours on every ground (developer, 2026-10-14). It
- * is a dark drawing on clear: on ink it stands on a pill of the paper. The
- * pill's room is kept on paper too (padding, given back by the margins), so
- * that the lockup does not move when the header changes ground.
- */
 .brand__logo {
   display: block;
   box-sizing: content-box;
   width: auto;
   height: var(--by-h);
-  padding: 0.14rem 0.3rem;
-  margin-block: -0.14rem;
-  margin-right: -0.3rem;
+  padding: 0.08rem 0.22rem;
+  margin: -0.08rem 0 -0.08rem -0.22rem;
   border-radius: 999px;
 }
 .theme-dark .brand__logo,
@@ -450,36 +461,11 @@ button {
 }
 /* In the footer, larger. */
 .brand--lg {
-  --by-h: 1.3rem;
-  gap: 0.55rem 0.8rem;
-}
-.brand--lg .brand__mark {
-  width: 2.1rem;
-}
-.brand--lg .brand__word {
-  font-size: 1.18rem;
-}
-.brand--lg .brand__by-word {
-  font-size: 0.76rem;
-}
-.brand__mark {
-  width: 1.75rem;
-  height: auto;
-  flex: none;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.5;
-}
-.brand__word {
-  font-size: 0.98rem;
-  font-weight: 680;
-  font-stretch: 122%;
-  letter-spacing: 0.02em;
-  line-height: 1;
-}
-.brand__word i {
-  font-style: normal;
-  color: var(--accent-line);
+  --mark-h: 1.75rem;
+  --word-h: 1.08rem;
+  --by-h: 1.6rem;
+  --by-text: 0.7rem;
+  gap: 0.4rem 0.48rem;
 }
 
 .hdr__nav {
@@ -790,8 +776,11 @@ button {
     padding-inline: 0.8rem;
     font-size: 0.8rem;
   }
-  .brand__word {
-    font-size: 0.9rem;
+  .brand {
+    --mark-h: 1.15rem;
+    --word-h: 0.7rem;
+    --by-h: 1.06rem;
+    --by-text: 0.5rem;
   }
 }
 
@@ -1040,63 +1029,33 @@ button {
     transform 0.9s var(--ease-out),
     opacity 0.6s var(--ease);
 }
-.boot__mark {
-  width: 4.6rem;
-  overflow: visible;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.2;
+/* The logo as supplied, set down once, as a shell is lowered onto its footings. */
+.boot__logo {
+  display: block;
+  width: min(13rem, 56vw);
+  height: auto;
+  animation: boot-set 1.1s var(--ease-out) both;
 }
-.boot__mark rect {
-  stroke-dasharray: 100;
-  stroke-dashoffset: 100;
-  animation: boot-draw 2.2s var(--ease) infinite;
-}
-.boot__mark .boot__b {
-  animation-delay: 0.35s;
-}
-@keyframes boot-draw {
-  0% {
-    stroke-dashoffset: 100;
-    fill: transparent;
+@keyframes boot-set {
+  from {
+    opacity: 0;
+    transform: translateY(-0.9rem);
   }
-  55% {
-    stroke-dashoffset: 0;
-    fill: transparent;
-  }
-  75% {
-    stroke-dashoffset: 0;
-    fill: rgb(17 18 20 / 0.08);
-  }
-  100% {
-    stroke-dashoffset: 0;
-    fill: transparent;
-  }
-}
-.boot__word {
-  font-size: 1.15rem;
-  font-weight: 680;
-  font-stretch: 122%;
-  letter-spacing: 0.04em;
-}
-.boot__word i {
-  font-style: normal;
-  color: #d9431b;
 }
 /* Who the site is powered by, with the logo as supplied: the loading screen is paper. */
 .boot__by {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
   margin-top: -0.45rem;
-  font-size: 0.74rem;
+  font-size: 0.66rem;
   font-weight: 500;
   color: #6b6e74;
 }
 .boot__by img {
   display: block;
   width: auto;
-  height: 1.3rem;
+  height: 1.75rem;
 }
 .boot__bar {
   width: 100%;
@@ -1131,9 +1090,8 @@ button {
   opacity: 0;
 }
 @media (prefers-reduced-motion: reduce) {
-  .boot__mark rect {
+  .boot__logo {
     animation: none;
-    stroke-dashoffset: 0;
   }
 }
 

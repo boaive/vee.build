@@ -3,4 +3,4 @@ Allow: /
 Disallow: /admin/
 Disallow: /api/
 
-Sitemap: https://vee.build/sitemap-index.xml
+Sitemap: https://veedo.space/sitemap-index.xml

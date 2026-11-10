@@ -17,7 +17,7 @@ export interface Env {
   TURNSTILE_SECRET_KEY?: string;
   /** Secret. Salts the hash an enquiry keeps of the sender's IP address. */
   IP_SALT?: string;
-  /** The address notifications come from, on a domain with Email Routing (noreply@vee.build). */
+  /** The address notifications come from, on a domain with Email Routing (noreply@veedo.space). */
   NOTIFY_FROM?: string;
   /** Where they go: an address verified in Email Routing. */
   NOTIFY_TO?: string;

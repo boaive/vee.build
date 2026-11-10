@@ -1,5 +1,5 @@
 /**
- * Section 5. Names, areas and bed/bath/floor counts are from the VEE.BUILD
+ * Section 5. Names, areas and bed/bath/floor counts are from the client's
  * brief. Module compositions are derived from the system (Shell A = 200,
  * Shell B = 100 sq.ft. nominal) — CONFIRM with the client.
  *

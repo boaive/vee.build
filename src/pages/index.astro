@@ -1,41 +1,33 @@
 ---
 import Base from '../layouts/Base.astro';
 import Hero from '../components/sections/Hero.tsx';
-import HowItWorks from '../components/sections/HowItWorks.tsx';
-import Components from '../components/sections/Components.tsx';
-import Difference from '../components/sections/Difference.astro';
-import BuildSection from '../components/sections/BuildSection.astro';
-import YourHouse from '../components/sections/YourHouse.tsx';
-import CatalogueSection from '../components/sections/CatalogueSection.astro';
-import FactoryTour from '../components/sections/FactoryTour.tsx';
-import Transit from '../components/sections/Transit.tsx';
-import Installation from '../components/sections/Installation.tsx';
-import Arrival from '../components/sections/Arrival.astro';
-import Gallery from '../components/sections/Gallery.astro';
+import Lines from '../components/sections/Lines.astro';
 import Contact from '../components/sections/Contact.astro';
-import { shown } from '../data/site';
+import { sections, site, story } from '../data/site';
 
 /*
- * The films below the hero hydrate once the page is idle after load. That
- * is only their captions and scroll wiring (a few milliseconds each): every
- * 3D scene still mounts when its section nears the viewport. Hydrating on
- * approach instead put that work in the middle of a scroll.
+ * Home since 2026-11-07 (developer: "since this is the home screen, we
+ * don't have to show everything in here ... show then possibilities what can
+ * be done, like mod, pod and fab. remove every other things ... below that
+ * the footer with call to action as it is"): the banners, the three lines,
+ * the enquiry form. Everything else moved to the MOD page (data/site.ts,
+ * `story`).
+ *
+ * A link to one of those chapters made before the move (/#factory, a shared
+ * configuration /?build=…#configure) is sent on to the MOD page, before
+ * anything is drawn.
  */
+const moved = sections.filter((s) => s.id !== 'contact').map((s) => s.id);
+const forward = `(function () {
+  var moved = ${JSON.stringify(moved)};
+  var id = location.hash.slice(1);
+  if (new URLSearchParams(location.search).has('build') || moved.indexOf(id) >= 0) location.replace(${JSON.stringify(story)} + location.search + location.hash);
+})();`;
 ---
 
-<Base title="VEE.BUILD — Modular precast construction system" home boot>
+<Base title={`${site.name} — Modular precast construction system`} boot="overview">
+  <script is:inline set:html={forward} slot="head" />
   <Hero client:load />
-  <HowItWorks client:idle />
-  <Components client:idle />
-  <Difference />
-  <BuildSection />
-  <YourHouse client:idle />
-  <FactoryTour client:idle />
-  <Transit client:idle />
-  <Installation client:idle />
-  <Arrival />
-  {/* Built, not shown for now (client, 2026-10-10): data/site.ts, `shown`. */}
-  {shown.catalogue && <CatalogueSection />}
-  <Gallery />
+  <Lines />
   <Contact />
 </Base>

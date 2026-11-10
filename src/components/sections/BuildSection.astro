@@ -1,17 +1,14 @@
 ---
 import Configurator from '../build/Configurator.tsx';
-import { shown } from '../../data/site';
+import { numberOf, shown } from '../../data/site';
 ---
 
 <section class="section build theme-light" id="configure" data-theme="light" data-chapter="configure" aria-labelledby="configure-heading">
   <div class="wrap">
     <header class="intro">
-      <p class="eyebrow"><b>05</b> Build your own</p>
+      <p class="eyebrow"><b>{numberOf('configure')}</b> Build your own</p>
       <h2 class="t-h2" id="configure-heading" data-reveal>Design it, shell by shell.</h2>
-      <p class="t-lead" data-reveal style="--i:1">
-        Place Shell A and Shell B on the site, stack up to five floors and choose what the house needs. What you design
-        here goes with you through the factory and onto site.
-      </p>
+      <p class="t-lead" data-reveal style="--i:1">Place the shells, add floors and extras, and watch the estimate update live.</p>
     </header>
     <Configurator client:visible={{ rootMargin: '500px' }} />
     <noscript>

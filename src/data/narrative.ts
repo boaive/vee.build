@@ -3,7 +3,7 @@
  * caption (0–1 of the film's scroll), `pose` is the progress at which its
  * scene is settled (used for step buttons and reduced motion), and `cue` is
  * where its card crosses the reading line (defaults to `pose`).
- * Text is taken from the VEE.BUILD brief; edits are logged in
+ * Text is taken from the client's brief; edits are logged in
  * .claude/vee-build-notes.md section E.
  */
 import { scrollAt } from '../film/componentsClock';
@@ -27,6 +27,8 @@ export interface FilmStep {
   badge?: string;
   /** Caption theme while this step is active, when the scene behind it needs it. */
   theme?: 'light' | 'dark';
+  /** The number over the caption while this step is on, where each step has its own (the hero's banners). */
+  index?: string;
 }
 
 /* ---------- 01 Hero ---------- */
@@ -34,10 +36,11 @@ export interface FilmStep {
 /**
  * The three kinds of building (client, 2026-10-09): the opening card shows
  * one of each, and each has a statement for a heading and a line of text.
- * `code` is the top menu's name for the line. Wording is the client's;
- * only the capitals are ours. `soon`: not on sale yet, and tagged so
- * wherever it is shown (the capsule since 2026-10-09, the prefab building
- * since 2026-10-10).
+ * `code` is the top menu's name for the line. Wording is the client's,
+ * set right for print on 2026-11-07 (hyphens, no exclamation marks; notes V). `soon`: not on sale yet, and tagged so
+ * wherever it is shown (the prefab building since 2026-10-10; the capsule
+ * from 2026-10-09 until the developer took it off on 2026-11-09: "remove the
+ * coming soon from the pod, have similar actions as like in mod").
  */
 const SOON = 'Coming soon';
 export const kinds = [
@@ -46,9 +49,9 @@ export const kinds = [
     code: 'MOD',
     word: 'Modular.',
     name: 'Modular house',
-    line: 'Factory made insulated concrete homes.',
+    line: 'Factory-made insulated concrete homes.',
     // CONFIRM: on-site installation time (notes B4).
-    punch: 'Installed in one day!',
+    punch: 'Installed in one day.',
     href: '/modular/',
     soon: false,
   },
@@ -57,20 +60,22 @@ export const kinds = [
     code: 'POD',
     word: 'Capsule.',
     name: 'Capsule home',
-    line: 'Luxury spaceship pod.',
+    // The client's "Luxury spaceship pod." until 2026-11-07 (notes V).
+    line: 'Luxury capsule living.',
     // CONFIRM: the capsule's shell is concrete (notes B8).
-    punch: 'Enveloped in concrete!',
+    punch: 'Enveloped in concrete.',
     href: '/capsule/',
-    soon: true,
+    soon: false,
   },
   {
     id: 'fab',
     code: 'FAB',
     word: 'Prefab building.',
     name: 'Prefab building',
-    line: 'Comfort accommodation.',
+    // The client's "Comfort accommodation." until 2026-11-07, when the prefab became the G+2 precast-panel building (notes V).
+    line: 'Schools, health centres and institutions.',
     // CONFIRM: construction time, and for what size of building (notes B9).
-    punch: 'Built in days!',
+    punch: 'Built in days.',
     href: '/prefab/',
     soon: true,
   },
@@ -86,11 +91,17 @@ const [MOD, POD, FAB] = kinds;
  * figures in the headings (client, 2026-10-09): the objects carry them (pod
  * lengths, the 36′ panel).
  */
+/*
+ * Three banners since 2026-11-07 (developer: the workforce housing banner
+ * was deleted, and each banner is numbered, 01, 02, 03, in place of the
+ * chapter's one number over all of them).
+ */
 export const heroSteps: FilmStep[] = [
   {
     id: 'farmhouse',
     at: 0,
     pose: 0,
+    index: '01',
     kicker: MOD.code,
     title: `${MOD.name}.`,
     body: MOD.line,
@@ -99,36 +110,28 @@ export const heroSteps: FilmStep[] = [
   {
     id: 'capsule',
     at: HERO_CUTS[0],
-    pose: 0.3,
+    // Where the capsule's set settles: the same place in its stretch as among four sets.
+    pose: 0.426,
+    index: '02',
     theme: 'dark',
     kicker: POD.code,
-    badge: SOON,
     title: `${POD.name}.`,
     body: POD.line,
     note: POD.punch,
-    link: { label: 'Capsule — coming soon', href: '/capsule/' },
-  },
-  {
-    id: 'workforce',
-    at: HERO_CUTS[1],
-    pose: 0.6,
-    kicker: `${FAB.code} · Workforce housing`,
-    badge: SOON,
-    title: `${FAB.name}.`,
-    body: FAB.line,
-    note: FAB.punch,
-    link: { label: 'Prefab — coming soon', href: '/prefab/' },
+    link: { label: 'See the capsule home', href: POD.href },
   },
   {
     id: 'institutional',
-    at: HERO_CUTS[2],
+    at: HERO_CUTS[1],
     pose: 1,
+    index: '03',
     kicker: `${FAB.code} · Institutional`,
     badge: SOON,
-    // The brief's line, set as statements like the other three (notes E).
-    title: 'Lean. Clean. Resilient.',
-    body: 'Environmentally friendly buildings for future generations.',
-    link: { label: 'Prefab — coming soon', href: '/prefab/' },
+    // Set as the other two are (developer, 2026-11-07: short, one line each); the brief's "Lean. Clean. Resilient." is its point (notes V).
+    title: `${FAB.name}.`,
+    body: 'Three floors of factory-made precast panels, set on site.',
+    note: 'Lean. Clean. Resilient.',
+    link: { label: 'See the prefab building', href: FAB.href },
   },
 ];
 
@@ -144,12 +147,34 @@ export const heroSteps: FilmStep[] = [
  */
 export const heroCards = kinds.map((k) => ({ src: `/images/cards/kind-${k.id}.webp`, code: k.soon ? `${k.code} · Soon` : k.code, name: k.name }));
 
+/* ---------- MOD page: its opening ---------- */
+
 /**
- * The capsule's step on a phone or a tablet held upright: its three
- * lengths to choose from under it (the developer's capsule screen; the
- * brief's 10′, 16′ and 20′). The one chosen stands on the floor.
+ * The MOD page opens on the modular house (developer, 2026-11-07: "we start
+ * with simply the modular home, then scrolling that it will get you the
+ * background with different text ... show the build your own and enquire
+ * now button"). The first screen is the house alone on the studio floor,
+ * with the client's line for it; scrolling brings its land and sky in, and
+ * the second screen's words say what the visitor can do with it. Only the
+ * brief's facts: the two shells, the footprints, the foundation, the
+ * configurator's estimate (notes V).
  */
-export const podLengths = [10, 16, 20] as const;
+export const modOpening = {
+  kicker: MOD.code,
+  line: ['Modular', 'house.'],
+  sub: `${MOD.line} ${MOD.punch}`,
+} as const;
+
+export const modSteps: FilmStep[] = [
+  {
+    id: 'land',
+    at: 0,
+    pose: 0.5,
+    kicker: 'On your land',
+    title: 'Your home. Your land.',
+    body: 'Finished in the factory, installed on a precast foundation. Design yours and get an instant estimate.',
+  },
+];
 
 /* ---------- 02 How it works ---------- */
 
@@ -165,9 +190,9 @@ export const systemSteps: FilmStep[] = [
     at: 0,
     pose: 0.1,
     cue: 0.04,
-    kicker: '2.1 — The 2 core shells',
+    kicker: '2.1 — Two core shells',
     title: 'Two standardized shells.',
-    body: `${shells.A.name} is ${shells.A.label}. ${shells.B.name} is ${shells.B.label}. VEE.BUILD modules are made from these 2 shell frames.`,
+    body: `${shells.A.name}: ${shells.A.label}. ${shells.B.name}: ${shells.B.label}. Every Vee home starts here.`,
   },
   {
     id: 'hook-cleat',
@@ -175,34 +200,33 @@ export const systemSteps: FilmStep[] = [
     pose: 0.225,
     kicker: '2.2 — Lift & shift',
     title: 'Building as a product.',
-    body: 'VEE have componentized the modules while maintaining complete architectural freedom.',
-    note: 'VEE.BUILD fully finished “LIFT & SHIFT” modules.',
+    body: 'Fully finished modules, with complete freedom of design.',
   },
   {
     id: 'footprints',
     at: 0.3,
     pose: 0.48,
     kicker: '2.3 — Multiple footprints',
-    title: 'Single system. Multiple footprints.',
-    body: `The shells duplicate, array and fuse side by side: ${footprints.map((f) => f.sqft).join(' → ')} sq.ft.`,
+    title: 'One system. Six footprints.',
+    body: `Shells join side by side: ${footprints.map((f) => f.sqft).join(' → ')} sq.ft.`,
   },
   {
     id: VILLA.id,
     at: 0.62,
     pose: 0.74,
-    kicker: '2.4 — Multi-floor. Multiple roofing options.',
+    kicker: '2.4 — Multi-floor',
     // CONFIRM: "net zero" and "off-grid capability" (notes B10).
     title: 'Net zero.',
-    body: 'A multi-family house with off-grid capability.',
+    body: 'A multi-family home, ready to run off-grid.',
   },
   {
     id: MIDRISE.id,
     at: 0.82,
     pose: 1,
-    kicker: '2.5 — Stack up to 5 floors',
+    kicker: '2.5 — Up to five floors',
     title: 'Mid-rise apartment.',
     body: MIDRISE.description,
-    note: `Ideal for: ${MIDRISE.idealFor}`,
+    note: `For ${MIDRISE.idealFor.charAt(0).toLowerCase()}${MIDRISE.idealFor.slice(1)}`,
   },
 ];
 
@@ -234,9 +258,9 @@ export const componentSteps: FilmStep[] = [
     // Settled once all three have come apart into their own parts (componentsTimeline, BURST.pose).
     pose: scrollAt(0.2),
     cue: 0.04,
-    kicker: 'Building-kit-as-parts',
+    kicker: 'Kit of parts',
     title: 'Foundation. Module. Add-ons.',
-    body: 'This is just like car manufacturing. See how they all connect together.',
+    body: 'Built like a car: precise parts that fit together.',
   },
   {
     id: 'foundation',
@@ -245,7 +269,7 @@ export const componentSteps: FilmStep[] = [
     kicker: '3.1 — Foundation',
     title: 'Foundation',
     // The jack pier is set when the add-ons are (developer, 2026-10-10), so two of the brief's three are shown here.
-    body: 'Plug footings and L plinths set the building on the ground. Further adjustments can be done with the jack, which comes with the add-ons.',
+    body: 'Plug footings and L plinths carry the building. Jack piers, supplied with the add-ons, fine-tune the height.',
     tags: ['Plug footing', 'L plinth'],
   },
   {
@@ -256,7 +280,7 @@ export const componentSteps: FilmStep[] = [
     kicker: '3.2 — Module',
     title: 'Insulated concrete shell',
     // CONFIRM: "eco-friendly" and the materials named (notes B11).
-    body: 'The ultimate fusion of strength and sustainability. Discover how high-grade steel, 3D EPS insulation, and advanced micro-concrete unite to create the next generation of eco-friendly concrete shells.',
+    body: 'Steel frame, 3D EPS insulation and micro concrete, in one strong, insulated shell.',
   },
   {
     id: 'addons',
@@ -265,7 +289,7 @@ export const componentSteps: FilmStep[] = [
     kicker: '3.3 — Add-ons',
     title: 'Add-ons',
     // "Optional" is the client's point of 2026-10-10: the deck, the steps and the roof are add-ons too, not standard parts.
-    body: 'With the home built, the options drop into place. The deck, the steps and the sloped roof are add-ons too, chosen for each building. Deck posts and steps land on jack piers.',
+    body: 'Deck, steps, sloped roof and more, chosen for each home. Deck posts and steps stand on jack piers.',
     tags: [...addOns],
   },
 ];
@@ -285,10 +309,10 @@ const revealRest: FilmStep[] = [
     id: 'whole',
     at: 0.5,
     pose: 0.86,
-    kicker: 'Made whole',
+    kicker: 'Factory-finished',
     title: 'Every shell leaves the factory finished.',
     // The client's sentence of 2026-10-09, with "casted with concrete" set right (notes E).
-    body: 'Cast in concrete with its insulation panels in place, then painted, glazed and fitted with doors on the finishing line.',
+    body: 'Cast, painted, glazed and fitted with doors before it ships.',
   },
 ];
 
@@ -301,15 +325,15 @@ const revealRest: FilmStep[] = [
  */
 export const revealViews = {
   heading: '3D tour',
-  hint: 'Drag to check top, down, left, right & centre',
+  hint: 'Drag to look around',
   keys: ['Top', 'Down', 'Left', 'Right', 'Centre'],
 } as const;
 
 /** The factory tour's title screen: it takes the whole screen after "your house", then opens onto the yard. */
-export const factoryTitle = { kicker: 'Factory tour', line: ['See how VEE', 'manufactures it.'] } as const;
+export const factoryTitle = { kicker: 'Factory tour', line: ['See how Vee', 'builds it.'] } as const;
 
 export const revealSteps: FilmStep[] = [
-  { id: 'yours', at: 0, pose: 0.14, cue: 0.05, kicker: 'Your build', title: 'Your house, on its own.', body: 'Exactly as you configured it, shell by shell.' },
+  { id: 'yours', at: 0, pose: 0.14, cue: 0.05, kicker: 'Your build', title: 'Your design, in 3D.', body: 'Exactly as you configured it.' },
   ...revealRest,
 ];
 
@@ -319,10 +343,10 @@ export const revealSample: FilmStep[] = [
     at: 0,
     pose: 0.14,
     cue: 0.05,
-    kicker: 'A sample build',
+    kicker: 'Sample build',
     title: 'This could be your house.',
-    body: 'Nothing is placed on the site yet, so The Homestead stands in. Build your own above and it appears here.',
-    link: { label: 'Back to the configurator', href: '#configure' },
+    body: 'Design your own above to see it here.',
+    link: { label: 'Open the configurator', href: '#configure' },
   },
   ...revealRest,
 ];
@@ -342,56 +366,56 @@ export const factorySteps: FilmStep[] = [
     ...FS.frame,
     kicker: 'Station 1',
     title: 'Structural frame – core shell',
-    body: 'Four adjustable piers set the level. On them the steel frame goes up: a ring at the floor with its joists, a column at each corner, a ring round the top, and a lifting hook on each column.',
+    body: 'Adjustable piers set the level. The steel frame goes up: floor ring, corner columns, top ring and four lifting hooks.',
   },
   {
     id: 'panels',
     ...FS.panels,
     kicker: 'Station 2',
     title: 'Insulation panels',
-    body: 'The panels are set into the frame: the floor, the four walls with their openings left in them, and the roof on top.',
+    body: 'Panels go into the frame: floor, walls with their openings, then the roof.',
   },
   {
     id: 'formwork',
     ...FS.formwork,
     kicker: 'Station 3',
     title: 'Formwork installation',
-    body: 'Bright green boards close round the panels and are locked.',
+    body: 'Green formwork boards close around the panels and lock in place.',
   },
   {
     id: 'concreting',
     ...FS.concreting,
     kicker: 'Station 4',
     title: 'Concreting cycle',
-    body: 'A compact delivery machine pumps the mix through a hose, into the space between the boards and the panels and over the roof. It forms the walls: the inside stays clear.',
+    body: 'Concrete is pumped between the boards and the panels, and over the roof. The inside stays clear.',
   },
   {
     id: 'deshutter',
     ...FS.deshutter,
     kicker: 'Station 5',
     title: 'De-shuttering',
-    body: 'The green boards come away to reveal smooth concrete, with the openings for the door and the windows empty.',
+    body: 'The boards come off, revealing smooth concrete and clean openings.',
   },
   {
     id: 'joinery',
     ...FS.joinery,
     kicker: 'Station 6',
     title: 'Doors and windows',
-    body: 'Doors snap in. Glass is set.',
+    body: 'Doors fitted. Glass set.',
   },
   {
     id: 'spray',
     ...FS.spray,
     kicker: 'Station 7',
     title: 'Spray finish',
-    body: 'Precision spray paint, in the bay the shell was made in.',
+    body: 'A precision spray finish, in the same bay.',
   },
   {
     id: 'dispatch',
     ...FS.dispatch,
     kicker: 'Dispatch',
     title: 'Craned onto the truck',
-    body: 'A mobile crane lifts the finished shell by its four hooks, sets it on the trailer and lets go. Next stop: your site.',
+    body: 'A mobile crane lifts the shell by its four hooks onto the trailer. Next stop: your site.',
   },
 ];
 
@@ -414,7 +438,7 @@ export const transitSteps: FilmStep[] = [
     pose: 0.4,
     kicker: 'On the road',
     title: 'On its way to your site.',
-    body: 'The finished shell leaves the yard on a truck, ready to be lifted into place when it arrives.',
+    body: 'The finished shell leaves the yard, ready to be lifted into place.',
   },
 ];
 
@@ -437,8 +461,8 @@ export const transitSteps: FilmStep[] = [
  * the caption says so in the words of 3.3.
  */
 export function installSteps(shells: number, sample: boolean, plinth = true, piers = false): FilmStep[] {
-  const landed = sample ? 'Deck, posts, spandrel, handrail, steps and shades drop into place.' : 'The add-ons you chose drop into place.';
-  const addOns = piers ? `${landed} Deck posts and steps land on jack piers.` : landed;
+  const landed = sample ? 'Deck, posts, spandrel, handrail, steps and shades go on.' : 'Your add-ons go on.';
+  const addOns = piers ? `${landed} Deck posts and steps stand on jack piers.` : landed;
   return [
     {
       id: 'prep',
@@ -446,36 +470,36 @@ export function installSteps(shells: number, sample: boolean, plinth = true, pie
       kicker: 'Site preparation',
       title: 'Ready before the shell arrives.',
       body: plinth
-        ? 'Off-site construction with absolute minimum site impact. The plot is marked out, precast plug footings go into the ground and L plinths are laid between them, while the shell is still in the factory.'
-        : 'Off-site construction with absolute minimum site impact. The plot is marked out and a precast plug footing goes into the ground at every corner, while the shell is still in the factory.',
+        ? 'While the shell is in the factory, the plot is marked out, plug footings go in and L plinths are laid.'
+        : 'While the shell is in the factory, the plot is marked out and a plug footing goes in at every corner.',
     },
     {
       id: 'arrive',
       ...IS.arrive,
       kicker: 'Installation',
       title: 'Delivered to the plot.',
-      body: 'The truck pulls in with a finished shell, beside the foundation waiting for it.',
+      body: 'The finished shell arrives beside its waiting foundation.',
     },
     {
       id: 'place',
       ...IS.place,
       kicker: 'Placement',
       title: 'Placed on the foundation.',
-      body: 'A mobile crane lifts the shell off the trailer by its four hooks and sets it down on its footings.',
+      body: 'A mobile crane lifts it by its four hooks onto its footings.',
     },
     {
       id: 'assemble',
       ...IS.assemble,
       kicker: 'Assembly',
       title: shells > 1 ? 'The rest follows.' : 'Finished with the add-ons.',
-      body: shells > 1 ? `Shell by shell the building comes together. ${addOns}` : addOns,
+      body: shells > 1 ? `Shell by shell, the building comes together. ${addOns}` : addOns,
     },
     {
       id: 'home',
       ...IS.home,
       kicker: 'Handover',
       title: sample ? 'The house, on its site.' : 'Your house, on its site.',
-      body: 'Its lights come on when the last piece is in.',
+      body: 'The lights come on as the last piece goes in.',
     },
   ];
 }

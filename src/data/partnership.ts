@@ -26,10 +26,10 @@ export const partnerGroups: PartnerGroup[] = [
     id: 'farmhouse-promoters',
     n: '02',
     name: 'Farmhouse promoters',
-    role: 'Offer plotted and farmhouse developments with homes from the catalogue.',
+    role: 'Offer plotted and farmhouse developments with homes built on the system.',
     brings: ['Land or a plotted layout', 'Buyers who want a finished home', 'A site ready for foundations'],
     works:
-      'Catalogue models from 200 to 600 sq.ft. are configured from Shell A and Shell B, delivered and installed on prepared foundations.',
+      'Homes from 200 to 600 sq.ft. are configured from Shell A and Shell B, delivered and installed on prepared foundations.',
   },
   {
     id: 'local-contractors',

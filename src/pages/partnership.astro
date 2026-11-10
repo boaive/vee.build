@@ -2,30 +2,31 @@
 import Base from '../layouts/Base.astro';
 import EnquiryForm from '../components/forms/EnquiryForm.tsx';
 import { partnerGroups } from '../data/partnership';
+import { site, story } from '../data/site';
 ---
 
 <Base
   title="Partnership"
-  description="VEE.BUILD is looking for micro manufacturers, farmhouse promoters and local contractors to help expand its modular construction system."
+  description={`${site.short} is looking for micro manufacturers, farmhouse promoters and local contractors to help expand its modular construction system.`}
 >
   <section class="page-hero theme-light" data-theme="light">
     <div class="wrap">
       <p class="page-hero__meta"><span class="t-label">Partnership</span></p>
-      <h1 class="t-display">VEE.BUILD is looking for partners to expand this construction system.</h1>
+      <h1 class="t-display">{site.short} is looking for partners to expand its construction system.</h1>
       <p class="t-lead page-hero__lead">
         Micro manufacturers, farmhouse promoters and local contractors. If you make, sell or install buildings, there is
         a place for you in it.
       </p>
       <div class="page-hero__actions">
         <a class="btn btn--down" href="#enquire">Start a partnership enquiry</a>
-        <a class="btn btn--ghost btn--plain" href="/#how-it-works">See how the system works</a>
+        <a class="btn btn--ghost btn--plain" href={`${story}#how-it-works`}>See how the system works</a>
       </div>
     </div>
   </section>
 
   <section class="section theme-light" data-theme="light" aria-labelledby="who-heading" style="padding-top:0">
     <div class="wrap">
-      <h2 class="sr-only" id="who-heading">Who VEE.BUILD works with</h2>
+      <h2 class="sr-only" id="who-heading">Who {site.short} works with</h2>
       {
         partnerGroups.map((g) => (
           <article class="partner" id={g.id} data-reveal>
@@ -57,7 +58,7 @@ import { partnerGroups } from '../data/partnership';
         <p class="t-lead mute" style="margin-top:1.5rem;max-width:30rem" data-reveal>
           Every partner works with the same standardized parts and the same order of work.
         </p>
-        <p style="margin-top:2rem"><a class="link" href="/#components">Componentized building</a></p>
+        <p style="margin-top:2rem"><a class="link" href={`${story}#components`}>Componentized building</a></p>
       </div>
       <ol class="steps-line">
         <li data-reveal>
@@ -84,10 +85,10 @@ import { partnerGroups } from '../data/partnership';
     <div class="wrap contact__grid">
       <div>
         <h2 class="contact__title" id="enquire-heading" data-reveal>
-          <span>Build with Vee<em>.</em></span>
+          <span>Build with {site.short}<em>.</em></span>
         </h2>
         <p class="t-lead contact__lead mute" data-reveal style="--i:1">
-          Tell us who you are and where you operate, and what kind of partnership you have in mind.
+          Tell us who you are, where you operate and what kind of partnership you have in mind.
         </p>
       </div>
       <EnquiryForm client:visible variant="partnership" />

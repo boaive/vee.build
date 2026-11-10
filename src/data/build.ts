@@ -124,7 +124,7 @@ export const trimFinishes: Finish[] = [
  * (three/kit/materials.ts, roofMat), `pan` is the seams' spacing in metres.
  */
 export const roofing: { name: string; surface: 'seam' | 'plain'; pan: number } = { name: 'Standing-seam metal', surface: 'seam', pan: 0.5 };
-export const finishNote = 'Finishes are indicative. Confirm availability with VEE.BUILD.';
+export const finishNote = 'Finishes are indicative. Please confirm availability with Vee.';
 
 export interface Preset {
   id: string;

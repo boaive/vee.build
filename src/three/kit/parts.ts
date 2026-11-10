@@ -650,20 +650,6 @@ export function panelGeometry(
   });
 }
 
-/**
- * 36′ (10.97 m) precast wall panel with a window band. Origin bottom-centre,
- * outer face towards +z. Groups: 0 panel, 1 glass.
- */
-export function wallPanel36Geometry(): BufferGeometry {
-  return memo('wall-panel-36', () => {
-    const W = 10.9;
-    const H = 3.5;
-    const glass: BufferGeometry[] = [];
-    for (let i = 0; i < 4; i++) glass.push(box(1.9, 1.75, 0.03, -W / 2 + 1.55 + i * 2.6, 1.95, 0.115));
-    return mergeGroups([[box(W, H, 0.22, 0, H / 2, 0)], glass]);
-  });
-}
-
 /* ------------------------------------------------------------------ */
 /* Roof options                                                        */
 /* ------------------------------------------------------------------ */

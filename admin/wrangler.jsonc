@@ -47,7 +47,7 @@
   // "send_email": [{ "name": "MAIL", "destination_address": "owner@example.com" }],
 
   "vars": {
-    "NOTIFY_FROM": "noreply@vee.build",
+    "NOTIFY_FROM": "noreply@veedo.space",
     "NOTIFY_TO": ""
   },
   // Secrets, set with `npx wrangler secret put <NAME>` (never written here):

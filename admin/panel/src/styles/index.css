@@ -7,7 +7,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design tokens. They follow the public site (vee.build, src/styles/tokens.css):
+ * Design tokens. They follow the public site (veedo.space, src/styles/tokens.css):
  * warm concrete paper and charcoal ink, one accent that follows its ground
  * (vermilion on paper, hi-vis green on ink), used for measurement and
  * interaction only. The green is flat: no glow, no gradient.

@@ -85,7 +85,7 @@ export default function LoginPage() {
           <h1 className="text-3xl font-bold" style={{ fontStretch: '108%' }}>
             Admin panel
           </h1>
-          <p className="mt-2 text-sm text-muted-foreground">For the owner of VEE.BUILD.</p>
+          <p className="mt-2 text-sm text-muted-foreground">For the owner of veedo.space.</p>
 
           <form onSubmit={(e) => void onSubmit(e)} noValidate className="mt-8 space-y-4">
             <div className="space-y-1.5">

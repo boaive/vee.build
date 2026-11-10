@@ -26,7 +26,7 @@ const oneLine = (s: string) => s.replace(/[\r\n]+/g, ' ').slice(0, 200);
 export function buildMime(o: { from: string; to: string; subject: string; text: string; replyTo?: string }): string {
   const domain = o.from.split('@')[1] ?? 'localhost';
   const head = [
-    `From: VEE.BUILD <${o.from}>`,
+    `From: veedo.space <${o.from}>`,
     `To: <${o.to}>`,
     o.replyTo && SAFE_ADDRESS.test(o.replyTo) ? `Reply-To: <${o.replyTo}>` : null,
     `Subject: ${encodeHeader(oneLine(o.subject))}`,

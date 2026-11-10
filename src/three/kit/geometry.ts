@@ -54,7 +54,7 @@ export function mergeGroups(lists: BufferGeometry[][]): BufferGeometry {
  * (materials.ts, interiorGlass). A box of zero size: no room, plain glow.
  * Returns the geometry.
  */
-export function withRoom(g: BufferGeometry, lo: readonly number[], hi: readonly number[]): BufferGeometry {
+export function withRoom(g: BufferGeometry, lo: readonly number[], hi: readonly number[], kind?: 0 | 1): BufferGeometry {
   const n = g.getAttribute('position').count;
   const a = new Float32Array(n * 3);
   const b = new Float32Array(n * 3);
@@ -64,6 +64,8 @@ export function withRoom(g: BufferGeometry, lo: readonly number[], hi: readonly 
   }
   g.setAttribute('roomLo', new Float32BufferAttribute(a, 3));
   g.setAttribute('roomHi', new Float32BufferAttribute(b, 3));
+  // Which room the plan has behind the glass (0 living, 1 bedroom), where it is given; else the material's default, -1: picked by the room itself.
+  if (kind !== undefined) g.setAttribute('roomKind', new Float32BufferAttribute(new Float32Array(n).fill(kind), 1));
   return g;
 }
 

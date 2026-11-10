@@ -40,7 +40,11 @@ export interface Prelude {
   tone?: 'paper' | 'ink';
   /** The tone on a compact layout, where it differs (a film in a card stands on paper there). */
   toneCompact?: 'paper' | 'ink';
-  opening?: 'window' | 'mist';
+  /**
+   * `studio`: the subject alone on the warm shade, as `mist` has it, without the mist (the mist is the
+   * hero's opening card's alone: CLAUDE.md). The MOD page's opening (2026-11-07).
+   */
+  opening?: 'window' | 'mist' | 'studio';
 }
 
 /**
@@ -96,6 +100,12 @@ interface FilmProps {
   reach?: number;
   /** Extra DOM pinned with the stage (HUD, counters). */
   children?: ReactNode;
+  /**
+   * Controls pinned over the picture from the first screen on: outside the
+   * HUD, which an opening keeps back until it has opened (the POD page's
+   * lengths on a phone, PodHero).
+   */
+  dock?: ReactNode;
   /** Extra DOM rendered inside a step's caption, keyed by step id. */
   stepExtras?: Record<string, ReactNode>;
   /** A step's title drawn by its section instead of set as text (words that follow the picture), keyed by step id. */
@@ -121,7 +131,21 @@ interface FilmProps {
   pick?: Pick;
 }
 
-const DAMPING = 6.5;
+/**
+ * How fast the picture catches up with the scroll, per second (developer, 2026-11-10: "the scroll should not look like
+ * ppt, i.e push the screen or pull. everything has control over the user"). It was 6.5, about 0.7 s to settle on top of
+ * the browser's own smooth scrolling of the wheel, so the picture went on moving after the hand had stopped; now about
+ * half a second. Enough to smooth a wheel's steps, not enough to carry the picture on by itself.
+ */
+const DAMPING = 9.5;
+/**
+ * How much scroll a film takes against the length it is given (the same evening: "decrease the scroll speed a little,
+ * that matches standard 3d website speed"): its travel and its title card's are this much longer, the pinned screen
+ * itself not, so every film's choreography (in fractions of the film) is unchanged and only slower under the wheel.
+ * A film that plays by itself (`play`) and one chosen in cards on a compact layout (`pick`) are not scrolled through.
+ */
+const PACE = 1.25;
+const paced = (screens: number) => 1 + Math.max(0, screens - 1) * PACE;
 /**
  * A film's scene is mounted when the film is within a screen of the
  * viewport, which is while the page is scrolling towards it: geometry, a
@@ -211,6 +235,9 @@ function stepIndex(steps: FilmStep[], p: number) {
  * events, with one exception the client asked for: a film that plays by
  * itself (`play`) holds the page for its few seconds (film/hold.ts).
  */
+/** How far an opening has gone (its `--pre`) when the controls docked over it take the steps' ground. */
+const DOCK_TURN = 0.28;
+
 export default function Film({
   id,
   index,
@@ -229,6 +256,7 @@ export default function Film({
   eager = false,
   reach = REACH,
   children,
+  dock,
   stepExtras,
   stepTitles,
   captions = 'fade',
@@ -281,12 +309,14 @@ export default function Film({
   const [open, setOpen] = useState(false);
   /** The picture has taken more of the screen than the card: the header reads against the picture from here. */
   const [risen, setRisen] = useState(false);
+  /** The opening has gone far enough that the ground under the dock is the steps' (Film, `dock`). */
+  const [turned, setTurned] = useState(false);
   /** A film that plays by itself is playing, or has played. */
   const [playState, setPlayState] = useState<'' | 'on' | 'done'>('');
   const played = playState === 'done';
   const playing = useRef({ on: false, done: false, raf: 0, ready: false });
 
-  const state = useRef({ raf: 0, last: 0, active: 0, reduced: false, visible: false, pre: '', open: false, risen: false, seen: false, soon: false, early: false });
+  const state = useRef({ raf: 0, last: 0, active: 0, reduced: false, visible: false, pre: '', open: false, risen: false, turned: false, seen: false, soon: false, early: false });
   /** Where the section stands in the document, its height and its stage's: read again only when the layout has changed (watchLayout). */
   const geo = useRef({ epoch: 0, top: 0, height: 0, vh: 1 });
   const where = () => {
@@ -303,8 +333,9 @@ export default function Film({
     }
     return g;
   };
-  const preLen = (compact ? prelude?.lengthCompact : undefined) ?? prelude?.length ?? 0;
-  const preLenC = prelude?.lengthCompact ?? prelude?.length ?? 0;
+  // A title card's scroll, at the films' pace (PACE).
+  const preLen = ((compact ? prelude?.lengthCompact : undefined) ?? prelude?.length ?? 0) * PACE;
+  const preLenC = (prelude?.lengthCompact ?? prelude?.length ?? 0) * PACE;
   const tone = (compact ? prelude?.toneCompact : undefined) ?? prelude?.tone ?? 'paper';
   /** Compact layouts with cards (`pick`): the steps are chosen, and the film is laid out with its picture in a card. */
   const picking = compact && !!pick;
@@ -405,6 +436,8 @@ export default function Film({
     const hud = pin.querySelector('.film__hud');
     const mo = new MutationObserver(watch);
     if (hud) mo.observe(hud, { childList: true });
+    const docked = pin.querySelector('.film__dock');
+    if (docked) mo.observe(docked, { childList: true });
     mqSide.addEventListener('change', measure);
     document.fonts?.ready.then(measure);
     return () => {
@@ -495,6 +528,11 @@ export default function Film({
           if (done !== state.current.open) {
             state.current.open = done;
             setOpen(done);
+          }
+          const turn = pre >= DOCK_TURN;
+          if (turn !== state.current.turned) {
+            state.current.turned = turn;
+            setTurned(turn);
           }
           const up = pre >= 0.8;
           if (up !== state.current.risen) {
@@ -694,7 +732,10 @@ export default function Film({
     if (compactRef.current && (el.classList.contains('lbl--box') || (edgeDims.current && el.classList.contains('lbl--dim')))) {
       const w = labelsW.current || window.innerWidth;
       const g = Math.min(48, Math.max(10, 0.03 * w));
-      const left = x < w / 2;
+      // Its side is kept until its point is well past the middle: a point on the middle went from edge to edge with
+      // every step of the scroll (developer, 2026-11-10: the pod's "Top cladding", "continously flickering").
+      const was = el.classList.contains('is-left') ? 1 : el.classList.contains('is-right') ? -1 : 0;
+      const left = x < w / 2 + was * 0.04 * w;
       if (el.classList.contains('is-left') !== left || !el.classList.contains(left ? 'is-left' : 'is-right')) {
         el.classList.toggle('is-left', left);
         el.classList.toggle('is-right', !left);
@@ -912,7 +953,8 @@ export default function Film({
   /* A step can switch the caption theme (a dark sky needs light text). */
   /** The step on show: chosen with the cards, or where the scroll is. */
   const shown = picking ? picked : active;
-  const stepTheme = (compact ? themeCompact : undefined) ?? steps[shown].theme ?? theme;
+  // Behind a title card, a step's own theme waits until the picture has taken the screen: the card is on its own ground (the POD page's paper card before its blue hour).
+  const stepTheme = (compact ? themeCompact : undefined) ?? (prelude && !risen ? theme : (steps[shown].theme ?? theme));
   /* What stands under the header: an ink title card until it has opened, then the film. */
   const headerTheme = prelude && tone === 'ink' && !risen ? 'dark' : stepTheme;
   useEffect(() => {
@@ -931,8 +973,9 @@ export default function Film({
   );
   const Heading = headingTag;
   const StepTitle = stepTag;
-  const len = length + preLen;
-  const lenC = (lengthCompact ?? length) + preLenC;
+  // At the films' pace (PACE), but for one that plays by itself, and on a compact layout one chosen in cards.
+  const len = (play ? length : paced(length)) + preLen;
+  const lenC = (play || pick ? (lengthCompact ?? length) : paced(lengthCompact ?? length)) + preLenC;
 
   return (
     <FilmContext.Provider value={progress}>
@@ -950,7 +993,7 @@ export default function Film({
         style={{ '--film-len': len, '--film-len-c': lenC } as CSSProperties}
       >
         <div className="film__sticky" ref={sticky}>
-          {prelude && <div className={`film__backdrop film__backdrop--${prelude.opening === 'mist' ? 'studio' : tone}`} aria-hidden="true" />}
+          {prelude && <div className={`film__backdrop film__backdrop--${prelude.opening === 'mist' || prelude.opening === 'studio' ? 'studio' : tone}`} aria-hidden="true" />}
           <div className={`film__stage${ready ? ' is-ready' : ''}`} aria-hidden="true" ref={stageRef}>
             {mount && <Suspense fallback={null}>{scene}</Suspense>}
             <div className="film__labels" ref={labelsBox}>
@@ -984,7 +1027,7 @@ export default function Film({
 
           <div className="film__hud">
             <header className="film__head" data-band="words">
-              <span className="film__index">{index}</span>
+              <span className="film__index">{steps[shown].index ?? index}</span>
               <Heading id={`${id}-heading`} className="film__heading">
                 {heading}
               </Heading>
@@ -1123,6 +1166,9 @@ export default function Film({
               </span>
             </div>
           )}
+
+          {/* On the steps' ground before the words have changed: an opening's land and sky come in under it first. */}
+          {dock && <div className={`film__dock${prelude && turned && !risen && (steps[shown].theme ?? theme) === 'dark' ? ' on-ink' : ''}`}>{dock}</div>}
         </div>
       </section>
     </FilmContext.Provider>

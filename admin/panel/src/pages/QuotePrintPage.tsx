@@ -52,7 +52,7 @@ function Document({ q, business }: { q: Quote; business: Settings['business'] })
         <header className="flex items-start justify-between gap-6 border-b border-[#111214]/25 pb-5">
           <div>
             <p className="text-[20pt] font-extrabold leading-none tracking-tight" style={{ fontStretch: '112%' }}>
-              VEE.BUILD
+              veedo<span className="font-normal text-[#6b6e74]">.space</span>
             </p>
             <p className="mt-1.5 flex items-center gap-1.5 text-[7.5pt] text-[#6b6e74]">
               Powered by <img src="/admin/brand/hemisphere-one.png" alt="Hemisphere One" className="h-[14px] w-auto" />
@@ -128,7 +128,7 @@ function Document({ q, business }: { q: Quote; business: Settings['business'] })
           <span>
             {q.number} · price list v{q.pricingVersion}
           </span>
-          <span>VEE.BUILD</span>
+          <span>veedo.space</span>
         </footer>
       </article>
     </div>

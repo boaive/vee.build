@@ -1,16 +1,20 @@
 ---
 /**
- * The wordmark and, under it, who the site is powered by, with the
- * Hemisphere One logo (client, 2026-10-11: "the Powered by Hemisphere
- * branding must include the Hemisphere logo", beneath the VEE.BUILD logo,
- * everywhere). The logo as supplied, on every ground, never recoloured
- * (developer, 2026-10-14: "the hemisphere one logo turns white and light
- * coloured, fix that"). It is a dark drawing on clear, so on ink it stands
- * on a small pill of the paper (base.css, .brand__logo); the header changes
- * ground with the chapter under it.
+ * The veedo.space logo as supplied (developer, 2026-11-07: "use the attached
+ * itself ... the logo will be same throughout the website"): the concrete
+ * mark and the wordmark on one line, and under them, no wider, who the site
+ * is powered by, with the Hemisphere One logo, larger than the words before
+ * it (developer, 2026-11-07; client, 2026-10-11: "the Powered by Hemisphere
+ * branding must include the Hemisphere logo", beneath the logo,
+ * everywhere). One logo on every ground, nothing behind it: the supplied
+ * concrete mark, and the wordmark in a concrete grey with its orange dot,
+ * which read on paper and on ink alike (base.css, .brand). The files are
+ * cut from the developer's artwork (src/assets/brand/veedo-*.png).
  */
 import { Image } from 'astro:assets';
 import hemisphereOne from '../../assets/brand/hemisphere-one.png';
+import mark from '../../assets/brand/veedo-mark.png';
+import word from '../../assets/brand/veedo-word.png';
 import { site } from '../../data/site';
 
 interface Props {
@@ -20,13 +24,10 @@ const { class: extra } = Astro.props;
 ---
 
 <a class:list={['brand', extra]} href="/" aria-label={`${site.name}, powered by ${site.poweredBy} — home`}>
-  <svg class="brand__mark" viewBox="0 0 34.5 12" aria-hidden="true">
-    <rect x="0.75" y="0.75" width="21" height="10.5"></rect>
-    <rect x="23.25" y="0.75" width="10.5" height="10.5"></rect>
-  </svg>
-  <span class="brand__word">VEE<i>.</i>BUILD</span>
+  <Image class="brand__mark" src={mark} alt="" height={28} densities={[1, 2, 3]} loading="eager" decoding="async" />
+  <Image class="brand__word" src={word} alt="" height={18} densities={[1, 2, 3]} loading="eager" decoding="async" />
   <span class="brand__by" aria-hidden="true">
     <span class="brand__by-word">Powered by</span>
-    <Image class="brand__logo" src={hemisphereOne} alt="" height={20} densities={[1, 2, 3]} loading="eager" decoding="async" />
+    <Image class="brand__logo" src={hemisphereOne} alt="" height={26} densities={[1, 2, 3]} loading="eager" decoding="async" />
   </span>
 </a>

@@ -322,7 +322,7 @@ function DataSection() {
         <Button variant="outline" disabled={!!busy} onClick={() => void get('csv', '/admin/enquiries/export.csv?status=all', 'enquiries.csv')}>
           {busy === 'csv' ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />} Enquiries (spreadsheet)
         </Button>
-        <Button variant="outline" disabled={!!busy} onClick={() => void get('json', '/admin/export', 'vee-build-data.json')}>
+        <Button variant="outline" disabled={!!busy} onClick={() => void get('json', '/admin/export', 'veedo-data.json')}>
           {busy === 'json' ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />} Everything (JSON)
         </Button>
       </div>

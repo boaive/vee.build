@@ -5,7 +5,7 @@ import csp from './scripts/csp.mjs';
 
 // CONFIRM: production domain (see .claude/vee-build-notes.md, A8).
 export default defineConfig({
-  site: 'https://vee.build',
+  site: 'https://veedo.space',
   trailingSlash: 'always',
   // csp: the Content Security Policy, with the built pages' inline script hashes, into dist/_headers.
   integrations: [react(), sitemap(), csp()],

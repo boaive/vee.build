@@ -120,7 +120,7 @@ try {
     ],
   });
   const loaded = new Promise((r) => waiting.set('Page.loadEventFired', r));
-  await send('Page.navigate', { url: `${base}/?noboot&live&hq&lite=0&q=0&px=8` });
+  await send('Page.navigate', { url: `${base}/modular/?noboot&live&hq&lite=0&q=0&px=8` });
   await loaded;
   await sleep(4000);
   // To the factory, past its title card, so that its scene is mounted and its frame open.

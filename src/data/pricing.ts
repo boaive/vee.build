@@ -44,4 +44,4 @@ export const pricing = {
   delivery: 38_000,
 } as const;
 
-export const pricingNote = 'Indicative estimate in Indian rupees, ex-works, excluding GST. Delivery within 100 km. Confirm with VEE.BUILD.';
+export const pricingNote = 'Indicative estimate in Indian rupees, ex-works, excluding GST. Delivery within 100 km. Please confirm with Vee.';

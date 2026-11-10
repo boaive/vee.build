@@ -14,7 +14,7 @@ import { publicApi } from './routes/public';
 import { quotes } from './routes/quotes';
 
 /**
- * The one Worker behind vee.build:
+ * The one Worker behind veedo.space:
  *   /api/*    this API (Hono)
  *   /admin/*  the admin panel (servePanel)
  *   anything else: the static site, straight from the assets.

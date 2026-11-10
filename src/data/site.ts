@@ -6,14 +6,22 @@ export interface NavItem {
   line?: boolean;
 }
 
+/**
+ * The name and the address since 2026-11-07 (developer: "change the logo and
+ * name of the website. it is veedo.space now"). `name` is the wordmark's,
+ * as the developer wrote it; `short` is the company where it is the subject
+ * of a sentence, in place of "we" ("How is Vee different?"; the developer,
+ * the same day: "you can use vee in the places where you need to use we").
+ * CONFIRM: the domain's being live (notes V).
+ */
 export const site = {
-  name: 'VEE.BUILD',
-  // CONFIRM: production domain.
-  url: 'https://vee.build',
+  name: 'veedo.space',
+  short: 'Vee',
+  url: 'https://veedo.space',
   locale: 'en_IN',
   tagline: 'Modular precast construction system',
   description:
-    'VEE.BUILD manufactures a standardized modular construction system. Two precast shells, 6 m × 3 m × 3 m and 3 m × 3 m × 3 m, combine into homes, farmhouses, workforce housing and multi-storey buildings.',
+    'Vee makes factory-made buildings: modular houses from two precast concrete shells, 6 m × 3 m × 3 m and 3 m × 3 m × 3 m, capsule homes, and precast panel buildings for schools, health centres and institutions.',
   // CONFIRM: none of these were supplied. Nothing is rendered while null.
   contact: {
     email: null as string | null,
@@ -24,6 +32,15 @@ export const site = {
   /** Client, 2026-10-09: "add powered by HEMISPHERE ONE". Logo supplied the same day (src/assets/brand). */
   poweredBy: 'Hemisphere One',
 } as const;
+
+/**
+ * Where the whole story of the system is told (how it works, the
+ * configurator, the factory, delivery, on site): the MOD page since
+ * 2026-11-07 (developer: "since this is the home screen, we don't have to
+ * show everything in here ... the removed item will go to the mod"). Home
+ * keeps the banners, the three lines and the enquiry form.
+ */
+export const story = '/modular/';
 
 /**
  * The top menu: Home | MOD | POD | FAB and Contact, nothing else. The client
@@ -50,7 +67,7 @@ export const primaryNav: NavItem[] = [
 export const bandNav: NavItem[] = [
   { label: 'Partnership', href: '/partnership/' },
   { label: 'Investors', href: '/#contact' },
-  { label: 'Technology', href: '/#how-it-works' },
+  { label: 'Technology', href: `${story}#how-it-works` },
 ];
 
 /**
@@ -63,13 +80,15 @@ export const bandNav: NavItem[] = [
 export const shown = { catalogue: false } as const;
 
 /**
- * The main page's chapters, in order (5 Build your own, 6 3D tour, 7 The
- * factory, 8 Delivery, as the client's notes of 2026-10-09 number them; 9
- * On site since 2026-10-14).
+ * The MOD page's chapters, in order: the main page's until 2026-11-07, when
+ * they moved there behind the page's own opening (the modular house, then
+ * its land), which takes the first number (5 Build your own, 6 3D tour, 7
+ * The factory, 8 Delivery, as the client's notes of 2026-10-09 number them;
+ * 9 On site since 2026-10-14).
  * The numbers are counted from this list, so a hidden chapter leaves no gap.
  */
 const chapters: { id: string; label: string; show?: boolean }[] = [
-  { id: 'overview', label: 'Overview' },
+  { id: 'modular', label: 'Modular house' },
   { id: 'how-it-works', label: 'How it works' },
   { id: 'components', label: 'Componentized building' },
   { id: 'difference', label: 'Key differences' },
@@ -81,7 +100,7 @@ const chapters: { id: string; label: string; show?: boolean }[] = [
   { id: 'installation', label: 'On site' },
   { id: 'catalogue', label: 'Catalogue', show: shown.catalogue },
   { id: 'gallery', label: 'Photo gallery' },
-  { id: 'contact', label: 'Contact' },
+  { id: 'contact', label: 'Enquire' },
 ];
 
 export const sections = chapters.filter((c) => c.show !== false).map((c, i) => ({ id: c.id, n: String(i + 1).padStart(2, '0'), label: c.label }));

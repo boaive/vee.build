@@ -305,6 +305,34 @@ export function liftRigGeometry() {
 
 const rigMats = [boomPaint, webbing];
 
+/**
+ * What hangs from the hook to lift a precast wall panel (the prefab
+ * building, kit/prefab.tsx): two slings from the hook to the ends of a
+ * spreader beam, and from each end a sling plumb down to a lifting anchor
+ * in the panel's top edge, so the panel hangs level and upright. Origin at
+ * the crane's hook; the anchors are `PANEL_RIG.drop` below it and
+ * `PANEL_RIG.anchor` either side of the middle, along the panel (x).
+ * Groups: 0 the beam and the upper slings, 1 the webbing.
+ */
+export const PANEL_RIG = { beam: 1.9, anchor: 3, drop: 3.2 } as const;
+
+export function panelRigGeometry() {
+  return memo('panel-rig-v1', () => {
+    const { beam, anchor, drop } = PANEL_RIG;
+    const steel: BufferGeometry[] = [box(anchor * 2 + 0.4, 0.24, 0.16, 0, -beam, 0), box(anchor * 2 + 0.4, 0.04, 0.24, 0, -beam + 0.12, 0), box(anchor * 2 + 0.4, 0.04, 0.24, 0, -beam - 0.12, 0)];
+    const web: BufferGeometry[] = [];
+    const ring = new TorusGeometry(0.13, 0.03, 8, 18);
+    ring.translate(0, -0.13, 0);
+    steel.push(ring);
+    for (const sx of [-1, 1]) {
+      steel.push(box(0.05, 0.2, 0.16, sx * anchor, -beam + 0.22, 0));
+      steel.push(rod([0, -0.26, 0], [sx * anchor, -beam + 0.28, 0], 0.026));
+      web.push(box(0.075, drop - beam - 0.16, 0.022, sx * anchor, -beam - 0.13 - (drop - beam - 0.16) / 2, 0));
+    }
+    return mergeGroups([steel, web]);
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /* Mobile crane                                                        */
 /* ------------------------------------------------------------------ */
@@ -393,6 +421,8 @@ export interface CraneProps {
   head?: number;
   /** How the lifting frame is turned (the way the shell under it lies), read every frame. */
   getTurn?: () => number;
+  /** What hangs from the hook: the shell's four-point frame, or the spreader beam for a wall panel. */
+  rig?: 'frame' | 'panel';
 }
 
 /**
@@ -401,7 +431,7 @@ export interface CraneProps {
  * its head stays `head` metres above the hook; the ram under the boom and
  * the two falls of rope follow.
  */
-export function MobileCrane({ position, heading = 0, getHook, head = 4.5, getTurn }: CraneProps) {
+export function MobileCrane({ position, heading = 0, getHook, head = 4.5, getTurn, rig = 'frame' }: CraneProps) {
   const upper = useRef<Group>(null);
   const boom = useRef<Group>(null);
   const sections = useRef<(Mesh | null)[]>([]);
@@ -498,7 +528,7 @@ export function MobileCrane({ position, heading = 0, getHook, head = 4.5, getTur
       <mesh ref={rope} geometry={falls} material={mat.steel} />
       <group ref={block}>
         <mesh geometry={hookBlock()} material={blockMats} castShadow />
-        <mesh geometry={liftRigGeometry()} material={rigMats} castShadow />
+        <mesh geometry={rig === 'panel' ? panelRigGeometry() : liftRigGeometry()} material={rigMats} castShadow />
       </group>
     </group>
   );

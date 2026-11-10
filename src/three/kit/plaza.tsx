@@ -142,9 +142,15 @@ export function PlazaFloor({ plaza, hold }: { plaza: Plaza; hold?: Ref<Group> })
   );
   const depth = useMemo(() => new MeshBasicMaterial({ colorWrite: false }), []);
   useEffect(() => () => depth.dispose(), [depth]);
+  /*
+   * The floor keeps out of the occlusion pass: seen from eye level (the card since 2026-11-10, the MOD and POD
+   * openings), what the pass gave the floor round a building's foot came out as a grainy fringe, the pod's like grass
+   * standing at its feet (developer, 2026-11-10: "the grass is not properly hidden"). The sun's shadow sets them on
+   * the floor; the buildings keep their own occlusion.
+   */
   return (
     <group ref={hold} position-y={PLAZA_Y}>
-      <mesh geometry={geo} material={plaza.material} renderOrder={PLAZA_ORDER.colour} frustumCulled={false} />
+      <mesh geometry={geo} material={plaza.material} renderOrder={PLAZA_ORDER.colour} frustumCulled={false} userData-unoccluded />
       <mesh geometry={geo} material={depth} renderOrder={PLAZA_ORDER.depth} frustumCulled={false} />
     </group>
   );

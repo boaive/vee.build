@@ -35,7 +35,7 @@ publicApi.post('/enquiries', bodyLimit({ maxSize: 64 * 1024, onError: () => { th
   const ipHash = await sha256(`${c.env.IP_SALT ?? ''}|${ip}`);
   const since = new Date(Date.now() - DAY_MS).toISOString();
   const recent = await c.env.DB.prepare('SELECT COUNT(*) AS n FROM enquiries WHERE ip_hash = ?1 AND created_at > ?2').bind(ipHash, since).first<{ n: number }>();
-  if ((recent?.n ?? 0) >= MAX_PER_DAY) throw new HttpError(429, 'VEE.BUILD already has several enquiries from you today, and will be in touch.');
+  if ((recent?.n ?? 0) >= MAX_PER_DAY) throw new HttpError(429, 'Vee has already received several enquiries from you today and will be in touch.');
 
   // A double click, or a resend after a slow answer: the first one stands.
   const tenMin = new Date(Date.now() - 10 * 60_000).toISOString();

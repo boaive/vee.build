@@ -1,6 +1,6 @@
 /**
  * Section 7. Real-world proof. Only add an item with kind 'photo' when it is
- * a genuine photograph of VEE.BUILD work. Renders must be kind 'render' and
+ * a genuine photograph of Veedo's work. Renders must be kind 'render' and
  * are labelled as visualisations on the page.
  *
  * To add a photograph: put the file in src/assets/gallery/, import it here

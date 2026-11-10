@@ -11,15 +11,21 @@ import { deckFinishes, shellFinishes, trimFinishes } from '../../data/build';
 import type { CameraKey } from '../../film/timeline';
 import { clearing } from './atmosphere';
 import { Paving } from './env';
-import { Capsule, CapsulePods, InstitutionalBlock, Pad, WorkforceBlock, padGeometry, type BuildingProps } from './buildings';
-import { merge } from './geometry';
+import { ease, win } from '../../film/timeline';
+import { Pad, padGeometry, type BuildingProps } from './buildings';
+import { Refined } from './refined';
+import { PrefabBuilding } from './prefab';
+import { UNIT_BOX, merge } from './geometry';
+import { Pod, podLabelId, type PodTrack } from './pod';
+import { POD, POD_DEFAULT, POD_LENGTHS } from './podPlan';
 import { Flowers, Fence, Grass, Ground, LAND, TreeLine, Woodland, along, strip, settled, type Eye, type FieldPatch, type LandPalette, type Rect, type TreeSpot } from './landscape';
 import type { Look, LookName } from './looks';
 import { mat } from './materials';
 import { HOME_FOOTPRINT, HOME_LAMP, HOME_LANDING, HOME_STEP_FOOT, ModelHome } from './modelhome';
 import { FARM_YAW } from './row';
 
-export type SetName = 'farm' | 'pods' | 'work' | 'campus';
+/** The hero's sets. The workforce set ('work') went with its banner on 2026-11-07. */
+export type SetName = 'farm' | 'pods' | 'campus';
 
 export interface SetInfo {
   look: LookName;
@@ -37,28 +43,27 @@ export const SETS: Record<SetName, SetInfo> = {
     shadow: 26,
   },
   /*
-   * The three capsules seen near eye level and near enough to read at their
-   * real size (client, 2026-10-11: "too small, like toy houses"), the row
-   * across the foot of the picture and under the caption on the left, which
-   * leaves that ground free. The camera looks a little right of the row's
-   * middle: the hero puts its target three quarters across (focus).
+   * The pod (since 2026-11-09 one, in the length chosen; 10 m first) seen
+   * from near eye level and near enough to read at its real size (client,
+   * 2026-10-11: "too small, like toy houses"): its front with the door, and
+   * its head end, glazed round its cut corners, turned a little to the
+   * camera as it comes round. The hero puts its target three quarters
+   * across (focus), clear of the caption.
    */
   pods: {
     look: 'blueHour',
-    from: { pos: [8.4, 1.78, 26.6], look: [5.5, 2.3, 0] },
-    to: { pos: [-1.6, 1.72, 25.8], look: [5, 2.24, 0] },
+    from: { pos: [-4.6, 1.85, 22.6], look: [0.5, 1.55, 0] },
+    to: { pos: [-9.6, 1.9, 21.0], look: [0.2, 1.5, 0] },
     shadow: 26,
   },
-  work: {
-    look: 'morning',
-    from: { pos: [31, 2.6, 45], look: [0, 4.2, 0] },
-    to: { pos: [19, 2.3, 39], look: [1.5, 4, 0] },
-    shadow: 34,
-  },
+  /*
+   * The prefab building (2026-11-07) from its front and its left end, where
+   * its galleries and its staircase are; the crane works from behind it.
+   */
   campus: {
     look: 'day',
-    from: { pos: [55, 3, 81], look: [0, 6.8, 0] },
-    to: { pos: [43, 2.6, 73], look: [0, 6.4, 0] },
+    from: { pos: [-46, 3.4, 70], look: [0, 5, 1] },
+    to: { pos: [-36, 2.9, 66], look: [1.5, 4.8, 1] },
     shadow: 46,
   },
 };
@@ -69,7 +74,7 @@ export const SETS: Record<SetName, SetInfo> = {
  * screen only ever pulls the camera farther back along the same line.
  */
 const eyeOf = (s: SetInfo): Eye => [0, 0.5, 1].map((u) => [s.from.pos[0] + (s.to.pos[0] - s.from.pos[0]) * u, s.from.pos[2] + (s.to.pos[2] - s.from.pos[2]) * u] as const);
-const EYE: Record<SetName, Eye> = { farm: eyeOf(SETS.farm), pods: eyeOf(SETS.pods), work: eyeOf(SETS.work), campus: eyeOf(SETS.campus) };
+const EYE: Record<SetName, Eye> = { farm: eyeOf(SETS.farm), pods: eyeOf(SETS.pods), campus: eyeOf(SETS.campus) };
 
 /**
  * A warm lamp: one point light per set, so the light count never changes
@@ -309,7 +314,7 @@ export function Lineup({
   hold,
   capsule,
   prefab,
-  feet,
+  podLength,
   bays,
 }: {
   /** 0–1: each one's lights, on once it stands. */
@@ -319,17 +324,18 @@ export function Lineup({
   hold?: Ref<Group>;
   capsule: Ref<Group>;
   prefab: Ref<Group>;
-  feet: number;
+  /** The pod's length on the card, in metres (kit/row.ts). */
+  podLength: number;
   bays: number;
 }) {
   return (
     <group ref={hold}>
       <group ref={capsule}>
-        <Capsule feet={feet} getT={whole} getLit={getCapsuleLit} look={look} />
+        <Pod length={podLength} getLit={getCapsuleLit} look={look} />
       </group>
-      {/* The block's own ground line is the top of its set's gravel pad: here it stands on the bare floor (the scene sets it that much lower). */}
+      {/* The prefab building, whole, `bays` panels long (prefabPlan.ts, PREFAB_ROW_BAYS). */}
       <group ref={prefab}>
-        <WorkforceBlock getA={whole} getLit={getPrefabLit} look={look} crane={false} bays={bays} />
+        <PrefabBuilding getA={whole} getLit={getPrefabLit} look={look} bays={bays} />
       </group>
     </group>
   );
@@ -379,7 +385,7 @@ function Landscape({
 /* Capsule pods at blue hour                                           */
 /* ------------------------------------------------------------------ */
 
-// A low wood edge well behind the pods: silhouettes against the twilight, below the headline.
+// A low wood edge well behind the pod: silhouettes against the twilight, below the headline.
 const POD_TREES: TreeSpot[] = along(
   [
     [-60, -34, 60, -40, 26],
@@ -392,59 +398,69 @@ const POD_LINES: [number, number, number, number, number][] = [
   [-300, -150, 300, -210, 110],
   [-340, -40, -260, 180, 40],
 ];
+/** The dimension line runs along the ground in front of the steps. */
+const POD_DIM_Z = POD.W / 2 + 1.55;
 
-export function PodSet({ getA, label, getShow, look }: Omit<BuildingProps, 'x'>) {
-  const palette = LAND.dusk;
+/**
+ * The pod's land at blue hour: the meadow and the wood edge, a gravel bed
+ * under the pod, kept back from where its longest length stands. `land`: a
+ * ref to it, for a scene to grow it from under the pod (the POD page). Its
+ * gravel keeps inside a clearing, as all land does (atmosphere.ts).
+ */
+export function PodLand({ land }: { land?: Ref<Group> }) {
+  const half = POD_LENGTHS[POD_LENGTHS.length - 1] / 2;
   return (
-    <group>
+    <group ref={land}>
       <Landscape
-        palette={palette}
+        palette={LAND.dusk}
         flat={40}
         hills={22}
         seed={12}
         trees={POD_TREES}
         lines={POD_LINES}
-        grass={{ center: [2, 12], radius: [32, 17], count: 6500, exclude: [{ x0: -14.5, z0: -4.5, x1: 14.5, z1: 4.6 }], height: 0.5 }}
+        grass={{ center: [2, 12], radius: [32, 17], count: 6500, exclude: [{ x0: -half - 1.6, z0: -POD.W / 2 - 1.2, x1: half + 1.6, z1: POD_DIM_Z + 0.9 }], height: 0.5 }}
         eye={EYE.pods}
       />
-      <Pad w={27} d={8.5} r={0.4} y={-0.02} material={mat.gravel} thickness={0.06} />
-      <CapsulePods getA={getA} label={label} getShow={getShow} look={look} />
-      <Lamp at={[0, 0.5, 3.6]} intensity={(look.lamps ?? 0) * 2.4} distance={12} />
+      <Pad w={2 * half + 2.6} d={POD.W + 3.4} r={0.35} y={-0.02} z={0.5} material={landMat('gravel')} thickness={0.06} />
     </group>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Workforce housing, morning                                          */
-/* ------------------------------------------------------------------ */
-
-const WORK_TREES: TreeSpot[] = [
-  { x: -24, z: -18, s: 0.9, variant: 0 },
-  { x: 24, z: -20, s: 1.25, variant: 2 },
-  { x: 36, z: -6, s: 1.0, variant: 1 },
-  { x: 30, z: -32, s: 1.1, variant: 0 },
-];
-const WORK_LINES: [number, number, number, number, number][] = [
-  [-320, -180, 300, -220, 100],
-  [280, -100, 360, 200, 40],
-];
-
-export function WorkSet({ getA, look }: Omit<BuildingProps, 'x'>) {
-  const palette = LAND.day;
+/**
+ * The hero's second banner (developer, 2026-11-09: one pod, the other two
+ * lengths to choose, 10 m first): the pod on its land at blue hour, set
+ * down on its feet as the set arrives, its lights on once it stands, its
+ * length drawn on the ground in front of it. It follows the visitor's
+ * choice of length (film/podChoice.ts). The pod is in the refined
+ * finishes, as the house is on the opening card (developer, 2026-11-09:
+ * "use the same level of detailing texture, render method"); its land is
+ * not. `track`: where the scene reads its length (its camera, podReach).
+ */
+export function PodSet({ getA, label, getShow, look, track: given }: Omit<BuildingProps, 'x'> & { track?: PodTrack }) {
+  const dim = useRef<Group>(null);
+  const own = useMemo<PodTrack>(() => ({ length: POD_DEFAULT, settled: POD_DEFAULT }), []);
+  const track = given ?? own;
+  const drop = useMemo(() => () => win(getA(), 0, 0.85, ease.linear), [getA]);
+  const lit = useMemo(() => () => win(getA(), 0.86, 0.97, ease.inOut), [getA]);
+  useFrame(() => {
+    const d = win(getA(), 0.8, 1, ease.out);
+    if (dim.current) dim.current.scale.set(Math.max(0.0001, d * track.length), 1, 1);
+    const still = Math.abs(track.length - track.settled) < 0.01 ? 1 : 0;
+    const show = d * still * (getShow?.() ?? 1);
+    if (label) for (const l of POD_LENGTHS) label(podLabelId(l), 0, 0.02, POD_DIM_Z, l === Math.round(track.settled) ? show : 0);
+  });
   return (
     <group>
-      <Landscape
-        palette={palette}
-        flat={50}
-        hills={26}
-        seed={21}
-        trees={WORK_TREES}
-        lines={WORK_LINES}
-        eye={EYE.work}
-      />
-      <Pad w={36} d={18} r={0.6} y={-0.02} material={mat.gravel} thickness={0.06} />
-      <WorkforceBlock getA={getA} look={look} />
-      <Lamp at={[0, 3, 5]} intensity={0} />
+      <PodLand />
+      <Refined value>
+        <Pod follow look={look} getDrop={drop} getLit={lit} track={track} lamp={(look.lamps ?? 0) * 1.6} />
+      </Refined>
+      {/* Only ever seen at blue hour, a dark picture: the dimension line takes the dark ground's accent. */}
+      <group ref={dim} position={[0, 0.05, POD_DIM_Z]}>
+        <mesh geometry={UNIT_BOX} material={mat.accentInk} scale={[1, 0.025, 0.025]} />
+        <mesh geometry={UNIT_BOX} material={mat.accentInk} scale={[0.0025, 0.025, 0.36]} position-x={-0.5} />
+        <mesh geometry={UNIT_BOX} material={mat.accentInk} scale={[0.0025, 0.025, 0.36]} position-x={0.5} />
+      </group>
     </group>
   );
 }
@@ -454,8 +470,8 @@ export function WorkSet({ getA, look }: Omit<BuildingProps, 'x'>) {
 /* ------------------------------------------------------------------ */
 
 const CAMPUS_TREES: TreeSpot[] = [
-  ...[-30, -20, -10, 10, 20, 30].map((x, i) => ({ x, z: 17, s: 0.95, variant: i % 3 })),
-  { x: -32, z: -10, s: 1.2, variant: 1 },
+  // Beside the building's right end only: a row in front hid its facade, and on the left they stood behind the caption (2026-11-07).
+  ...[34, 42].map((x, i) => ({ x, z: 15, s: 0.95, variant: i % 3 })),
   { x: 34, z: -12, s: 1.25, variant: 2 },
   { x: -8, z: -24, s: 1.3, variant: 0 },
   { x: 14, z: -26, s: 1.2, variant: 1 },
@@ -466,7 +482,14 @@ const CAMPUS_LINES: [number, number, number, number, number][] = [
   [320, -120, 400, 200, 40],
 ];
 
-export function CampusSet({ getA, label, getShow, look }: Omit<BuildingProps, 'x'>) {
+/**
+ * The prefab building by day, on its paving (developer, 2026-11-07: the G+2
+ * precast-panel building replaces the institutional block and the G+1 one).
+ * `crane`: it goes up as `getA` runs, each wall panel lifted into place by
+ * the mobile crane (the hero's third banner); without it, as it is given
+ * (the FAB page: whole).
+ */
+export function CampusSet({ getA, look, crane = true }: Omit<BuildingProps, 'x'> & { crane?: boolean }) {
   const palette = LAND.day;
   return (
     <group>
@@ -480,7 +503,9 @@ export function CampusSet({ getA, label, getShow, look }: Omit<BuildingProps, 'x
         eye={EYE.campus}
       />
       <Paving w={52} d={28} tile={2} y={0.012} material={mat.paving} line="#3b3e43" lineOpacity={0.09} />
-      <InstitutionalBlock getA={getA} label={label} getShow={getShow} look={look} />
+      <group position-y={0.02}>
+        <PrefabBuilding getA={getA} look={look} bays={3} crane={crane} />
+      </group>
       <Lamp at={[0, 3, 7]} intensity={0} />
     </group>
   );

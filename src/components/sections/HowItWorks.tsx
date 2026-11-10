@@ -78,7 +78,7 @@ export default function HowItWorks() {
     <Film
       id="how-it-works"
       index="02"
-      heading="How it works?"
+      heading="How it works"
       theme="light"
       captions="wipe"
       steps={systemSteps}

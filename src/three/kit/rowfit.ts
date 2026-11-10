@@ -262,8 +262,12 @@ export function frameRow(cam: PerspectiveCamera, row: Row, band: Band, mode: Row
 /** The arrangements tried: on a screen with the words over or beside the picture, and on a narrow one, where the picture is an upright card. */
 const STEPS = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1];
 const STEPS_COMPACT = [0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5];
-/** An arrangement seen from lower is taken before a larger one seen from higher, if it is at least this much of the largest. */
-const NEAR_BEST = 0.84;
+/**
+ * An arrangement seen from lower is taken before a larger one seen from higher, if it is at least this much of the
+ * largest. 0.84 until 2026-11-10, when the developer asked for the card from eye level (notes Y13): with the places
+ * found for it, every desktop screen tried is now seen from eye level, 4:3 included.
+ */
+const NEAR_BEST = 0.75;
 
 /**
  * The three and the camera on them for this screen. `only`: one
