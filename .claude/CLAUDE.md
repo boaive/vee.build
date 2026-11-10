@@ -369,6 +369,18 @@ security in `admin/README.md`):
   `public/_headers` by hand, and do not use Astro's `security.csp` (it
   misses the `is:inline` scripts).
 
+- The pace of the scroll is set in one place (`PACE` and `DAMPING` in
+  `Film.tsx`; developer, 2026-11-10: "decrease the scroll speed a little,
+  that matches standard 3d website speed", "the scroll should not look
+  like ppt, i.e push the screen or pull"; notes Y15): a film's travel and
+  its title card take 1.25 times the screens its `length` gives (the
+  pinned screen itself not), and the picture catches up with the scroll
+  in about half a second (it was 0.7 s, and went on after the hand had
+  stopped). A film that plays by itself and the compact layout's card
+  films are not paced. Change the pace there, not film by film; every
+  choreography is in fractions of its film and does not move. Nothing
+  scrolls the page for the visitor but a click (a step's tick, Replay, a
+  link).
 - A scene is a pure function of one damped progress value (0–1). No scene
   owns scroll listeners; `src/film/Film.tsx` does. Two films also run on
   time, both on the client's instruction of 2026-10-10. The truck's drive

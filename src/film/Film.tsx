@@ -131,7 +131,21 @@ interface FilmProps {
   pick?: Pick;
 }
 
-const DAMPING = 6.5;
+/**
+ * How fast the picture catches up with the scroll, per second (developer, 2026-11-10: "the scroll should not look like
+ * ppt, i.e push the screen or pull. everything has control over the user"). It was 6.5, about 0.7 s to settle on top of
+ * the browser's own smooth scrolling of the wheel, so the picture went on moving after the hand had stopped; now about
+ * half a second. Enough to smooth a wheel's steps, not enough to carry the picture on by itself.
+ */
+const DAMPING = 9.5;
+/**
+ * How much scroll a film takes against the length it is given (the same evening: "decrease the scroll speed a little,
+ * that matches standard 3d website speed"): its travel and its title card's are this much longer, the pinned screen
+ * itself not, so every film's choreography (in fractions of the film) is unchanged and only slower under the wheel.
+ * A film that plays by itself (`play`) and one chosen in cards on a compact layout (`pick`) are not scrolled through.
+ */
+const PACE = 1.25;
+const paced = (screens: number) => 1 + Math.max(0, screens - 1) * PACE;
 /**
  * A film's scene is mounted when the film is within a screen of the
  * viewport, which is while the page is scrolling towards it: geometry, a
@@ -319,8 +333,9 @@ export default function Film({
     }
     return g;
   };
-  const preLen = (compact ? prelude?.lengthCompact : undefined) ?? prelude?.length ?? 0;
-  const preLenC = prelude?.lengthCompact ?? prelude?.length ?? 0;
+  // A title card's scroll, at the films' pace (PACE).
+  const preLen = ((compact ? prelude?.lengthCompact : undefined) ?? prelude?.length ?? 0) * PACE;
+  const preLenC = (prelude?.lengthCompact ?? prelude?.length ?? 0) * PACE;
   const tone = (compact ? prelude?.toneCompact : undefined) ?? prelude?.tone ?? 'paper';
   /** Compact layouts with cards (`pick`): the steps are chosen, and the film is laid out with its picture in a card. */
   const picking = compact && !!pick;
@@ -958,8 +973,9 @@ export default function Film({
   );
   const Heading = headingTag;
   const StepTitle = stepTag;
-  const len = length + preLen;
-  const lenC = (lengthCompact ?? length) + preLenC;
+  // At the films' pace (PACE), but for one that plays by itself, and on a compact layout one chosen in cards.
+  const len = (play ? length : paced(length)) + preLen;
+  const lenC = (play || pick ? (lengthCompact ?? length) : paced(lengthCompact ?? length)) + preLenC;
 
   return (
     <FilmContext.Provider value={progress}>
